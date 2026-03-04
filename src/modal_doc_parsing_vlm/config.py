@@ -17,13 +17,24 @@ ENABLED_RUNTIME_PROFILES = tuple(
 
 ARTIFACT_ROOT = Path("/artifacts")
 HF_CACHE_ROOT = Path("/root/.cache/huggingface")
+HF_HUB_CACHE_ROOT = HF_CACHE_ROOT / "hub"
 VLLM_CACHE_ROOT = Path("/root/.cache/vllm")
+TORCHINDUCTOR_CACHE_ROOT = VLLM_CACHE_ROOT / "torchinductor"
 
 HF_CACHE_VOLUME_NAME = "doc-parse-hf-cache"
 VLLM_CACHE_VOLUME_NAME = "doc-parse-vllm-cache"
 ARTIFACTS_VOLUME_NAME = "doc-parse-artifacts"
 JOB_STATUS_DICT_NAME = "doc-parse-job-status"
 IDEMPOTENCY_DICT_NAME = "doc-parse-idempotency"
+
+STARTUP_WARMUP_ENABLED = os.environ.get("DOC_PARSE_STARTUP_WARMUP", "").lower() in {
+    "1",
+    "true",
+    "yes",
+}
+STARTUP_WARMUP_MAX_TOKENS = int(
+    os.environ.get("DOC_PARSE_STARTUP_WARMUP_MAX_TOKENS", "32")
+)
 
 RETENTION_DAYS = 7
 DEFAULT_POLL_AFTER_SECONDS = 2

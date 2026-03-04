@@ -39,6 +39,7 @@ The vLLM image setup follows Modal's `vllm_inference` example closely:
 - CUDA base image: `nvidia/cuda:12.9.0-devel-ubuntu22.04`
 - `modal.Image.from_registry(...).entrypoint([]).uv_pip_install(...)`
 - Hugging Face and vLLM cache volumes mounted into the container
+- explicit `HF_HOME` / `HF_HUB_CACHE` paths inside the mounted volumes
 - `enforce_eager` used as the fast-boot tradeoff in the debug profile
 
 For `Qwen/Qwen3.5-27B-FP8`, the worker does not use the older `vllm==0.13.0` example literally. It keeps the same Modal image pattern, but installs nightly `vllm` with an explicit CUDA torch backend (`cu129`) so the build does not fall back to CPU-only `torch`.
@@ -92,6 +93,12 @@ Stage a local file for `upload_ref` usage:
 PATH="$HOME/.local/bin:$PATH" modal run app.py::stage_upload --path ./sample.pdf
 ```
 
+Seed the Hugging Face cache volume before running inference:
+
+```bash
+PATH="$HOME/.local/bin:$PATH" modal run app.py::cache_model_weights --runtime-profile-name dev
+```
+
 Run retention cleanup once:
 
 ```bash
@@ -125,8 +132,10 @@ RUN_MODAL_TESTS=1 pytest tests/integration/test_modal_smoke.py
 ## Notes
 
 - JSON output is always persisted, even if the request only asks for markdown or text.
+- The parser engine no longer performs a heavyweight startup `chat()` warmup by default. vLLM still performs its own engine initialization; set `DOC_PARSE_STARTUP_WARMUP=1` only if you explicitly want an extra startup probe.
 - The orchestrator uses `spawn_map` for background chunk dispatch and then polls storage until all page results are terminal.
 - Page images are currently persisted for all jobs because the parser workers consume them from the artifacts volume.
 - Canonical result artifacts are stored in the Modal volume `doc-parse-artifacts` under `/jobs/<job_id>/result/`.
 - `smoke_test` also writes a local copy of the final JSON, markdown, text, and artifact paths under `./tmp/job-results/<job_id>/`.
 - The parser worker uses vLLM's offline `LLM.chat(...)` API for page batching, but the container and boot configuration are intentionally aligned with Modal's `vllm_inference` example.
+- The HF cache volume avoids repeated downloads, but each cold container still has to load the model into process and GPU memory. If you invoke `modal run ...` repeatedly, expect disk cache reuse but not reuse of a warm in-memory model from a previous app run.

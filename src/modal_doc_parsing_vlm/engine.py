@@ -11,11 +11,16 @@ from .config import (
     CUDA_IMAGE,
     ENGINE_TIMEOUT_SECONDS,
     HF_CACHE_ROOT,
+    HF_HUB_CACHE_ROOT,
     SAMPLING_MAX_TOKENS,
     SCALEDOWN_WINDOW_SECONDS,
+    STARTUP_WARMUP_ENABLED,
+    STARTUP_WARMUP_MAX_TOKENS,
+    TORCHINDUCTOR_CACHE_ROOT,
     VLLM_CACHE_ROOT,
 )
 from .json_output import page_error, parse_and_normalize_page_output
+from .model_cache import describe_model_cache
 from .prompts import build_page_prompt
 from .storage import FileSystemStorageBackend
 from .types_result import (
@@ -43,7 +48,14 @@ def build_vllm_image(runtime_profile) -> modal.Image:
 
     return (
         image.uv_pip_install(runtime_profile.vllm_package, **install_kwargs)
-        .env({"HF_XET_HIGH_PERFORMANCE": "1"})
+        .env(
+            {
+                "HF_HOME": str(HF_CACHE_ROOT),
+                "HF_HUB_CACHE": str(HF_HUB_CACHE_ROOT),
+                "TORCHINDUCTOR_CACHE_DIR": str(TORCHINDUCTOR_CACHE_ROOT),
+                "HF_XET_HIGH_PERFORMANCE": "1",
+            }
+        )
         .add_local_python_source("modal_doc_parsing_vlm")
     )
 
@@ -98,16 +110,20 @@ def create_engine_cls(
         self.runtime_profile_name = runtime_profile.name
         self.model_id = runtime_profile.model_id
         self.disable_thinking = runtime_profile.disable_thinking
+        cache_status = describe_model_cache(self.model_id)
         print(
             f"[engine:{self.runtime_profile_name}] loading model={self.model_id} "
             f"gpu={runtime_profile.gpu} disable_thinking={self.disable_thinking} "
-            f"enforce_eager={runtime_profile.enforce_eager}"
+            f"enforce_eager={runtime_profile.enforce_eager} "
+            f"cache_populated={cache_status.is_populated} "
+            f"snapshots={cache_status.snapshot_count} blobs={cache_status.blob_count}"
         )
         llm_kwargs = {
             "model": runtime_profile.model_id,
             "tensor_parallel_size": runtime_profile.tensor_parallel_size,
             "max_model_len": runtime_profile.max_model_len,
             "enforce_eager": runtime_profile.enforce_eager,
+            "download_dir": str(HF_HUB_CACHE_ROOT),
         }
         if runtime_profile.trust_remote_code:
             llm_kwargs["trust_remote_code"] = True
@@ -120,22 +136,34 @@ def create_engine_cls(
             temperature=0.0,
             max_tokens=SAMPLING_MAX_TOKENS["balanced"],
         )
-        print(f"[engine:{self.runtime_profile_name}] model initialized, starting warmup")
-        blank = Image.new("RGB", (128, 128), color="white")
-        warmup_prompt = build_page_prompt(
-            mode=ParseMode.BALANCED,
-            page_id=0,
-            strict_json=False,
-        )
-        self.llm.chat(
-            [_prompt_to_messages(warmup_prompt, blank)],
-            sampling_params=self.default_sampling_params,
-            chat_template_content_format="openai",
-            chat_template_kwargs=self.chat_template_kwargs,
-            use_tqdm=False,
-        )
-        blank.close()
-        print(f"[engine:{self.runtime_profile_name}] warmup complete")
+        if STARTUP_WARMUP_ENABLED:
+            print(
+                f"[engine:{self.runtime_profile_name}] running optional startup warmup "
+                f"max_tokens={STARTUP_WARMUP_MAX_TOKENS}"
+            )
+            blank = Image.new("RGB", (128, 128), color="white")
+            warmup_prompt = build_page_prompt(
+                mode=ParseMode.BALANCED,
+                page_id=0,
+                strict_json=True,
+            )
+            self.llm.chat(
+                [_prompt_to_messages(warmup_prompt, blank)],
+                sampling_params=SamplingParams(
+                    temperature=0.0,
+                    max_tokens=STARTUP_WARMUP_MAX_TOKENS,
+                ),
+                chat_template_content_format="openai",
+                chat_template_kwargs=self.chat_template_kwargs,
+                use_tqdm=False,
+            )
+            blank.close()
+            print(f"[engine:{self.runtime_profile_name}] optional startup warmup complete")
+        else:
+            print(
+                f"[engine:{self.runtime_profile_name}] model initialized; "
+                "skipping optional startup warmup"
+            )
 
     def _sampling_params_for_chunk(self, chunk: PageChunk):
         from vllm import SamplingParams

@@ -25,6 +25,7 @@ from modal_doc_parsing_vlm.config import (
     CONTROL_PLANE_PYTHON_VERSION,
     DEFAULT_RUNTIME_PROFILE,
     ENABLED_RUNTIME_PROFILES,
+    HF_CACHE_ROOT,
     HF_CACHE_VOLUME_NAME,
     IDEMPOTENCY_DICT_NAME,
     JOB_STATUS_DICT_NAME,
@@ -35,6 +36,7 @@ from modal_doc_parsing_vlm.config import (
 )
 from modal_doc_parsing_vlm.engine import create_engine_cls
 from modal_doc_parsing_vlm.mcp_server import build_fastapi_app
+from modal_doc_parsing_vlm.model_cache import ensure_model_cached
 from modal_doc_parsing_vlm.orchestrator import DocumentParseService, process_job
 from modal_doc_parsing_vlm.storage import FileSystemStorageBackend
 from modal_doc_parsing_vlm.types_api import (
@@ -49,6 +51,12 @@ app = modal.App(APP_NAME)
 control_plane_image = modal.Image.debian_slim(
     python_version=CONTROL_PLANE_PYTHON_VERSION
 ).uv_pip_install(*CONTROL_PLANE_DEPENDENCIES).add_local_python_source("modal_doc_parsing_vlm")
+cache_seed_image = modal.Image.debian_slim(
+    python_version=CONTROL_PLANE_PYTHON_VERSION
+).uv_pip_install(
+    *CONTROL_PLANE_DEPENDENCIES,
+    "huggingface-hub==0.36.0",
+).add_local_python_source("modal_doc_parsing_vlm")
 
 hf_cache_volume = modal.Volume.from_name(HF_CACHE_VOLUME_NAME, create_if_missing=True)
 vllm_cache_volume = modal.Volume.from_name(VLLM_CACHE_VOLUME_NAME, create_if_missing=True)
@@ -206,6 +214,34 @@ def cleanup_jobs_remote() -> list[str]:
 
 
 @app.function(
+    image=cache_seed_image,
+    volumes={str(HF_CACHE_ROOT): hf_cache_volume},
+    timeout=60 * 30,
+)
+def cache_model_weights_remote(
+    runtime_profile_name: str | None = None,
+) -> dict[str, object]:
+    runtime_profile = get_runtime_profile(runtime_profile_name or DEFAULT_RUNTIME_PROFILE)
+    status = ensure_model_cached(runtime_profile.model_id)
+    hf_cache_volume.commit()
+    result = {
+        "runtime_profile": runtime_profile.name,
+        "model_id": runtime_profile.model_id,
+        "cache_root": str(HF_CACHE_ROOT),
+        "model_root": str(status.model_root),
+        "snapshot_count": status.snapshot_count,
+        "blob_count": status.blob_count,
+        "cache_populated": status.is_populated,
+    }
+    print(
+        f"[app] cache_model_weights runtime_profile={runtime_profile.name} "
+        f"model_id={runtime_profile.model_id} snapshots={status.snapshot_count} "
+        f"blobs={status.blob_count}"
+    )
+    return result
+
+
+@app.function(
     image=control_plane_image,
     volumes={str(ARTIFACT_ROOT): artifacts_volume},
     schedule=modal.Period(days=1),
@@ -347,6 +383,12 @@ def stage_upload(path: str, mime_type: str | None = None):
 def cleanup_now():
     removed = cleanup_jobs_remote.remote()
     print("\n".join(removed))
+
+
+@app.local_entrypoint()
+def cache_model_weights(runtime_profile_name: str = DEFAULT_RUNTIME_PROFILE):
+    result = cache_model_weights_remote.remote(runtime_profile_name)
+    print(json.dumps(result, indent=2, sort_keys=True))
 
 
 @app.local_entrypoint()
