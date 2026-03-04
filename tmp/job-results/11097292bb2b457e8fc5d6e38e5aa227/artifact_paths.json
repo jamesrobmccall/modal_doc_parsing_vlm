@@ -1,0 +1,8 @@
+{
+  "document_json": "/jobs/11097292bb2b457e8fc5d6e38e5aa227/result/document_parse_result.json",
+  "document_markdown": "/jobs/11097292bb2b457e8fc5d6e38e5aa227/result/document.md",
+  "document_text": "/jobs/11097292bb2b457e8fc5d6e38e5aa227/result/document.txt",
+  "job_root": "/jobs/11097292bb2b457e8fc5d6e38e5aa227",
+  "result_root": "/jobs/11097292bb2b457e8fc5d6e38e5aa227/result",
+  "volume_name": "doc-parse-artifacts"
+}
