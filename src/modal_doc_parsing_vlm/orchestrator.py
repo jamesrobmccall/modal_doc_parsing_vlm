@@ -151,6 +151,10 @@ def process_job(
     poll_interval_seconds: float = DEFAULT_STATUS_POLL_INTERVAL_SECONDS,
 ):
     manifest = storage.read_job_manifest(job_id)
+    print(
+        f"[orchestrator] start job_id={job_id} runtime_profile={manifest.runtime_profile} "
+        f"mode={manifest.pipeline_mode.value}"
+    )
     split_started = time.perf_counter()
     storage.set_status(
         job_id,
@@ -197,6 +201,10 @@ def process_job(
         storage.write_chunk_manifest(chunk)
         for task in chunk.pages:
             storage.write_page_task(task)
+    print(
+        f"[orchestrator] split complete job_id={job_id} pages={len(manifest.pages)} "
+        f"chunks={len(chunks)}"
+    )
 
     split_ms = _elapsed_ms(split_started)
     storage.set_status(
@@ -212,8 +220,10 @@ def process_job(
 
     submit_started = time.perf_counter()
     if spawn_chunks is not None:
+        print(f"[orchestrator] submitting remote chunks job_id={job_id}")
         spawn_chunks(chunks)
     elif page_parser is not None:
+        print(f"[orchestrator] parsing inline chunks job_id={job_id}")
         for chunk in chunks:
             page_parser.parse_chunk(chunk)
     else:
@@ -238,6 +248,11 @@ def process_job(
         snapshot.timings.split_ms = split_ms
         snapshot.timings.submit_ms = submit_ms
         storage.set_status(job_id, snapshot)
+        print(
+            f"[orchestrator] poll job_id={job_id} status={snapshot.status.value} "
+            f"completed={snapshot.pages_completed} failed={snapshot.pages_failed} "
+            f"running={snapshot.pages_running}"
+        )
         if snapshot.pages_completed + snapshot.pages_failed >= len(manifest.pages):
             break
         time.sleep(poll_interval_seconds)
@@ -259,6 +274,10 @@ def process_job(
     else:
         final_snapshot.status = JobStatus.COMPLETED
     storage.set_status(job_id, final_snapshot)
+    print(
+        f"[orchestrator] done job_id={job_id} status={final_snapshot.status.value} "
+        f"completed={final_snapshot.pages_completed} failed={final_snapshot.pages_failed}"
+    )
     return final_snapshot
 
 
@@ -329,6 +348,10 @@ class DocumentParseService:
                 status=JobStatus.QUEUED,
                 pages_total=manifest.file_metadata.pages_total,
             ),
+        )
+        print(
+            f"[service] queued job_id={job_id} runtime_profile={self.runtime_profile.name} "
+            f"mime_type={request.mime_type.value} bytes={len(resolved.data)}"
         )
         self.schedule_job(job_id, self.runtime_profile.name)
         return SubmitDocumentParseResponse(

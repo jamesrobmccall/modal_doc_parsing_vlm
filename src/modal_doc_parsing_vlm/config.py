@@ -7,8 +7,13 @@ from pathlib import Path
 
 APP_NAME = "modal-doc-parsing-vlm"
 SCHEMA_VERSION = "1.0"
-PARSER_VERSION = "1.0.0"
+PARSER_VERSION = "1.2.1"
 DEFAULT_RUNTIME_PROFILE = os.environ.get("DOC_PARSE_RUNTIME_PROFILE", "prod")
+ENABLED_RUNTIME_PROFILES = tuple(
+    profile.strip()
+    for profile in os.environ.get("DOC_PARSE_ENABLED_RUNTIME_PROFILES", "prod,dev").split(",")
+    if profile.strip()
+)
 
 ARTIFACT_ROOT = Path("/artifacts")
 HF_CACHE_ROOT = Path("/root/.cache/huggingface")
@@ -29,12 +34,14 @@ SCALEDOWN_WINDOW_SECONDS = 60 * 5
 
 CONTROL_PLANE_PYTHON_VERSION = "3.12"
 CUDA_IMAGE = "nvidia/cuda:12.9.0-devel-ubuntu22.04"
-
-DEV_VLLM_PACKAGE = "vllm==0.13.0"
-PROD_VLLM_PACKAGE = (
-    "vllm @ git+https://github.com/vllm-project/vllm.git@"
-    "8e1fd5baf0ff272936618bf578533d9aa7080a27"
+VLLM_NIGHTLY_EXTRA_INDEX_URL = "https://wheels.vllm.ai/nightly"
+VLLM_UV_EXTRA_OPTIONS = (
+    "--torch-backend=cu129 "
+    "--index-strategy unsafe-best-match "
+    "--prerelease=allow"
 )
+
+QWEN35_VLLM_PACKAGE = "vllm"
 
 CONTROL_PLANE_DEPENDENCIES = [
     "fastapi==0.121.1",
@@ -47,10 +54,8 @@ CONTROL_PLANE_DEPENDENCIES = [
 ]
 
 COMMON_VLLM_DEPENDENCIES = [
-    "huggingface-hub==1.1.5",
-    "json-repair==0.54.1",
-    "pillow==12.0.0",
-    "pydantic==2.12.4",
+    *CONTROL_PLANE_DEPENDENCIES,
+    "huggingface-hub==0.36.0",
     "transformers==4.57.2",
 ]
 
@@ -62,12 +67,6 @@ MIME_TO_SUFFIX = {
     "application/pdf": ".pdf",
     "image/png": ".png",
     "image/jpeg": ".jpg",
-}
-
-QWEN_MM_PROCESSOR_KWARGS = {
-    "min_pixels": 28 * 28,
-    "max_pixels": 1280 * 28 * 28,
-    "fps": 1,
 }
 
 SAMPLING_MAX_TOKENS = {
@@ -94,8 +93,13 @@ class RuntimeProfile:
     model_id: str
     gpu: str
     vllm_package: str
+    vllm_extra_index_url: str | None = None
+    vllm_extra_options: str = ""
     tensor_parallel_size: int = 1
     trust_remote_code: bool = False
+    disable_thinking: bool = False
+    max_model_len: int = 16384
+    enforce_eager: bool = False
 
 
 RUNTIME_PROFILES = {
@@ -103,13 +107,22 @@ RUNTIME_PROFILES = {
         name="prod",
         model_id="Qwen/Qwen3.5-27B-FP8",
         gpu="H100",
-        vllm_package=PROD_VLLM_PACKAGE,
+        vllm_package=QWEN35_VLLM_PACKAGE,
+        vllm_extra_index_url=VLLM_NIGHTLY_EXTRA_INDEX_URL,
+        vllm_extra_options=VLLM_UV_EXTRA_OPTIONS,
+        disable_thinking=True,
+        max_model_len=8192,
     ),
     "dev": RuntimeProfile(
         name="dev",
-        model_id="Qwen/Qwen2.5-VL-7B-Instruct",
-        gpu="L40S",
-        vllm_package=DEV_VLLM_PACKAGE,
+        model_id="Qwen/Qwen3.5-27B-FP8",
+        gpu="H100",
+        vllm_package=QWEN35_VLLM_PACKAGE,
+        vllm_extra_index_url=VLLM_NIGHTLY_EXTRA_INDEX_URL,
+        vllm_extra_options=VLLM_UV_EXTRA_OPTIONS,
+        disable_thinking=True,
+        enforce_eager=True,
+        max_model_len=8192,
     ),
 }
 

@@ -24,13 +24,24 @@ Out of scope in this initial scaffold:
 - `prod`
   - model: `Qwen/Qwen3.5-27B-FP8`
   - GPU: `H100`
-  - vLLM: pinned to `vllm` main commit `8e1fd5baf0ff272936618bf578533d9aa7080a27`
+  - vLLM: nightly wheels from `https://wheels.vllm.ai/nightly`
+  - boot mode: standard startup
 - `dev`
-  - model: `Qwen/Qwen2.5-VL-7B-Instruct`
-  - GPU: `L40S`
-  - vLLM: `0.13.0`
+  - model: `Qwen/Qwen3.5-27B-FP8`
+  - GPU: `H100`
+  - vLLM: nightly wheels from `https://wheels.vllm.ai/nightly`
+  - boot mode: `enforce_eager=True` for faster cold-start debugging
 
 The public API does not expose profile selection. The deployed web endpoint defaults to `prod`. Local smoke testing can target `dev`.
+
+The vLLM image setup follows Modal's `vllm_inference` example closely:
+
+- CUDA base image: `nvidia/cuda:12.9.0-devel-ubuntu22.04`
+- `modal.Image.from_registry(...).entrypoint([]).uv_pip_install(...)`
+- Hugging Face and vLLM cache volumes mounted into the container
+- `enforce_eager` used as the fast-boot tradeoff in the debug profile
+
+For `Qwen/Qwen3.5-27B-FP8`, the worker does not use the older `vllm==0.13.0` example literally. It keeps the same Modal image pattern, but installs nightly `vllm` with an explicit CUDA torch backend (`cu129`) so the build does not fall back to CPU-only `torch`.
 
 ## Local setup
 
@@ -67,6 +78,12 @@ Run the end-to-end smoke test against the `dev` profile:
 
 ```bash
 PATH="$HOME/.local/bin:$PATH" modal run app.py::smoke_test --runtime-profile-name dev
+```
+
+Download a completed job's result bundle locally:
+
+```bash
+PATH="$HOME/.local/bin:$PATH" modal run app.py::download_result --job-id <job_id>
 ```
 
 Stage a local file for `upload_ref` usage:
@@ -110,3 +127,6 @@ RUN_MODAL_TESTS=1 pytest tests/integration/test_modal_smoke.py
 - JSON output is always persisted, even if the request only asks for markdown or text.
 - The orchestrator uses `spawn_map` for background chunk dispatch and then polls storage until all page results are terminal.
 - Page images are currently persisted for all jobs because the parser workers consume them from the artifacts volume.
+- Canonical result artifacts are stored in the Modal volume `doc-parse-artifacts` under `/jobs/<job_id>/result/`.
+- `smoke_test` also writes a local copy of the final JSON, markdown, text, and artifact paths under `./tmp/job-results/<job_id>/`.
+- The parser worker uses vLLM's offline `LLM.chat(...)` API for page batching, but the container and boot configuration are intentionally aligned with Modal's `vllm_inference` example.

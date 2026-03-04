@@ -1,0 +1,1276 @@
+{
+  "debug": {
+    "pages": {
+      "0": {
+        "prompt_path": "/artifacts/jobs/11097292bb2b457e8fc5d6e38e5aa227/pages/0/prompt.txt",
+        "raw_output_path": "/artifacts/jobs/11097292bb2b457e8fc5d6e38e5aa227/pages/0/raw_output.txt"
+      },
+      "1": {
+        "prompt_path": "/artifacts/jobs/11097292bb2b457e8fc5d6e38e5aa227/pages/1/prompt.txt",
+        "raw_output_path": "/artifacts/jobs/11097292bb2b457e8fc5d6e38e5aa227/pages/1/raw_output.txt"
+      },
+      "2": {
+        "prompt_path": "/artifacts/jobs/11097292bb2b457e8fc5d6e38e5aa227/pages/2/prompt.txt",
+        "raw_output_path": "/artifacts/jobs/11097292bb2b457e8fc5d6e38e5aa227/pages/2/raw_output.txt"
+      },
+      "3": {
+        "prompt_path": "/artifacts/jobs/11097292bb2b457e8fc5d6e38e5aa227/pages/3/prompt.txt",
+        "raw_output_path": "/artifacts/jobs/11097292bb2b457e8fc5d6e38e5aa227/pages/3/raw_output.txt"
+      },
+      "4": {
+        "prompt_path": "/artifacts/jobs/11097292bb2b457e8fc5d6e38e5aa227/pages/4/prompt.txt",
+        "raw_output_path": "/artifacts/jobs/11097292bb2b457e8fc5d6e38e5aa227/pages/4/raw_output.txt"
+      },
+      "5": {
+        "prompt_path": "/artifacts/jobs/11097292bb2b457e8fc5d6e38e5aa227/pages/5/prompt.txt",
+        "raw_output_path": "/artifacts/jobs/11097292bb2b457e8fc5d6e38e5aa227/pages/5/raw_output.txt"
+      },
+      "6": {
+        "prompt_path": "/artifacts/jobs/11097292bb2b457e8fc5d6e38e5aa227/pages/6/prompt.txt",
+        "raw_output_path": "/artifacts/jobs/11097292bb2b457e8fc5d6e38e5aa227/pages/6/raw_output.txt"
+      }
+    }
+  },
+  "format": "json",
+  "job_id": "11097292bb2b457e8fc5d6e38e5aa227",
+  "metadata": {
+    "file_metadata": {
+      "bytes": 9933255,
+      "file_name": "inline.pdf",
+      "mime_type": "application/pdf",
+      "pages_total": 7
+    },
+    "job_id": "11097292bb2b457e8fc5d6e38e5aa227",
+    "models": {
+      "page_vlm": "Qwen/Qwen3.5-27B-FP8"
+    },
+    "pipeline_mode": "balanced",
+    "schema_version": "1.0",
+    "timings": {
+      "aggregate_ms": 0,
+      "elapsed_ms": 662944,
+      "split_ms": 15810,
+      "submit_ms": 146
+    }
+  },
+  "pages": [
+    {
+      "attempts": 1,
+      "chunk_id": "chunk-0000",
+      "elements": [
+        {
+          "attributes": {},
+          "bbox": {
+            "coord": [
+              73,
+              46,
+              219,
+              56
+            ],
+            "page_id": 0
+          },
+          "confidence": 0.95,
+          "content": "Gut, 1991, 32, 893-899",
+          "id": "p0-e1",
+          "order": 1,
+          "page_id": 0,
+          "type": "header"
+        },
+        {
+          "attributes": {},
+          "bbox": {
+            "coord": [
+              873,
+              46,
+              900,
+              56
+            ],
+            "page_id": 0
+          },
+          "confidence": 0.98,
+          "content": "893",
+          "id": "p0-e2",
+          "order": 2,
+          "page_id": 0,
+          "type": "page_number"
+        },
+        {
+          "attributes": {},
+          "bbox": {
+            "coord": [
+              230,
+              78,
+              925,
+              145
+            ],
+            "page_id": 0
+          },
+          "confidence": 0.99,
+          "content": "Measurement of intracellular mediators in enterocytes isolated from jejunal biopsy specimens of control and cystic fibrosis patients",
+          "id": "p0-e3",
+          "order": 3,
+          "page_id": 0,
+          "type": "heading"
+        },
+        {
+          "attributes": {},
+          "bbox": {
+            "coord": [
+              230,
+              165,
+              800,
+              178
+            ],
+            "page_id": 0
+          },
+          "confidence": 0.98,
+          "content": "B W Hitchin, P R M Dobson, B L Brown, J Hardcastle, P T Hardcastle, C J Taylor",
+          "id": "p0-e4",
+          "order": 4,
+          "page_id": 0,
+          "type": "text"
+        },
+        {
+          "attributes": {},
+          "bbox": {
+            "coord": [
+              230,
+              195,
+              280,
+              205
+            ],
+            "page_id": 0
+          },
+          "confidence": 0.99,
+          "content": "Abstract",
+          "id": "p0-e5",
+          "order": 5,
+          "page_id": 0,
+          "type": "heading"
+        }
+      ],
+      "error": null,
+      "inference_ms": 230789,
+      "job_id": "11097292bb2b457e8fc5d6e38e5aa227",
+      "page_id": 0,
+      "page_markdown": "Gut, 1991, 32, 893-899\n\n893\n\n# Measurement of intracellular mediators in enterocytes isolated from jejunal biopsy specimens of control and cystic fibrosis patients\n\nB W Hitchin, P R M Dobson, B L Brown, J Hardcastle, P T Hardcastle, C J Taylor\n\n## Abstract\n\nA method that maximises the yield of viable enterocytes has been developed for the isolation of enterocytes from human jejunal biopsy specimens. These enterocytes have been used to study the values of intracellular free calcium and the rises in adenosine 3' 5'-cyclic monophosphate (cAMP) induced by secretagogues in normal and cystic fibrosis cells. Basal intracellular free calcium of cystic fibrosis enterocytes, measured fluorimetrically with fura-2, was within the range of the basal intracellular free calcium of non-cystic fibrosis enterocytes (cystic fibrosis 263 nmol/l; non-cystic fibrosis 287 nmol/l). Changes in intracellular free calcium were observed after exposure to ionomycin: a 100 nmol/l solution induced a 2.5 fold increase in intracellular free calcium in the cystic fibrosis enterocytes and a 2.2 fold increase in the intracellular free calcium concentration of the non-cystic fibrosis enterocytes. Basal cAMP values were not significantly different between cystic fibrosis and non-cystic fibrosis enterocytes (cystic fibrosis 575 fmol/100 000 cells; non-cystic fibrosis 716 fmol/100 000 cells, p>0.05) and the enterocyte cAMP value increased in response to stimulation with prostaglandin E2 (7 \u00b5mol/l) (cystic fibrosis 2.2 fold increase over basal, p<0.05; non-cystic fibrosis 1.9 fold stimulation over basal, p<0.05) and vasoactive intestinal polypeptide (100 nmol/l) (cystic fibrosis 7.1 fold increase over basal, p<0.05; non-cystic fibrosis 5.8 fold increase over basal, p<0.05). There was no significant difference in the magnitude of the response between cystic fibrosis and non-cystic fibrosis enterocytes (p>0.05). These results indicate that the cystic fibrosis defect in the small intestine, as in other affected epithelia, seems to be distal to the production of second messengers. The small intestine is therefore an appropriate model in which to study the biochemical defect in cystic fibrosis.\n\nprocess which increases transepithelial electrical activity,13 and this can be detected as a rise in short circuit current. In our previous studies, changes in transepithelial electrical activity have been used to detect changes in ion transport across the small bowel of biopsy material from children with and without cystic fibrosis.7 These studies have shown that while intestinal tissue from non-cystic fibrosis patients responded to a variety of secretagogues with an activation of chloride secretion, cystic fibrosis tissue failed to exhibit such a response to all secretagogues tested,7 indicating the absence of a functional mechanism for chloride secretion. Both groups of tissue showed a normal response to mucosal glucose, indicative of tissue viability. Thus the intestine, like the epithelia of the airways3-5 and sweat glands,12 fails to transport chloride in response to stimulation by agents that act via the second messenger, adenosine 3' 5'-cyclic monophosphate (cAMP). In contrast to airway tissues,5,11,14,15 the intestine also fails to transport chloride in response to secretagogues that act via changes in intracellular calcium,6,7 or guanosine 3' 5'-cyclic monophosphate (cGMP).15 The calcium ionophore A23187 did, however, induce a small short circuit current change in some cystic fibrosis biopsy specimens,7 while barium chloride, which stimulates intestinal secretion by releasing intracellular calcium,17,18 also increased the short circuit current in both control and cystic fibrosis biopsy specimens,19 suggesting that the mechanism for receptor operated increase of intracellular calcium may be impaired in the intestine of patients with cystic fibrosis. To determine whether abnormalities in epithelial ion transport in the small intestine of patients with cystic fibrosis reflect abnormal regulation of second messenger concentrations, cytosolic free calcium and cAMP values of enterocytes isolated from human jejunal biopsy specimens from cystic fibrosis and non-cystic fibrosis (control) patients were measured.\n\n## Methods\n\nFura 2/AM and ionomycin were purchased from Calbiochem, Cambridgeshire. (3H)-inulin and adenosine 3' 5'-cyclic monophosphoric acid 2'-O-succinyltyrosine (125I)-methylester were from Amersham International, Amersham, Buckinghamshire. RPMI-1640, phosphate buffered saline (PBS), and penicillin and streptomycin were from Gibco-Europe, Paisley, Strathclyde. Fetal calf serum (FCS) was obtained from Northumbria Biologicals, Northumberland. Vasoactive intestinal polypeptide (VIP) was obtained from Peninsula Laboratories,\n\nInstitute of Endocrinology, Department of Human Metabolism and Clinical Biochemistry, University Medical School, Sheffield\nB W Hitchin\nP R M Dobson\nB L Brown\n\nDepartments of Biomedical Science and Paediatrics, The University, Western Bank, Sheffield\nJ Hardcastle\nP T Hardcastle\nC J Taylor\n\nCorrespondence to:\nProfessor B L Brown, Institute of Endocrinology, Department of Human Metabolism and Clinical Biochemistry, Beech Hill Road, Sheffield S10 2RX.\n\nAccepted for publication 4 September 1990\n\nCystic fibrosis is an autosomal recessive disease, characterised by deficient chloride permeability in epithelia, including sweat glands,1,2 airways,3-5 and intestine.6,7 Although the gene coding for a protein associated with the defect has recently been identified,8-10 the exact biochemical nature of the defect remains unknown. It has been localised, however, to the apical membrane of the affected cells, where regulation of the chloride channels seems to be impaired,11,12 leading to a failure of the chloride secretory mechanism. Chloride secretion is an electrogenic",
+      "prompt_path": "/artifacts/jobs/11097292bb2b457e8fc5d6e38e5aa227/pages/0/prompt.txt",
+      "raw_output_path": "/artifacts/jobs/11097292bb2b457e8fc5d6e38e5aa227/pages/0/raw_output.txt",
+      "status": "completed",
+      "valid_on_first_pass": true,
+      "warnings": []
+    },
+    {
+      "attempts": 1,
+      "chunk_id": "chunk-0000",
+      "elements": [
+        {
+          "attributes": {},
+          "bbox": {
+            "coord": [
+              79,
+              56,
+              101,
+              66
+            ],
+            "page_id": 1
+          },
+          "confidence": 0.95,
+          "content": "894",
+          "id": "p1-e1",
+          "order": 1,
+          "page_id": 1,
+          "type": "page_number"
+        },
+        {
+          "attributes": {},
+          "bbox": {
+            "coord": [
+              612,
+              56,
+              919,
+              66
+            ],
+            "page_id": 1
+          },
+          "confidence": 0.95,
+          "content": "Hitchin, Dobson, Brown, Hardcastle, Hardcastle, Taylor",
+          "id": "p1-e2",
+          "order": 2,
+          "page_id": 1,
+          "type": "header"
+        },
+        {
+          "attributes": {},
+          "bbox": {
+            "coord": [
+              270,
+              85,
+              585,
+              145
+            ],
+            "page_id": 1
+          },
+          "confidence": 0.98,
+          "content": "Merseyside. Prostaglandin E2 (PGE2), 3-isobutyl-1-methylxanthine (IBMX), bovine serum albumin (BSA) fraction V, hyaluronidase type I-S, and soybean trypsin inhibitor type I-S were from Sigma Chemical Co, Poole, Dorset.",
+          "id": "p1-e3",
+          "order": 3,
+          "page_id": 1,
+          "type": "text"
+        }
+      ],
+      "error": null,
+      "inference_ms": 230789,
+      "job_id": "11097292bb2b457e8fc5d6e38e5aa227",
+      "page_id": 1,
+      "page_markdown": "894\nHitchin, Dobson, Brown, Hardcastle, Hardcastle, Taylor\n\nMerseyside. Prostaglandin E2 (PGE2), 3-isobutyl-1-methylxanthine (IBMX), bovine serum albumin (BSA) fraction V, hyaluronidase type I-S, and soybean trypsin inhibitor type I-S were from Sigma Chemical Co, Poole, Dorset.\n\nFura 2/AM and IBMX were dissolved in dimethylsulphoxide (DMSO) and were stored at -20\u00b0C. The Fura 2/AM was stored in the dark under argon at a stock concentration of 2 mmol/l, while the IBMX was stored at a stock concentration of 0.5 mmol/l. PGE2 was dissolved in ethanol and stored at -20\u00b0C at a stock concentration of 10 mg/ml. The concentration of DMSO in the incubations did not exceed 0.01%, and the concentration of ethanol did not exceed 0.001%.\n\n### EXPRESSION OF RESULTS\nThe statistics used were Student's t tests, paired or unpaired as appropriate. The level of statistical significance was set at p<0.05. Data are expressed as mean (SD), with the number of experiments in parentheses. Each experiment was performed on a separate enterocyte preparation.\n\n### ISOLATION OF ENTEROCYTES\n#### Rat tissue\nMale 200-250 g Wistar rats fed ad libitum were used for the preparation of enterocytes. The rats were killed by cervical dislocation and the small intestine was quickly removed and flushed free of contents with ice cold PBS. The intestine was opened longitudinally to form a sheet, and the tissue sheets were divided up into approximately 1 mm\u00b3 slices. The tissue was washed three times in sterile tissue medium (RPMI-1640 medium containing 25 mmol/l HEPES, 2 mmol/l glutamine, 0.01% trypsin inhibitor, 100 U/ml penicillin, and 100 \u00b5g/ml streptomycin) and transferred to oxygen saturated tissue medium containing 10% FCS and 0.15 mg/ml hyaluronidase. It was then incubated over a range of times at 4\u00b0C to allow the enzyme to penetrate the tissue without dissociation of the enterocytes. Excess medium was decanted off to leave moist tissue, and the enterocytes were released by gentle tituration of the tissue after a further 30 minutes incubation at 37\u00b0C under an atmosphere of 100% oxygen. The released enterocytes were collected by centrifugation at 100 g for two minutes, washed twice with tissue medium containing 0.1% BSA by resuspension and centrifugation, and then counted using either a haemocytometer or a Coulter counter. They were finally resuspended in experimental medium at the appropriate cell concentration for the experiment.\n\n#### Human tissue\nTissue samples for cAMP determinations were obtained from five children with cystic fibrosis (mean age 3.7 years, range 1 month-12 years) and 13 control children (mean age 6 years, range 4 months-17 years). In one child a biopsy was performed to confirm the diagnosis of cystic fibrosis in the face of conflicting sweat test results; the remaining four children were under investigation for malabsorption that was unresponsive to pancreatic enzymes. Partial villus atrophy was found in one cystic fibrosis patient associated with a cryptosporidia infection. The control children underwent biopsy as part of their investigation for chronic diarrhoea or failure to thrive. Tissue samples used for calcium determinations were obtained from two cystic fibrosis patients (2 months and 2 years of age) and nine control children (mean age 7.5 years, range 11 months-29 years). Biopsy tissue was obtained either endoscopically from the distal duodenum or via a double port Crosby or Watson biopsy capsule from the proximal jejunum and placed on ice in oxygen saturated tissue medium containing 0.1% BSA. The tissue was divided into 1 mm\u00b3 pieces and the enterocytes were isolated as described for rat tissue.\n\n### ENTEROCYTE VIABILITY\nViability was assessed by the ability of the enterocytes to exclude 0.05% trypan blue, and by assessing the cellular values of both potassium and adenosine triphosphate (ATP). For the trypan blue determinations, the enterocytes were mixed with trypan blue, left to stand at room temperature for two to five minutes, then the percentage of cells which excluded the dye was determined. ATP and potassium values were determined in cellular extracts prepared after rapid sedimentation of the cells from the medium by centrifugation for 15 seconds in a Beckman microfuge. The cells were extracted using 0.5% trichloroacetic acid. ATP in the cellular extracts was determined using a kit obtained from Sigma Diagnostics, while potassium values were determined by flame photometry using a Corning flame photometer. A correction was made for trapped extracellular fluid using [\u00b3H]-inulin.\n\n### cAMP ASSAY\nEnterocytes were resuspended in tissue medium containing 0.1% BSA at a cell concentration of 400 000 cells/ml. Cells (100 000) were preincubated with IBMX (1 mmol/l) for 10 minutes at 37\u00b0C. PGE2 or VIP was added to a final concentration of 7 \u00b5mol/l or 100 nmol/l respectively, and the cells were incubated for a further period (as indicated from each experiment) at 37\u00b0C. The reaction was terminated by the addition of ice cold ethanol to a final concentration of 65% (vol/vol). The cAMP was extracted from the cells as described previously,\u00b2\u2070 and was measured by radioimmunoassay.\u00b2\u00b9\n\n### DETERMINATION OF INTRACELLULAR FREE Ca\u00b2\u207a VALUES\nEnterocytes were resuspended in tissue medium containing 0.1% BSA at a cell concentration of 1-3 million cells/ml and were incubated for 30 minutes at 37\u00b0C with 2 \u00b5mol/l Fura 2/AM. The cells were diluted fivefold with tissue medium, washed twice with fresh tissue medium and once with PBS, then resuspended in oxygen saturated study buffer (137 mmol/l NaCl, 5 mmol/l KCl, 0.4 mmol/l MgSO\u2084, 0.5 mmol/l MgCl\u2082, 0.4",
+      "prompt_path": "/artifacts/jobs/11097292bb2b457e8fc5d6e38e5aa227/pages/1/prompt.txt",
+      "raw_output_path": "/artifacts/jobs/11097292bb2b457e8fc5d6e38e5aa227/pages/1/raw_output.txt",
+      "status": "completed",
+      "valid_on_first_pass": true,
+      "warnings": []
+    },
+    {
+      "attempts": 1,
+      "chunk_id": "chunk-0000",
+      "elements": [
+        {
+          "attributes": {},
+          "bbox": {
+            "coord": [
+              74,
+              46,
+              732,
+              56
+            ],
+            "page_id": 2
+          },
+          "confidence": 0.95,
+          "content": "Measurement of intracellular mediators in enterocytes isolated from jejunal biopsy specimens of control and cystic fibrosis patients",
+          "id": "p2-e1",
+          "order": 1,
+          "page_id": 2,
+          "type": "header"
+        },
+        {
+          "attributes": {},
+          "bbox": {
+            "coord": [
+              885,
+              46,
+              922,
+              56
+            ],
+            "page_id": 2
+          },
+          "confidence": 0.98,
+          "content": "895",
+          "id": "p2-e2",
+          "order": 2,
+          "page_id": 2,
+          "type": "page_number"
+        },
+        {
+          "attributes": {},
+          "bbox": {
+            "coord": [
+              74,
+              86,
+              922,
+              778
+            ],
+            "page_id": 2
+          },
+          "confidence": 0.9,
+          "content": "A B C D",
+          "id": "p2-e3",
+          "order": 3,
+          "page_id": 2,
+          "type": "figure"
+        },
+        {
+          "attributes": {},
+          "bbox": {
+            "coord": [
+              74,
+              608,
+              232,
+              778
+            ],
+            "page_id": 2
+          },
+          "confidence": 0.92,
+          "content": "Figure 1: Histological sections of rat small intestine incubated with hyaluronidase (original magnification \u00d790). (A) before hyaluronidase treatment, (B) after 30 minutes incubation at 37\u00b0C, (C) after 120 minutes incubation at 37\u00b0C, and (D) after 24 hours pretreatment at 4\u00b0C followed by 30 minutes at 37\u00b0C. The cells were isolated as described in the text, and the remaining tissue was processed for histological section.",
+          "id": "p2-e4",
+          "order": 4,
+          "page_id": 2,
+          "type": "caption"
+        },
+        {
+          "attributes": {},
+          "bbox": {
+            "coord": [
+              252,
+              810,
+              578,
+              850
+            ],
+            "page_id": 2
+          },
+          "confidence": 0.94,
+          "content": "mmol/l NaH2PO4, 1 mmol/l CaCl2, 10 mmol/l glucose, 1 mmol/l glutamine, 20 mmol/l HEPES, pH 7\u00b74) at a concentration of 0\u00b75\u20131 million cells/ml.",
+          "id": "p2-e5",
+          "order": 5,
+          "page_id": 2,
+          "type": "text"
+        },
+        {
+          "attributes": {},
+          "bbox": {
+            "coord": [
+              252,
+              852,
+              578,
+              950
+            ],
+            "page_id": 2
+          },
+          "confidence": 0.93,
+          "content": "Fluorescence measurements were made on a Perkin-Elmer LS-5B luminescence spectrometer with excitation wavelength at 340 nm (5 nm slit) and emission wavelength at 510 nm (10 nm slit). Enterocytes (3 ml) were placed in a stirred cuvette at room temperature, and intracellular free calcium was measured essentially as described by Tsien et al22 as modified by Wrench",
+          "id": "p2-e6",
+          "order": 6,
+          "page_id": 2,
+          "type": "text"
+        },
+        {
+          "attributes": {},
+          "bbox": {
+            "coord": [
+              598,
+              810,
+              922,
+              950
+            ],
+            "page_id": 2
+          },
+          "confidence": 0.93,
+          "content": "et al.23 The maximum fluorescence (Fmax) was determined after the addition of 10 \u00b5mol/l digitonin to lyse the cells and the minimum fluorescence (Fmin) was obtained by the addition of 100 \u00b5mol/l manganese chloride. However, a true Fmax was not obtained using this method since the enterocytes tended to aggregate and sediment after addition of the digitonin, causing the calcium fluorescence to rise initially but then apparently to fall. A similar effect was observed when the enterocytes were lysed using Triton X-100. Ionomycin (100 \u00b5mol/",
+          "id": "p2-e7",
+          "order": 7,
+          "page_id": 2,
+          "type": "text"
+        }
+      ],
+      "error": null,
+      "inference_ms": 230789,
+      "job_id": "11097292bb2b457e8fc5d6e38e5aa227",
+      "page_id": 2,
+      "page_markdown": "Measurement of intracellular mediators in enterocytes isolated from jejunal biopsy specimens of control and cystic fibrosis patients\n895\n\nFigure 1: Histological sections of rat small intestine incubated with hyaluronidase (original magnification \u00d790). (A) before hyaluronidase treatment, (B) after 30 minutes incubation at 37\u00b0C, (C) after 120 minutes incubation at 37\u00b0C, and (D) after 24 hours pretreatment at 4\u00b0C followed by 30 minutes at 37\u00b0C. The cells were isolated as described in the text, and the remaining tissue was processed for histological section.\n\nmmol/l NaH2PO4, 1 mmol/l CaCl2, 10 mmol/l glucose, 1 mmol/l glutamine, 20 mmol/l HEPES, pH 7\u00b74) at a concentration of 0\u00b75\u20131 million cells/ml.\n\nFluorescence measurements were made on a Perkin-Elmer LS-5B luminescence spectrometer with excitation wavelength at 340 nm (5 nm slit) and emission wavelength at 510 nm (10 nm slit). Enterocytes (3 ml) were placed in a stirred cuvette at room temperature, and intracellular free calcium was measured essentially as described by Tsien et al22 as modified by Wrench et al.23 The maximum fluorescence (Fmax) was determined after the addition of 10 \u00b5mol/l digitonin to lyse the cells and the minimum fluorescence (Fmin) was obtained by the addition of 100 \u00b5mol/l manganese chloride. However, a true Fmax was not obtained using this method since the enterocytes tended to aggregate and sediment after addition of the digitonin, causing the calcium fluorescence to rise initially but then apparently to fall. A similar effect was observed when the enterocytes were lysed using Triton X-100. Ionomycin (100 \u00b5mol/",
+      "prompt_path": "/artifacts/jobs/11097292bb2b457e8fc5d6e38e5aa227/pages/2/prompt.txt",
+      "raw_output_path": "/artifacts/jobs/11097292bb2b457e8fc5d6e38e5aa227/pages/2/raw_output.txt",
+      "status": "completed",
+      "valid_on_first_pass": true,
+      "warnings": []
+    },
+    {
+      "attempts": 1,
+      "chunk_id": "chunk-0000",
+      "elements": [
+        {
+          "attributes": {},
+          "bbox": {
+            "coord": [
+              100,
+              50,
+              125,
+              60
+            ],
+            "page_id": 3
+          },
+          "confidence": 0.95,
+          "content": "896",
+          "id": "p3-e1",
+          "order": 1,
+          "page_id": 3,
+          "type": "page_number"
+        },
+        {
+          "attributes": {},
+          "bbox": {
+            "coord": [
+              610,
+              50,
+              900,
+              60
+            ],
+            "page_id": 3
+          },
+          "confidence": 0.95,
+          "content": "Hitchin, Dobson, Brown, Hardcastle, Hardcastle, Taylor",
+          "id": "p3-e2",
+          "order": 2,
+          "page_id": 3,
+          "type": "header"
+        },
+        {
+          "attributes": {},
+          "bbox": {
+            "coord": [
+              100,
+              80,
+              580,
+              280
+            ],
+            "page_id": 3
+          },
+          "confidence": 0.9,
+          "content": "Bar chart showing mg cells/g wet weight intestine vs Time (hours)",
+          "id": "p3-e3",
+          "order": 3,
+          "page_id": 3,
+          "type": "figure"
+        },
+        {
+          "attributes": {},
+          "bbox": {
+            "coord": [
+              100,
+              290,
+              580,
+              320
+            ],
+            "page_id": 3
+          },
+          "confidence": 0.95,
+          "content": "Figure 2: Effect of time of incubation with hyaluronidase in the cold on the yield of rat enterocytes obtained from rat small intestine after a 30 minute incubation at 37\u00b0C. Rat small intestine was incubated with hyaluronidase for a range of times at 4\u00b0C. At each time point the enterocytes were isolated as described in the text and the wet weight of cells was determined.",
+          "id": "p3-e4",
+          "order": 4,
+          "page_id": 3,
+          "type": "caption"
+        }
+      ],
+      "error": null,
+      "inference_ms": 230789,
+      "job_id": "11097292bb2b457e8fc5d6e38e5aa227",
+      "page_id": 3,
+      "page_markdown": "896\n\nHitchin, Dobson, Brown, Hardcastle, Hardcastle, Taylor\n\nrafts of cells rather than single cells, and the cells produced have been shown to be permeable to Ca+ and other ions.26 27\n\nIncubation of rat tissue with hyaluronidase for 30 minutes at 37\u00b0C without any cold exposure released enterocytes mainly from the villus tips (compare Fig 1A with Fig 1B). The amount of cells released was increased by incubating the tissue for longer with the enzyme, but even after a two hour incubation large amounts of enterocytes remained undissociated from the tissue (Fig 1C). Tissue samples were therefore incubated with hyaluronidase in the cold (4\u00b0C) to allow the enzyme to penetrate the tissue in an inactive state without dissociation of the cells. RPMI-1640 has been used for organ culture of human intestine,28 so was used as the incubation medium in these experiments. After cold enzyme treatment, the tissue was warmed to 37\u00b0C for 30 minutes to activate the enzyme and release the cells. There was little increase in the cell yield obtained during a 37\u00b0C incubation after the initial four hours of cold exposure (Fig 2), but then there was a rapid increase in cell yield following warm incubation after four to 16 hours of cold incubation, with no further increase in yield when the period of cold incubation was extended to 24 hours. By 24 hours most of the enterocytes had been released from the tissue (Fig 2; Fig 1D). A similar pattern of cell release was also observed for human tissue (Fig 3).\n\n**CELL VIABILITY**\n\nBoth rat and human enterocytes isolated with hyaluronidase at 37\u00b0C were able to exclude trypan blue after all time periods of cold enzyme exposure: the percentage of cells capable of excluding trypan blue increased with the time of prior cold exposure from 80-85% exclusion without prior cold exposure to 95-98% trypan blue exclusion after 24 hours prior cold exposure, presumably as the more senescent enterocytes from the villus tips were autolysed.\n\nBasal potassium and ATP values of rat enterocytes remained approximately constant during the initial 20 hours of cold enzyme treatment and subsequent warm incubation at 233 to 270 nmol potassium/mg protein and 5.2 to 5.9 nmol ATP/mg protein, but fell rapidly between 20 and 24 hours of cold exposure to 120 (8) [3] nmol potassium/mg protein and 3.1 (0.4) [3] nmol ATP/mg protein by 24 hours. Values for potassium and ATP of human enterocytes were not obtained for early time points of cold enzyme treatment, since insufficient cells were released. However, the ATP value observed in human enterocytes prepared after 20 hours of cold exposure was 5.0 (0.3) [3] nmol/mg protein, which is comparable with the rat enterocyte value, and the potassium value was greater than that observed for rat enterocytes at 458 (56) [3] nmol/mg protein.\n\nEnterocytes were therefore routinely isolated from human jejunal biopsy specimens after incubation in the cold for 20 hours with hyaluronidase followed by a 30 minute incubation at 37\u00b0C, since this procedure yielded the maximum number of single cells without compromising the cellular viability.\n\nFigure 2: Effect of time of incubation with hyaluronidase in the cold on the yield of rat enterocytes obtained from rat small intestine after a 30 minute incubation at 37\u00b0C. Rat small intestine was incubated with hyaluronidase for a range of times at 4\u00b0C. At each time point the enterocytes were isolated as described in the text and the wet weight of cells was determined.\n\n1), however, caused incomplete calcium release, but at higher concentrations the cells also aggregated. The reported calcium values are therefore likely to seem high. The intracellular free calcium was calculated using the equation, Ca2+i= 224\u00d7{F-Fmin}/{Fmax-F}, where F is the base line level of fluorescence and 224 is the dissociation constant of Fura 2 (in nmol/l). Minimum autofluorescence of the cells was noted and subtracted from all measurements.\n\n**Results**\n\n**ISOLATION OF ENTEROCYTES**\n\nThe two most common methods used to isolate enterocytes are either hyaluronidase treatment24 or the use of Ca2+ chelators such as EDTA or citrate25 to disrupt epithelial structure. We chose to isolate enterocytes using the former method, since the latter method tends to produce\n\nFigure 3: Effect of time of incubation with hyaluronidase in the cold on the yield of human enterocytes obtained from human jejunal biopsy specimens after a 30 minute incubation at 37\u00b0C. Human small intestinal biopsy specimens were incubated with hyaluronidase for a range of times at 4\u00b0C. At each time point the enterocytes were isolated as described in the text and the mean cell yield was determined. Each value represents a separate preparation.",
+      "prompt_path": "/artifacts/jobs/11097292bb2b457e8fc5d6e38e5aa227/pages/3/prompt.txt",
+      "raw_output_path": "/artifacts/jobs/11097292bb2b457e8fc5d6e38e5aa227/pages/3/raw_output.txt",
+      "status": "completed",
+      "valid_on_first_pass": true,
+      "warnings": []
+    },
+    {
+      "attempts": 1,
+      "chunk_id": "chunk-0000",
+      "elements": [
+        {
+          "attributes": {},
+          "bbox": {
+            "coord": [
+              76,
+              50,
+              735,
+              60
+            ],
+            "page_id": 4
+          },
+          "confidence": 0.95,
+          "content": "Measurement of intracellular mediators in enterocytes isolated from jejunal biopsy specimens of control and cystic fibrosis patients",
+          "id": "p4-e1",
+          "order": 1,
+          "page_id": 4,
+          "type": "header"
+        },
+        {
+          "attributes": {},
+          "bbox": {
+            "coord": [
+              870,
+              50,
+              900,
+              60
+            ],
+            "page_id": 4
+          },
+          "confidence": 0.98,
+          "content": "897",
+          "id": "p4-e2",
+          "order": 2,
+          "page_id": 4,
+          "type": "page_number"
+        },
+        {
+          "attributes": {},
+          "bbox": {
+            "coord": [
+              240,
+              85,
+              580,
+              95
+            ],
+            "page_id": 4
+          },
+          "confidence": 0.92,
+          "content": "Intracellular mediators in control and cystic fibrosis enterocytes",
+          "id": "p4-e3",
+          "order": 3,
+          "page_id": 4,
+          "type": "heading"
+        },
+        {
+          "attributes": {},
+          "bbox": {
+            "coord": [
+              240,
+              105,
+              580,
+              195
+            ],
+            "page_id": 4
+          },
+          "confidence": 0.94,
+          "content": "| | Control | Cystic fibrosis |\n|---|---|---|\n| Calcium (nmol/l) | | |\n| Basal | 287 (85) [9] | 263 (37) [2] |\n| Ionomycin (100 nmol/l) | 640 (30) [3] | 663 [1] |\n| cAMP (fmol/100 000 cells) | | |\n| Basal | 716 (304) [13] | 575 (49) [5] |\n| VIP (100 nmol/l) | 4144 (445) [3] | 4061 (169) [3] |\n| PGE2 (7 \u00b5mol/l) | 1190 (445) [13] | 1251 (426) [4] |",
+          "id": "p4-e4",
+          "order": 4,
+          "page_id": 4,
+          "type": "table"
+        },
+        {
+          "attributes": {},
+          "bbox": {
+            "coord": [
+              240,
+              200,
+              580,
+              290
+            ],
+            "page_id": 4
+          },
+          "confidence": 0.93,
+          "content": "cAMP=adenosine 3'5'-cyclic monophosphate; VIP=vasoactive intestinal polypeptide; PGE2=prostaglandin E2.\nBasal and ionomycin stimulated changes in intracellular free calcium values of enterocytes isolated from jejunal biopsy specimens of control and cystic fibrosis patients were determined as described in the text. For the cAMP determinations, enterocytes were incubated for 10 minutes at 37\u00b0C with 1 mmol/l IBMX, and were then incubated for a further five minutes with either vehicle only (basal), VIP, or PGE2. The reaction was stopped and the cAMP extracted from the cells and analysed as described in the text.",
+          "id": "p4-e5",
+          "order": 5,
+          "page_id": 4,
+          "type": "text"
+        },
+        {
+          "attributes": {},
+          "bbox": {
+            "coord": [
+              240,
+              315,
+              450,
+              325
+            ],
+            "page_id": 4
+          },
+          "confidence": 0.96,
+          "content": "INTRACELLULAR FREE CALCIUM",
+          "id": "p4-e6",
+          "order": 6,
+          "page_id": 4,
+          "type": "heading"
+        }
+      ],
+      "error": null,
+      "inference_ms": 230789,
+      "job_id": "11097292bb2b457e8fc5d6e38e5aa227",
+      "page_id": 4,
+      "page_markdown": "Measurement of intracellular mediators in enterocytes isolated from jejunal biopsy specimens of control and cystic fibrosis patients\n897\n\n**Intracellular mediators in control and cystic fibrosis enterocytes**\n\n| | Control | Cystic fibrosis |\n|---|---|---|\n| Calcium (nmol/l) | | |\n| Basal | 287 (85) [9] | 263 (37) [2] |\n| Ionomycin (100 nmol/l) | 640 (30) [3] | 663 [1] |\n| cAMP (fmol/100 000 cells) | | |\n| Basal | 716 (304) [13] | 575 (49) [5] |\n| VIP (100 nmol/l) | 4144 (445) [3] | 4061 (169) [3] |\n| PGE2 (7 \u00b5mol/l) | 1190 (445) [13] | 1251 (426) [4] |\n\ncAMP=adenosine 3'5'-cyclic monophosphate; VIP=vasoactive intestinal polypeptide; PGE2=prostaglandin E2.\nBasal and ionomycin stimulated changes in intracellular free calcium values of enterocytes isolated from jejunal biopsy specimens of control and cystic fibrosis patients were determined as described in the text. For the cAMP determinations, enterocytes were incubated for 10 minutes at 37\u00b0C with 1 mmol/l IBMX, and were then incubated for a further five minutes with either vehicle only (basal), VIP, or PGE2. The reaction was stopped and the cAMP extracted from the cells and analysed as described in the text.\n\n**INTRACELLULAR FREE CALCIUM**\nThe basal values of intracellular free calcium did not seem to differ between normal and cystic fibrosis enterocytes (Table). The intracellular free calcium concentration of isolated enterocytes could be increased by exposing the cells to ionomycin, a non-fluorescent calcium ionophore, inducing a 2.2 fold increase in intracellular free calcium of normal enterocytes and a 2.5 fold increase in cystic fibrosis enterocytes (Table). However, the enterocytes isolated from both normal and cystic fibrosis biopsy specimens all failed to respond to secretagogues known to mobilise calcium (acetylcholine, carbachol, substance P, 5-hydroxytryptamine), which act mainly through cAMP (PGE2, VIP, dibutyryl-cAMP), or which act through cGMP (Escherichia coli STa). A range of doses and exposure times to each of these agents failed to change the intracellular free calcium values within the enterocytes. The changes in intracellular free calcium values in normal and cystic fibrosis enterocytes in response to secretagogue challenge could not, therefore, be compared. This lack of effect of secretagogues on intracellular calcium values was also observed using rat enterocytes prepared by the method of Kimmich.24\n\n**cAMP VALUES**\nEnterocytes isolated from human jejunal biopsy specimens retained the ability to respond to stimulation by both PGE2 and VIP with an increase in cAMP. The basal value of cAMP production of cystic fibrosis enterocytes seemed to be lower than that of the normal enterocytes, although the difference was not significant, p>0.05 (Table). In the presence of the phosphodiesterase inhibitor, IBMX, the maximum rise in cAMP was observed after five minutes of PGE2 stimulation (Fig 4). PGE2 induced a 1.9 fold increase in cAMP production above basal values in normal enterocytes, p<0.05 (Fig 5; Table), which was not significantly different (p>0.05) from the 2.2 fold increase over basal values induced in cystic fibrosis enterocytes (p<0.05). VIP was found to be a more potent stimulus for cAMP generation in both the normal and cystic fibrosis enterocytes. The cAMP values were increased 6.3 fold in the control enterocytes compared with a 7.1 fold rise in the cystic fibrosis enterocytes (Table), suggesting that the cystic fibrosis enterocytes respond as well as the normal enterocytes to VIP.\n\n**Discussion**\nA method has been developed for the isolation of enterocytes from human jejunal biopsy specimens which maximises the yield of viable enterocytes obtained. These enterocytes have been used to study the values of intracellular free",
+      "prompt_path": "/artifacts/jobs/11097292bb2b457e8fc5d6e38e5aa227/pages/4/prompt.txt",
+      "raw_output_path": "/artifacts/jobs/11097292bb2b457e8fc5d6e38e5aa227/pages/4/raw_output.txt",
+      "status": "completed",
+      "valid_on_first_pass": true,
+      "warnings": []
+    },
+    {
+      "attempts": 1,
+      "chunk_id": "chunk-0000",
+      "elements": [
+        {
+          "attributes": {},
+          "bbox": {
+            "coord": [
+              84,
+              59,
+              107,
+              69
+            ],
+            "page_id": 5
+          },
+          "confidence": 0.98,
+          "content": "898",
+          "id": "p5-e1",
+          "order": 1,
+          "page_id": 5,
+          "type": "page_number"
+        },
+        {
+          "attributes": {},
+          "bbox": {
+            "coord": [
+              624,
+              59,
+              915,
+              69
+            ],
+            "page_id": 5
+          },
+          "confidence": 0.95,
+          "content": "Hutchin, Dobson, Brown, Hardcastle, Hardcastle, Taylor",
+          "id": "p5-e2",
+          "order": 2,
+          "page_id": 5,
+          "type": "header"
+        },
+        {
+          "attributes": {},
+          "bbox": {
+            "coord": [
+              269,
+              89,
+              584,
+              251
+            ],
+            "page_id": 5
+          },
+          "confidence": 0.97,
+          "content": "calcium and the increase in cAMP induced by secretagogues in normal and cystic fibrosis cells. The results indicate that the cystic fibrosis enterocytes retain the ability to respond to secretagogue stimulation with an increase in the cAMP value, and there is not significant difference in either the basal cAMP value or in the response to stimulation between normal and cystic fibrosis enterocytes. Previously, similar results have been obtained using other epithelial tissues that are affected by cystic fibrosis (sweat ducts41; airways tissues14,42,45; salivary glands43; rectum44).",
+          "id": "p5-e3",
+          "order": 3,
+          "page_id": 5,
+          "type": "text"
+        }
+      ],
+      "error": null,
+      "inference_ms": 230789,
+      "job_id": "11097292bb2b457e8fc5d6e38e5aa227",
+      "page_id": 5,
+      "page_markdown": "898\n\nHutchin, Dobson, Brown, Hardcastle, Hardcastle, Taylor\n\ncalcium and the increase in cAMP induced by secretagogues in normal and cystic fibrosis cells. The results indicate that the cystic fibrosis enterocytes retain the ability to respond to secretagogue stimulation with an increase in the cAMP value, and there is not significant difference in either the basal cAMP value or in the response to stimulation between normal and cystic fibrosis enterocytes. Previously, similar results have been obtained using other epithelial tissues that are affected by cystic fibrosis (sweat ducts41; airways tissues14,42,45; salivary glands43; rectum44).\n\nBasal intracellular calcium values of cystic fibrosis and normal enterocytes also seem to be similar, but although changes in intracellular calcium concentration could be induced by the ionophore ionomycin, they were consistently unresponsive to secretagogues that act via membrane receptors. This is probably not a consequence of membrane receptor impairment, since enterocytes isolated under identical conditions were capable of responding to PG and VIP stimulation with an increased cAMP accumulation. Thus some other factor, perhaps related to either the isolation procedure itself or to the viability of the enterocytes upon incubation, may contribute to the lack of detectable calcium responses. Basal calcium values for normal and cystic fibrosis nasal epithelium were reported by Murphy et al29 and more recently by Boucher et al5 and both groups found no significant difference in the basal calcium concentrations between cystic fibrosis and normal cells. Although Boucher et al5 found an increase in intracellular free calcium in response to stimulation by bradykinin which was equal in magnitude between normal and cystic fibrosis cells, Murphy et al29 were unable to observe changes in intracellular calcium concentrations in response to agents that increase cAMP. While Murphy et al suggested that the lack of response may be a consequence of the disaggregation procedure, they concluded that it was more likely that substantial changes in intracellular calcium concentrations in response to cAMP accumulation are not a major feature of human respiratory epithelia. Values of intracellular calcium in mammalian enterocytes obtained using fluorescent indicators have not been previously reported, although values of intracellular calcium have been reported for chicken enterocytes,30,31 and these cells have been shown to respond to secretagogue challenge with an increase in intracellular calcium. These responses were small (25\u201365 nmol/l changes), however, and were strongly influenced by age, species, and even diet of the donor chicken (Chang, personal communication). Furthermore, Chang and co-workers have been unable to obtain similar data for mammalian cells. At least one other group has also attempted to obtain values of intracellular calcium for mammalian enterocytes using fluorescent indicators,32 but without success. The mammalian enterocyte system does not, therefore, seem to be ideal for these types of studies. It may be that the changes in intracellular calcium values induced in enterocytes by secretagogue challenge are very small or localised to specific cellular pools in vivo, or both, so may be undetected in the in vitro system. Alternatively, calcium mobilisation may be of lesser importance in these tissues.\n\nThe results obtained with VIP in this study are particularly interesting in the light of recent reports of sparse innervation of cystic fibrosis nasal and small intestinal mucosae by fibres that contain immunoreactive VIP.33\u201335 There is not a generalised loss of these fibres since VIP immunoreactive fibres innervating the muscle layers and myenteric plexus of the intestine are largely unaffected. As there is evidence to suggest that VIP is the major non-cholinergic transmitter of secretomotor neurones, controlling water and electrolyte secretion in the small intestine and promoting an increase in blood flow to the mucosa,36\u201339 the deficiency of VIP containing neurones within the mucosa in cystic fibrosis was postulated to contribute to the pathogenesis of the disease. Our studies, however, show that the enterocytes of the intestinal mucosa of cystic fibrosis patients retain the ability to respond to VIP with an increase in cAMP production that was equal in size to the response obtained in normal tissue. Thus, despite the sparse innervation, the receptors for VIP seem to be present on the cystic fibrosis enterocytes and they also seem to be functionally coupled to adenylyl cyclase. This was also confirmed in another recent study of fetal intestine,40 in which the receptors for VIP were found to be present in equal abundance and to have similar biochemical and functional properties to those from normal intestine. Thus, the lack of innervation of VIP containing fibres to the intestinal mucosa does not seem secondary to a lack of functional VIP receptors, but may be brought about as a consequence of the ability of the enterocyte to attract or to sustain the fibres, perhaps as a result of an absent or abnormal membrane protein in the epithelial cells.\n\nThe gene coding for the cystic fibrosis defect has recently been identified and sequenced, and a putative structure determined for the defective protein.8\u201310 Called the cystic fibrosis transmembrane conductance regulator (CFTR), the protein is proposed to consist of five domains: two hydrophobic regions which comprise potential membrane spanning helices; two nucleotide binding folds; and a large cytoplasmic domain which contains consensus sequences for phosphorylation by protein kinase C and cAMP-dependent kinase. Approximately 70% of cystic fibrosis patients seem to share a common mutation, a deletion of three nucleotides coding for a single phenylalanine residue at the centre of the first nucleotide binding domain.10 The CFTR shows considerable organisational and structural homology with a super-family of prokaryotic and eukaryotic transport proteins, all of which seem to couple ATP hydrolysis to the pumping of molecules into or out of the cell.45 By analogy with these proteins, it has been proposed that the cystic fibrosis gene product may be an ATP dependent transport protein, although the nature of the transported molecule and the precise function of the CFTR, and its relation with chloride channel function, remains unclear. This is compounded by the fact that many of the details of the events leading to chloride secretion in normal epithelia are still unknown. It is",
+      "prompt_path": "/artifacts/jobs/11097292bb2b457e8fc5d6e38e5aa227/pages/5/prompt.txt",
+      "raw_output_path": "/artifacts/jobs/11097292bb2b457e8fc5d6e38e5aa227/pages/5/raw_output.txt",
+      "status": "completed",
+      "valid_on_first_pass": true,
+      "warnings": []
+    },
+    {
+      "attempts": 1,
+      "chunk_id": "chunk-0000",
+      "elements": [],
+      "error": null,
+      "inference_ms": 230789,
+      "job_id": "11097292bb2b457e8fc5d6e38e5aa227",
+      "page_id": 6,
+      "page_markdown": "Measurement of intracellular mediators in enterocytes isolated from jejunal biopsy specimens of control and cystic fibrosis patients 899\n\nuncertain whether the activated kinases directly affect the chloride channels themselves or a regulatory protein responsible for chloride channel activity (CFTR?)",
+      "prompt_path": "/artifacts/jobs/11097292bb2b457e8fc5d6e38e5aa227/pages/6/prompt.txt",
+      "raw_output_path": "/artifacts/jobs/11097292bb2b457e8fc5d6e38e5aa227/pages/6/raw_output.txt",
+      "status": "completed",
+      "valid_on_first_pass": true,
+      "warnings": []
+    }
+  ],
+  "result": {
+    "derived": {
+      "document_markdown": "Gut, 1991, 32, 893-899\n\n893\n\n# Measurement of intracellular mediators in enterocytes isolated from jejunal biopsy specimens of control and cystic fibrosis patients\n\nB W Hitchin, P R M Dobson, B L Brown, J Hardcastle, P T Hardcastle, C J Taylor\n\n## Abstract\n\nA method that maximises the yield of viable enterocytes has been developed for the isolation of enterocytes from human jejunal biopsy specimens. These enterocytes have been used to study the values of intracellular free calcium and the rises in adenosine 3' 5'-cyclic monophosphate (cAMP) induced by secretagogues in normal and cystic fibrosis cells. Basal intracellular free calcium of cystic fibrosis enterocytes, measured fluorimetrically with fura-2, was within the range of the basal intracellular free calcium of non-cystic fibrosis enterocytes (cystic fibrosis 263 nmol/l; non-cystic fibrosis 287 nmol/l). Changes in intracellular free calcium were observed after exposure to ionomycin: a 100 nmol/l solution induced a 2.5 fold increase in intracellular free calcium in the cystic fibrosis enterocytes and a 2.2 fold increase in the intracellular free calcium concentration of the non-cystic fibrosis enterocytes. Basal cAMP values were not significantly different between cystic fibrosis and non-cystic fibrosis enterocytes (cystic fibrosis 575 fmol/100 000 cells; non-cystic fibrosis 716 fmol/100 000 cells, p>0.05) and the enterocyte cAMP value increased in response to stimulation with prostaglandin E2 (7 \u00b5mol/l) (cystic fibrosis 2.2 fold increase over basal, p<0.05; non-cystic fibrosis 1.9 fold stimulation over basal, p<0.05) and vasoactive intestinal polypeptide (100 nmol/l) (cystic fibrosis 7.1 fold increase over basal, p<0.05; non-cystic fibrosis 5.8 fold increase over basal, p<0.05). There was no significant difference in the magnitude of the response between cystic fibrosis and non-cystic fibrosis enterocytes (p>0.05). These results indicate that the cystic fibrosis defect in the small intestine, as in other affected epithelia, seems to be distal to the production of second messengers. The small intestine is therefore an appropriate model in which to study the biochemical defect in cystic fibrosis.\n\nprocess which increases transepithelial electrical activity,13 and this can be detected as a rise in short circuit current. In our previous studies, changes in transepithelial electrical activity have been used to detect changes in ion transport across the small bowel of biopsy material from children with and without cystic fibrosis.7 These studies have shown that while intestinal tissue from non-cystic fibrosis patients responded to a variety of secretagogues with an activation of chloride secretion, cystic fibrosis tissue failed to exhibit such a response to all secretagogues tested,7 indicating the absence of a functional mechanism for chloride secretion. Both groups of tissue showed a normal response to mucosal glucose, indicative of tissue viability. Thus the intestine, like the epithelia of the airways3-5 and sweat glands,12 fails to transport chloride in response to stimulation by agents that act via the second messenger, adenosine 3' 5'-cyclic monophosphate (cAMP). In contrast to airway tissues,5,11,14,15 the intestine also fails to transport chloride in response to secretagogues that act via changes in intracellular calcium,6,7 or guanosine 3' 5'-cyclic monophosphate (cGMP).15 The calcium ionophore A23187 did, however, induce a small short circuit current change in some cystic fibrosis biopsy specimens,7 while barium chloride, which stimulates intestinal secretion by releasing intracellular calcium,17,18 also increased the short circuit current in both control and cystic fibrosis biopsy specimens,19 suggesting that the mechanism for receptor operated increase of intracellular calcium may be impaired in the intestine of patients with cystic fibrosis. To determine whether abnormalities in epithelial ion transport in the small intestine of patients with cystic fibrosis reflect abnormal regulation of second messenger concentrations, cytosolic free calcium and cAMP values of enterocytes isolated from human jejunal biopsy specimens from cystic fibrosis and non-cystic fibrosis (control) patients were measured.\n\n## Methods\n\nFura 2/AM and ionomycin were purchased from Calbiochem, Cambridgeshire. (3H)-inulin and adenosine 3' 5'-cyclic monophosphoric acid 2'-O-succinyltyrosine (125I)-methylester were from Amersham International, Amersham, Buckinghamshire. RPMI-1640, phosphate buffered saline (PBS), and penicillin and streptomycin were from Gibco-Europe, Paisley, Strathclyde. Fetal calf serum (FCS) was obtained from Northumbria Biologicals, Northumberland. Vasoactive intestinal polypeptide (VIP) was obtained from Peninsula Laboratories,\n\nInstitute of Endocrinology, Department of Human Metabolism and Clinical Biochemistry, University Medical School, Sheffield\nB W Hitchin\nP R M Dobson\nB L Brown\n\nDepartments of Biomedical Science and Paediatrics, The University, Western Bank, Sheffield\nJ Hardcastle\nP T Hardcastle\nC J Taylor\n\nCorrespondence to:\nProfessor B L Brown, Institute of Endocrinology, Department of Human Metabolism and Clinical Biochemistry, Beech Hill Road, Sheffield S10 2RX.\n\nAccepted for publication 4 September 1990\n\nCystic fibrosis is an autosomal recessive disease, characterised by deficient chloride permeability in epithelia, including sweat glands,1,2 airways,3-5 and intestine.6,7 Although the gene coding for a protein associated with the defect has recently been identified,8-10 the exact biochemical nature of the defect remains unknown. It has been localised, however, to the apical membrane of the affected cells, where regulation of the chloride channels seems to be impaired,11,12 leading to a failure of the chloride secretory mechanism. Chloride secretion is an electrogenic\n\n894\nHitchin, Dobson, Brown, Hardcastle, Hardcastle, Taylor\n\nMerseyside. Prostaglandin E2 (PGE2), 3-isobutyl-1-methylxanthine (IBMX), bovine serum albumin (BSA) fraction V, hyaluronidase type I-S, and soybean trypsin inhibitor type I-S were from Sigma Chemical Co, Poole, Dorset.\n\nFura 2/AM and IBMX were dissolved in dimethylsulphoxide (DMSO) and were stored at -20\u00b0C. The Fura 2/AM was stored in the dark under argon at a stock concentration of 2 mmol/l, while the IBMX was stored at a stock concentration of 0.5 mmol/l. PGE2 was dissolved in ethanol and stored at -20\u00b0C at a stock concentration of 10 mg/ml. The concentration of DMSO in the incubations did not exceed 0.01%, and the concentration of ethanol did not exceed 0.001%.\n\n### EXPRESSION OF RESULTS\nThe statistics used were Student's t tests, paired or unpaired as appropriate. The level of statistical significance was set at p<0.05. Data are expressed as mean (SD), with the number of experiments in parentheses. Each experiment was performed on a separate enterocyte preparation.\n\n### ISOLATION OF ENTEROCYTES\n#### Rat tissue\nMale 200-250 g Wistar rats fed ad libitum were used for the preparation of enterocytes. The rats were killed by cervical dislocation and the small intestine was quickly removed and flushed free of contents with ice cold PBS. The intestine was opened longitudinally to form a sheet, and the tissue sheets were divided up into approximately 1 mm\u00b3 slices. The tissue was washed three times in sterile tissue medium (RPMI-1640 medium containing 25 mmol/l HEPES, 2 mmol/l glutamine, 0.01% trypsin inhibitor, 100 U/ml penicillin, and 100 \u00b5g/ml streptomycin) and transferred to oxygen saturated tissue medium containing 10% FCS and 0.15 mg/ml hyaluronidase. It was then incubated over a range of times at 4\u00b0C to allow the enzyme to penetrate the tissue without dissociation of the enterocytes. Excess medium was decanted off to leave moist tissue, and the enterocytes were released by gentle tituration of the tissue after a further 30 minutes incubation at 37\u00b0C under an atmosphere of 100% oxygen. The released enterocytes were collected by centrifugation at 100 g for two minutes, washed twice with tissue medium containing 0.1% BSA by resuspension and centrifugation, and then counted using either a haemocytometer or a Coulter counter. They were finally resuspended in experimental medium at the appropriate cell concentration for the experiment.\n\n#### Human tissue\nTissue samples for cAMP determinations were obtained from five children with cystic fibrosis (mean age 3.7 years, range 1 month-12 years) and 13 control children (mean age 6 years, range 4 months-17 years). In one child a biopsy was performed to confirm the diagnosis of cystic fibrosis in the face of conflicting sweat test results; the remaining four children were under investigation for malabsorption that was unresponsive to pancreatic enzymes. Partial villus atrophy was found in one cystic fibrosis patient associated with a cryptosporidia infection. The control children underwent biopsy as part of their investigation for chronic diarrhoea or failure to thrive. Tissue samples used for calcium determinations were obtained from two cystic fibrosis patients (2 months and 2 years of age) and nine control children (mean age 7.5 years, range 11 months-29 years). Biopsy tissue was obtained either endoscopically from the distal duodenum or via a double port Crosby or Watson biopsy capsule from the proximal jejunum and placed on ice in oxygen saturated tissue medium containing 0.1% BSA. The tissue was divided into 1 mm\u00b3 pieces and the enterocytes were isolated as described for rat tissue.\n\n### ENTEROCYTE VIABILITY\nViability was assessed by the ability of the enterocytes to exclude 0.05% trypan blue, and by assessing the cellular values of both potassium and adenosine triphosphate (ATP). For the trypan blue determinations, the enterocytes were mixed with trypan blue, left to stand at room temperature for two to five minutes, then the percentage of cells which excluded the dye was determined. ATP and potassium values were determined in cellular extracts prepared after rapid sedimentation of the cells from the medium by centrifugation for 15 seconds in a Beckman microfuge. The cells were extracted using 0.5% trichloroacetic acid. ATP in the cellular extracts was determined using a kit obtained from Sigma Diagnostics, while potassium values were determined by flame photometry using a Corning flame photometer. A correction was made for trapped extracellular fluid using [\u00b3H]-inulin.\n\n### cAMP ASSAY\nEnterocytes were resuspended in tissue medium containing 0.1% BSA at a cell concentration of 400 000 cells/ml. Cells (100 000) were preincubated with IBMX (1 mmol/l) for 10 minutes at 37\u00b0C. PGE2 or VIP was added to a final concentration of 7 \u00b5mol/l or 100 nmol/l respectively, and the cells were incubated for a further period (as indicated from each experiment) at 37\u00b0C. The reaction was terminated by the addition of ice cold ethanol to a final concentration of 65% (vol/vol). The cAMP was extracted from the cells as described previously,\u00b2\u2070 and was measured by radioimmunoassay.\u00b2\u00b9\n\n### DETERMINATION OF INTRACELLULAR FREE Ca\u00b2\u207a VALUES\nEnterocytes were resuspended in tissue medium containing 0.1% BSA at a cell concentration of 1-3 million cells/ml and were incubated for 30 minutes at 37\u00b0C with 2 \u00b5mol/l Fura 2/AM. The cells were diluted fivefold with tissue medium, washed twice with fresh tissue medium and once with PBS, then resuspended in oxygen saturated study buffer (137 mmol/l NaCl, 5 mmol/l KCl, 0.4 mmol/l MgSO\u2084, 0.5 mmol/l MgCl\u2082, 0.4\n\nMeasurement of intracellular mediators in enterocytes isolated from jejunal biopsy specimens of control and cystic fibrosis patients\n895\n\nFigure 1: Histological sections of rat small intestine incubated with hyaluronidase (original magnification \u00d790). (A) before hyaluronidase treatment, (B) after 30 minutes incubation at 37\u00b0C, (C) after 120 minutes incubation at 37\u00b0C, and (D) after 24 hours pretreatment at 4\u00b0C followed by 30 minutes at 37\u00b0C. The cells were isolated as described in the text, and the remaining tissue was processed for histological section.\n\nmmol/l NaH2PO4, 1 mmol/l CaCl2, 10 mmol/l glucose, 1 mmol/l glutamine, 20 mmol/l HEPES, pH 7\u00b74) at a concentration of 0\u00b75\u20131 million cells/ml.\n\nFluorescence measurements were made on a Perkin-Elmer LS-5B luminescence spectrometer with excitation wavelength at 340 nm (5 nm slit) and emission wavelength at 510 nm (10 nm slit). Enterocytes (3 ml) were placed in a stirred cuvette at room temperature, and intracellular free calcium was measured essentially as described by Tsien et al22 as modified by Wrench et al.23 The maximum fluorescence (Fmax) was determined after the addition of 10 \u00b5mol/l digitonin to lyse the cells and the minimum fluorescence (Fmin) was obtained by the addition of 100 \u00b5mol/l manganese chloride. However, a true Fmax was not obtained using this method since the enterocytes tended to aggregate and sediment after addition of the digitonin, causing the calcium fluorescence to rise initially but then apparently to fall. A similar effect was observed when the enterocytes were lysed using Triton X-100. Ionomycin (100 \u00b5mol/\n\n896\n\nHitchin, Dobson, Brown, Hardcastle, Hardcastle, Taylor\n\nrafts of cells rather than single cells, and the cells produced have been shown to be permeable to Ca+ and other ions.26 27\n\nIncubation of rat tissue with hyaluronidase for 30 minutes at 37\u00b0C without any cold exposure released enterocytes mainly from the villus tips (compare Fig 1A with Fig 1B). The amount of cells released was increased by incubating the tissue for longer with the enzyme, but even after a two hour incubation large amounts of enterocytes remained undissociated from the tissue (Fig 1C). Tissue samples were therefore incubated with hyaluronidase in the cold (4\u00b0C) to allow the enzyme to penetrate the tissue in an inactive state without dissociation of the cells. RPMI-1640 has been used for organ culture of human intestine,28 so was used as the incubation medium in these experiments. After cold enzyme treatment, the tissue was warmed to 37\u00b0C for 30 minutes to activate the enzyme and release the cells. There was little increase in the cell yield obtained during a 37\u00b0C incubation after the initial four hours of cold exposure (Fig 2), but then there was a rapid increase in cell yield following warm incubation after four to 16 hours of cold incubation, with no further increase in yield when the period of cold incubation was extended to 24 hours. By 24 hours most of the enterocytes had been released from the tissue (Fig 2; Fig 1D). A similar pattern of cell release was also observed for human tissue (Fig 3).\n\n**CELL VIABILITY**\n\nBoth rat and human enterocytes isolated with hyaluronidase at 37\u00b0C were able to exclude trypan blue after all time periods of cold enzyme exposure: the percentage of cells capable of excluding trypan blue increased with the time of prior cold exposure from 80-85% exclusion without prior cold exposure to 95-98% trypan blue exclusion after 24 hours prior cold exposure, presumably as the more senescent enterocytes from the villus tips were autolysed.\n\nBasal potassium and ATP values of rat enterocytes remained approximately constant during the initial 20 hours of cold enzyme treatment and subsequent warm incubation at 233 to 270 nmol potassium/mg protein and 5.2 to 5.9 nmol ATP/mg protein, but fell rapidly between 20 and 24 hours of cold exposure to 120 (8) [3] nmol potassium/mg protein and 3.1 (0.4) [3] nmol ATP/mg protein by 24 hours. Values for potassium and ATP of human enterocytes were not obtained for early time points of cold enzyme treatment, since insufficient cells were released. However, the ATP value observed in human enterocytes prepared after 20 hours of cold exposure was 5.0 (0.3) [3] nmol/mg protein, which is comparable with the rat enterocyte value, and the potassium value was greater than that observed for rat enterocytes at 458 (56) [3] nmol/mg protein.\n\nEnterocytes were therefore routinely isolated from human jejunal biopsy specimens after incubation in the cold for 20 hours with hyaluronidase followed by a 30 minute incubation at 37\u00b0C, since this procedure yielded the maximum number of single cells without compromising the cellular viability.\n\nFigure 2: Effect of time of incubation with hyaluronidase in the cold on the yield of rat enterocytes obtained from rat small intestine after a 30 minute incubation at 37\u00b0C. Rat small intestine was incubated with hyaluronidase for a range of times at 4\u00b0C. At each time point the enterocytes were isolated as described in the text and the wet weight of cells was determined.\n\n1), however, caused incomplete calcium release, but at higher concentrations the cells also aggregated. The reported calcium values are therefore likely to seem high. The intracellular free calcium was calculated using the equation, Ca2+i= 224\u00d7{F-Fmin}/{Fmax-F}, where F is the base line level of fluorescence and 224 is the dissociation constant of Fura 2 (in nmol/l). Minimum autofluorescence of the cells was noted and subtracted from all measurements.\n\n**Results**\n\n**ISOLATION OF ENTEROCYTES**\n\nThe two most common methods used to isolate enterocytes are either hyaluronidase treatment24 or the use of Ca2+ chelators such as EDTA or citrate25 to disrupt epithelial structure. We chose to isolate enterocytes using the former method, since the latter method tends to produce\n\nFigure 3: Effect of time of incubation with hyaluronidase in the cold on the yield of human enterocytes obtained from human jejunal biopsy specimens after a 30 minute incubation at 37\u00b0C. Human small intestinal biopsy specimens were incubated with hyaluronidase for a range of times at 4\u00b0C. At each time point the enterocytes were isolated as described in the text and the mean cell yield was determined. Each value represents a separate preparation.\n\nMeasurement of intracellular mediators in enterocytes isolated from jejunal biopsy specimens of control and cystic fibrosis patients\n897\n\n**Intracellular mediators in control and cystic fibrosis enterocytes**\n\n| | Control | Cystic fibrosis |\n|---|---|---|\n| Calcium (nmol/l) | | |\n| Basal | 287 (85) [9] | 263 (37) [2] |\n| Ionomycin (100 nmol/l) | 640 (30) [3] | 663 [1] |\n| cAMP (fmol/100 000 cells) | | |\n| Basal | 716 (304) [13] | 575 (49) [5] |\n| VIP (100 nmol/l) | 4144 (445) [3] | 4061 (169) [3] |\n| PGE2 (7 \u00b5mol/l) | 1190 (445) [13] | 1251 (426) [4] |\n\ncAMP=adenosine 3'5'-cyclic monophosphate; VIP=vasoactive intestinal polypeptide; PGE2=prostaglandin E2.\nBasal and ionomycin stimulated changes in intracellular free calcium values of enterocytes isolated from jejunal biopsy specimens of control and cystic fibrosis patients were determined as described in the text. For the cAMP determinations, enterocytes were incubated for 10 minutes at 37\u00b0C with 1 mmol/l IBMX, and were then incubated for a further five minutes with either vehicle only (basal), VIP, or PGE2. The reaction was stopped and the cAMP extracted from the cells and analysed as described in the text.\n\n**INTRACELLULAR FREE CALCIUM**\nThe basal values of intracellular free calcium did not seem to differ between normal and cystic fibrosis enterocytes (Table). The intracellular free calcium concentration of isolated enterocytes could be increased by exposing the cells to ionomycin, a non-fluorescent calcium ionophore, inducing a 2.2 fold increase in intracellular free calcium of normal enterocytes and a 2.5 fold increase in cystic fibrosis enterocytes (Table). However, the enterocytes isolated from both normal and cystic fibrosis biopsy specimens all failed to respond to secretagogues known to mobilise calcium (acetylcholine, carbachol, substance P, 5-hydroxytryptamine), which act mainly through cAMP (PGE2, VIP, dibutyryl-cAMP), or which act through cGMP (Escherichia coli STa). A range of doses and exposure times to each of these agents failed to change the intracellular free calcium values within the enterocytes. The changes in intracellular free calcium values in normal and cystic fibrosis enterocytes in response to secretagogue challenge could not, therefore, be compared. This lack of effect of secretagogues on intracellular calcium values was also observed using rat enterocytes prepared by the method of Kimmich.24\n\n**cAMP VALUES**\nEnterocytes isolated from human jejunal biopsy specimens retained the ability to respond to stimulation by both PGE2 and VIP with an increase in cAMP. The basal value of cAMP production of cystic fibrosis enterocytes seemed to be lower than that of the normal enterocytes, although the difference was not significant, p>0.05 (Table). In the presence of the phosphodiesterase inhibitor, IBMX, the maximum rise in cAMP was observed after five minutes of PGE2 stimulation (Fig 4). PGE2 induced a 1.9 fold increase in cAMP production above basal values in normal enterocytes, p<0.05 (Fig 5; Table), which was not significantly different (p>0.05) from the 2.2 fold increase over basal values induced in cystic fibrosis enterocytes (p<0.05). VIP was found to be a more potent stimulus for cAMP generation in both the normal and cystic fibrosis enterocytes. The cAMP values were increased 6.3 fold in the control enterocytes compared with a 7.1 fold rise in the cystic fibrosis enterocytes (Table), suggesting that the cystic fibrosis enterocytes respond as well as the normal enterocytes to VIP.\n\n**Discussion**\nA method has been developed for the isolation of enterocytes from human jejunal biopsy specimens which maximises the yield of viable enterocytes obtained. These enterocytes have been used to study the values of intracellular free\n\n898\n\nHutchin, Dobson, Brown, Hardcastle, Hardcastle, Taylor\n\ncalcium and the increase in cAMP induced by secretagogues in normal and cystic fibrosis cells. The results indicate that the cystic fibrosis enterocytes retain the ability to respond to secretagogue stimulation with an increase in the cAMP value, and there is not significant difference in either the basal cAMP value or in the response to stimulation between normal and cystic fibrosis enterocytes. Previously, similar results have been obtained using other epithelial tissues that are affected by cystic fibrosis (sweat ducts41; airways tissues14,42,45; salivary glands43; rectum44).\n\nBasal intracellular calcium values of cystic fibrosis and normal enterocytes also seem to be similar, but although changes in intracellular calcium concentration could be induced by the ionophore ionomycin, they were consistently unresponsive to secretagogues that act via membrane receptors. This is probably not a consequence of membrane receptor impairment, since enterocytes isolated under identical conditions were capable of responding to PG and VIP stimulation with an increased cAMP accumulation. Thus some other factor, perhaps related to either the isolation procedure itself or to the viability of the enterocytes upon incubation, may contribute to the lack of detectable calcium responses. Basal calcium values for normal and cystic fibrosis nasal epithelium were reported by Murphy et al29 and more recently by Boucher et al5 and both groups found no significant difference in the basal calcium concentrations between cystic fibrosis and normal cells. Although Boucher et al5 found an increase in intracellular free calcium in response to stimulation by bradykinin which was equal in magnitude between normal and cystic fibrosis cells, Murphy et al29 were unable to observe changes in intracellular calcium concentrations in response to agents that increase cAMP. While Murphy et al suggested that the lack of response may be a consequence of the disaggregation procedure, they concluded that it was more likely that substantial changes in intracellular calcium concentrations in response to cAMP accumulation are not a major feature of human respiratory epithelia. Values of intracellular calcium in mammalian enterocytes obtained using fluorescent indicators have not been previously reported, although values of intracellular calcium have been reported for chicken enterocytes,30,31 and these cells have been shown to respond to secretagogue challenge with an increase in intracellular calcium. These responses were small (25\u201365 nmol/l changes), however, and were strongly influenced by age, species, and even diet of the donor chicken (Chang, personal communication). Furthermore, Chang and co-workers have been unable to obtain similar data for mammalian cells. At least one other group has also attempted to obtain values of intracellular calcium for mammalian enterocytes using fluorescent indicators,32 but without success. The mammalian enterocyte system does not, therefore, seem to be ideal for these types of studies. It may be that the changes in intracellular calcium values induced in enterocytes by secretagogue challenge are very small or localised to specific cellular pools in vivo, or both, so may be undetected in the in vitro system. Alternatively, calcium mobilisation may be of lesser importance in these tissues.\n\nThe results obtained with VIP in this study are particularly interesting in the light of recent reports of sparse innervation of cystic fibrosis nasal and small intestinal mucosae by fibres that contain immunoreactive VIP.33\u201335 There is not a generalised loss of these fibres since VIP immunoreactive fibres innervating the muscle layers and myenteric plexus of the intestine are largely unaffected. As there is evidence to suggest that VIP is the major non-cholinergic transmitter of secretomotor neurones, controlling water and electrolyte secretion in the small intestine and promoting an increase in blood flow to the mucosa,36\u201339 the deficiency of VIP containing neurones within the mucosa in cystic fibrosis was postulated to contribute to the pathogenesis of the disease. Our studies, however, show that the enterocytes of the intestinal mucosa of cystic fibrosis patients retain the ability to respond to VIP with an increase in cAMP production that was equal in size to the response obtained in normal tissue. Thus, despite the sparse innervation, the receptors for VIP seem to be present on the cystic fibrosis enterocytes and they also seem to be functionally coupled to adenylyl cyclase. This was also confirmed in another recent study of fetal intestine,40 in which the receptors for VIP were found to be present in equal abundance and to have similar biochemical and functional properties to those from normal intestine. Thus, the lack of innervation of VIP containing fibres to the intestinal mucosa does not seem secondary to a lack of functional VIP receptors, but may be brought about as a consequence of the ability of the enterocyte to attract or to sustain the fibres, perhaps as a result of an absent or abnormal membrane protein in the epithelial cells.\n\nThe gene coding for the cystic fibrosis defect has recently been identified and sequenced, and a putative structure determined for the defective protein.8\u201310 Called the cystic fibrosis transmembrane conductance regulator (CFTR), the protein is proposed to consist of five domains: two hydrophobic regions which comprise potential membrane spanning helices; two nucleotide binding folds; and a large cytoplasmic domain which contains consensus sequences for phosphorylation by protein kinase C and cAMP-dependent kinase. Approximately 70% of cystic fibrosis patients seem to share a common mutation, a deletion of three nucleotides coding for a single phenylalanine residue at the centre of the first nucleotide binding domain.10 The CFTR shows considerable organisational and structural homology with a super-family of prokaryotic and eukaryotic transport proteins, all of which seem to couple ATP hydrolysis to the pumping of molecules into or out of the cell.45 By analogy with these proteins, it has been proposed that the cystic fibrosis gene product may be an ATP dependent transport protein, although the nature of the transported molecule and the precise function of the CFTR, and its relation with chloride channel function, remains unclear. This is compounded by the fact that many of the details of the events leading to chloride secretion in normal epithelia are still unknown. It is\n\nMeasurement of intracellular mediators in enterocytes isolated from jejunal biopsy specimens of control and cystic fibrosis patients 899\n\nuncertain whether the activated kinases directly affect the chloride channels themselves or a regulatory protein responsible for chloride channel activity (CFTR?)",
+      "document_text": "Gut, 1991, 32, 893899\n\n893\n\n Measurement of intracellular mediators in enterocytes isolated from jejunal biopsy specimens of control and cystic fibrosis patients\n\nB W Hitchin, P R M Dobson, B L Brown, J Hardcastle, P T Hardcastle, C J Taylor\n\n Abstract\n\nA method that maximises the yield of viable enterocytes has been developed for the isolation of enterocytes from human jejunal biopsy specimens. These enterocytes have been used to study the values of intracellular free calcium and the rises in adenosine 3' 5'cyclic monophosphate (cAMP) induced by secretagogues in normal and cystic fibrosis cells. Basal intracellular free calcium of cystic fibrosis enterocytes, measured fluorimetrically with fura2, was within the range of the basal intracellular free calcium of noncystic fibrosis enterocytes (cystic fibrosis 263 nmol/l; noncystic fibrosis 287 nmol/l). Changes in intracellular free calcium were observed after exposure to ionomycin: a 100 nmol/l solution induced a 2.5 fold increase in intracellular free calcium in the cystic fibrosis enterocytes and a 2.2 fold increase in the intracellular free calcium concentration of the noncystic fibrosis enterocytes. Basal cAMP values were not significantly different between cystic fibrosis and noncystic fibrosis enterocytes (cystic fibrosis 575 fmol/100 000 cells; noncystic fibrosis 716 fmol/100 000 cells, p0.05) and the enterocyte cAMP value increased in response to stimulation with prostaglandin E2 (7 \u00b5mol/l) (cystic fibrosis 2.2 fold increase over basal, p<0.05; noncystic fibrosis 1.9 fold stimulation over basal, p<0.05) and vasoactive intestinal polypeptide (100 nmol/l) (cystic fibrosis 7.1 fold increase over basal, p<0.05; noncystic fibrosis 5.8 fold increase over basal, p<0.05). There was no significant difference in the magnitude of the response between cystic fibrosis and noncystic fibrosis enterocytes (p0.05). These results indicate that the cystic fibrosis defect in the small intestine, as in other affected epithelia, seems to be distal to the production of second messengers. The small intestine is therefore an appropriate model in which to study the biochemical defect in cystic fibrosis.\n\nprocess which increases transepithelial electrical activity,13 and this can be detected as a rise in short circuit current. In our previous studies, changes in transepithelial electrical activity have been used to detect changes in ion transport across the small bowel of biopsy material from children with and without cystic fibrosis.7 These studies have shown that while intestinal tissue from noncystic fibrosis patients responded to a variety of secretagogues with an activation of chloride secretion, cystic fibrosis tissue failed to exhibit such a response to all secretagogues tested,7 indicating the absence of a functional mechanism for chloride secretion. Both groups of tissue showed a normal response to mucosal glucose, indicative of tissue viability. Thus the intestine, like the epithelia of the airways35 and sweat glands,12 fails to transport chloride in response to stimulation by agents that act via the second messenger, adenosine 3' 5'cyclic monophosphate (cAMP). In contrast to airway tissues,5,11,14,15 the intestine also fails to transport chloride in response to secretagogues that act via changes in intracellular calcium,6,7 or guanosine 3' 5'cyclic monophosphate (cGMP).15 The calcium ionophore A23187 did, however, induce a small short circuit current change in some cystic fibrosis biopsy specimens,7 while barium chloride, which stimulates intestinal secretion by releasing intracellular calcium,17,18 also increased the short circuit current in both control and cystic fibrosis biopsy specimens,19 suggesting that the mechanism for receptor operated increase of intracellular calcium may be impaired in the intestine of patients with cystic fibrosis. To determine whether abnormalities in epithelial ion transport in the small intestine of patients with cystic fibrosis reflect abnormal regulation of second messenger concentrations, cytosolic free calcium and cAMP values of enterocytes isolated from human jejunal biopsy specimens from cystic fibrosis and noncystic fibrosis (control) patients were measured.\n\n Methods\n\nFura 2/AM and ionomycin were purchased from Calbiochem, Cambridgeshire. (3H)inulin and adenosine 3' 5'cyclic monophosphoric acid 2'Osuccinyltyrosine (125I)methylester were from Amersham International, Amersham, Buckinghamshire. RPMI1640, phosphate buffered saline (PBS), and penicillin and streptomycin were from GibcoEurope, Paisley, Strathclyde. Fetal calf serum (FCS) was obtained from Northumbria Biologicals, Northumberland. Vasoactive intestinal polypeptide (VIP) was obtained from Peninsula Laboratories,\n\nInstitute of Endocrinology, Department of Human Metabolism and Clinical Biochemistry, University Medical School, Sheffield\nB W Hitchin\nP R M Dobson\nB L Brown\n\nDepartments of Biomedical Science and Paediatrics, The University, Western Bank, Sheffield\nJ Hardcastle\nP T Hardcastle\nC J Taylor\n\nCorrespondence to:\nProfessor B L Brown, Institute of Endocrinology, Department of Human Metabolism and Clinical Biochemistry, Beech Hill Road, Sheffield S10 2RX.\n\nAccepted for publication 4 September 1990\n\nCystic fibrosis is an autosomal recessive disease, characterised by deficient chloride permeability in epithelia, including sweat glands,1,2 airways,35 and intestine.6,7 Although the gene coding for a protein associated with the defect has recently been identified,810 the exact biochemical nature of the defect remains unknown. It has been localised, however, to the apical membrane of the affected cells, where regulation of the chloride channels seems to be impaired,11,12 leading to a failure of the chloride secretory mechanism. Chloride secretion is an electrogenic\n\n894\nHitchin, Dobson, Brown, Hardcastle, Hardcastle, Taylor\n\nMerseyside. Prostaglandin E2 (PGE2), 3isobutyl1methylxanthine (IBMX), bovine serum albumin (BSA) fraction V, hyaluronidase type IS, and soybean trypsin inhibitor type IS were from Sigma Chemical Co, Poole, Dorset.\n\nFura 2/AM and IBMX were dissolved in dimethylsulphoxide (DMSO) and were stored at 20\u00b0C. The Fura 2/AM was stored in the dark under argon at a stock concentration of 2 mmol/l, while the IBMX was stored at a stock concentration of 0.5 mmol/l. PGE2 was dissolved in ethanol and stored at 20\u00b0C at a stock concentration of 10 mg/ml. The concentration of DMSO in the incubations did not exceed 0.01%, and the concentration of ethanol did not exceed 0.001%.\n\n EXPRESSION OF RESULTS\nThe statistics used were Student's t tests, paired or unpaired as appropriate. The level of statistical significance was set at p<0.05. Data are expressed as mean (SD), with the number of experiments in parentheses. Each experiment was performed on a separate enterocyte preparation.\n\n ISOLATION OF ENTEROCYTES\n Rat tissue\nMale 200250 g Wistar rats fed ad libitum were used for the preparation of enterocytes. The rats were killed by cervical dislocation and the small intestine was quickly removed and flushed free of contents with ice cold PBS. The intestine was opened longitudinally to form a sheet, and the tissue sheets were divided up into approximately 1 mm\u00b3 slices. The tissue was washed three times in sterile tissue medium (RPMI1640 medium containing 25 mmol/l HEPES, 2 mmol/l glutamine, 0.01% trypsin inhibitor, 100 U/ml penicillin, and 100 \u00b5g/ml streptomycin) and transferred to oxygen saturated tissue medium containing 10% FCS and 0.15 mg/ml hyaluronidase. It was then incubated over a range of times at 4\u00b0C to allow the enzyme to penetrate the tissue without dissociation of the enterocytes. Excess medium was decanted off to leave moist tissue, and the enterocytes were released by gentle tituration of the tissue after a further 30 minutes incubation at 37\u00b0C under an atmosphere of 100% oxygen. The released enterocytes were collected by centrifugation at 100 g for two minutes, washed twice with tissue medium containing 0.1% BSA by resuspension and centrifugation, and then counted using either a haemocytometer or a Coulter counter. They were finally resuspended in experimental medium at the appropriate cell concentration for the experiment.\n\n Human tissue\nTissue samples for cAMP determinations were obtained from five children with cystic fibrosis (mean age 3.7 years, range 1 month12 years) and 13 control children (mean age 6 years, range 4 months17 years). In one child a biopsy was performed to confirm the diagnosis of cystic fibrosis in the face of conflicting sweat test results; the remaining four children were under investigation for malabsorption that was unresponsive to pancreatic enzymes. Partial villus atrophy was found in one cystic fibrosis patient associated with a cryptosporidia infection. The control children underwent biopsy as part of their investigation for chronic diarrhoea or failure to thrive. Tissue samples used for calcium determinations were obtained from two cystic fibrosis patients (2 months and 2 years of age) and nine control children (mean age 7.5 years, range 11 months29 years). Biopsy tissue was obtained either endoscopically from the distal duodenum or via a double port Crosby or Watson biopsy capsule from the proximal jejunum and placed on ice in oxygen saturated tissue medium containing 0.1% BSA. The tissue was divided into 1 mm\u00b3 pieces and the enterocytes were isolated as described for rat tissue.\n\n ENTEROCYTE VIABILITY\nViability was assessed by the ability of the enterocytes to exclude 0.05% trypan blue, and by assessing the cellular values of both potassium and adenosine triphosphate (ATP). For the trypan blue determinations, the enterocytes were mixed with trypan blue, left to stand at room temperature for two to five minutes, then the percentage of cells which excluded the dye was determined. ATP and potassium values were determined in cellular extracts prepared after rapid sedimentation of the cells from the medium by centrifugation for 15 seconds in a Beckman microfuge. The cells were extracted using 0.5% trichloroacetic acid. ATP in the cellular extracts was determined using a kit obtained from Sigma Diagnostics, while potassium values were determined by flame photometry using a Corning flame photometer. A correction was made for trapped extracellular fluid using [\u00b3H]inulin.\n\n cAMP ASSAY\nEnterocytes were resuspended in tissue medium containing 0.1% BSA at a cell concentration of 400 000 cells/ml. Cells (100 000) were preincubated with IBMX (1 mmol/l) for 10 minutes at 37\u00b0C. PGE2 or VIP was added to a final concentration of 7 \u00b5mol/l or 100 nmol/l respectively, and the cells were incubated for a further period (as indicated from each experiment) at 37\u00b0C. The reaction was terminated by the addition of ice cold ethanol to a final concentration of 65% (vol/vol). The cAMP was extracted from the cells as described previously,\u00b2\u2070 and was measured by radioimmunoassay.\u00b2\u00b9\n\n DETERMINATION OF INTRACELLULAR FREE Ca\u00b2\u207a VALUES\nEnterocytes were resuspended in tissue medium containing 0.1% BSA at a cell concentration of 13 million cells/ml and were incubated for 30 minutes at 37\u00b0C with 2 \u00b5mol/l Fura 2/AM. The cells were diluted fivefold with tissue medium, washed twice with fresh tissue medium and once with PBS, then resuspended in oxygen saturated study buffer (137 mmol/l NaCl, 5 mmol/l KCl, 0.4 mmol/l MgSO\u2084, 0.5 mmol/l MgCl\u2082, 0.4\n\nMeasurement of intracellular mediators in enterocytes isolated from jejunal biopsy specimens of control and cystic fibrosis patients\n895\n\nFigure 1: Histological sections of rat small intestine incubated with hyaluronidase (original magnification \u00d790). (A) before hyaluronidase treatment, (B) after 30 minutes incubation at 37\u00b0C, (C) after 120 minutes incubation at 37\u00b0C, and (D) after 24 hours pretreatment at 4\u00b0C followed by 30 minutes at 37\u00b0C. The cells were isolated as described in the text, and the remaining tissue was processed for histological section.\n\nmmol/l NaH2PO4, 1 mmol/l CaCl2, 10 mmol/l glucose, 1 mmol/l glutamine, 20 mmol/l HEPES, pH 7\u00b74) at a concentration of 0\u00b75\u20131 million cells/ml.\n\nFluorescence measurements were made on a PerkinElmer LS5B luminescence spectrometer with excitation wavelength at 340 nm (5 nm slit) and emission wavelength at 510 nm (10 nm slit). Enterocytes (3 ml) were placed in a stirred cuvette at room temperature, and intracellular free calcium was measured essentially as described by Tsien et al22 as modified by Wrench et al.23 The maximum fluorescence (Fmax) was determined after the addition of 10 \u00b5mol/l digitonin to lyse the cells and the minimum fluorescence (Fmin) was obtained by the addition of 100 \u00b5mol/l manganese chloride. However, a true Fmax was not obtained using this method since the enterocytes tended to aggregate and sediment after addition of the digitonin, causing the calcium fluorescence to rise initially but then apparently to fall. A similar effect was observed when the enterocytes were lysed using Triton X100. Ionomycin (100 \u00b5mol/\n\n896\n\nHitchin, Dobson, Brown, Hardcastle, Hardcastle, Taylor\n\nrafts of cells rather than single cells, and the cells produced have been shown to be permeable to Ca+ and other ions.26 27\n\nIncubation of rat tissue with hyaluronidase for 30 minutes at 37\u00b0C without any cold exposure released enterocytes mainly from the villus tips (compare Fig 1A with Fig 1B). The amount of cells released was increased by incubating the tissue for longer with the enzyme, but even after a two hour incubation large amounts of enterocytes remained undissociated from the tissue (Fig 1C). Tissue samples were therefore incubated with hyaluronidase in the cold (4\u00b0C) to allow the enzyme to penetrate the tissue in an inactive state without dissociation of the cells. RPMI1640 has been used for organ culture of human intestine,28 so was used as the incubation medium in these experiments. After cold enzyme treatment, the tissue was warmed to 37\u00b0C for 30 minutes to activate the enzyme and release the cells. There was little increase in the cell yield obtained during a 37\u00b0C incubation after the initial four hours of cold exposure (Fig 2), but then there was a rapid increase in cell yield following warm incubation after four to 16 hours of cold incubation, with no further increase in yield when the period of cold incubation was extended to 24 hours. By 24 hours most of the enterocytes had been released from the tissue (Fig 2; Fig 1D). A similar pattern of cell release was also observed for human tissue (Fig 3).\n\nCELL VIABILITY\n\nBoth rat and human enterocytes isolated with hyaluronidase at 37\u00b0C were able to exclude trypan blue after all time periods of cold enzyme exposure: the percentage of cells capable of excluding trypan blue increased with the time of prior cold exposure from 8085% exclusion without prior cold exposure to 9598% trypan blue exclusion after 24 hours prior cold exposure, presumably as the more senescent enterocytes from the villus tips were autolysed.\n\nBasal potassium and ATP values of rat enterocytes remained approximately constant during the initial 20 hours of cold enzyme treatment and subsequent warm incubation at 233 to 270 nmol potassium/mg protein and 5.2 to 5.9 nmol ATP/mg protein, but fell rapidly between 20 and 24 hours of cold exposure to 120 (8) [3] nmol potassium/mg protein and 3.1 (0.4) [3] nmol ATP/mg protein by 24 hours. Values for potassium and ATP of human enterocytes were not obtained for early time points of cold enzyme treatment, since insufficient cells were released. However, the ATP value observed in human enterocytes prepared after 20 hours of cold exposure was 5.0 (0.3) [3] nmol/mg protein, which is comparable with the rat enterocyte value, and the potassium value was greater than that observed for rat enterocytes at 458 (56) [3] nmol/mg protein.\n\nEnterocytes were therefore routinely isolated from human jejunal biopsy specimens after incubation in the cold for 20 hours with hyaluronidase followed by a 30 minute incubation at 37\u00b0C, since this procedure yielded the maximum number of single cells without compromising the cellular viability.\n\nFigure 2: Effect of time of incubation with hyaluronidase in the cold on the yield of rat enterocytes obtained from rat small intestine after a 30 minute incubation at 37\u00b0C. Rat small intestine was incubated with hyaluronidase for a range of times at 4\u00b0C. At each time point the enterocytes were isolated as described in the text and the wet weight of cells was determined.\n\n1), however, caused incomplete calcium release, but at higher concentrations the cells also aggregated. The reported calcium values are therefore likely to seem high. The intracellular free calcium was calculated using the equation, Ca2+i= 224\u00d7{FFmin}/{FmaxF}, where F is the base line level of fluorescence and 224 is the dissociation constant of Fura 2 (in nmol/l). Minimum autofluorescence of the cells was noted and subtracted from all measurements.\n\nResults\n\nISOLATION OF ENTEROCYTES\n\nThe two most common methods used to isolate enterocytes are either hyaluronidase treatment24 or the use of Ca2+ chelators such as EDTA or citrate25 to disrupt epithelial structure. We chose to isolate enterocytes using the former method, since the latter method tends to produce\n\nFigure 3: Effect of time of incubation with hyaluronidase in the cold on the yield of human enterocytes obtained from human jejunal biopsy specimens after a 30 minute incubation at 37\u00b0C. Human small intestinal biopsy specimens were incubated with hyaluronidase for a range of times at 4\u00b0C. At each time point the enterocytes were isolated as described in the text and the mean cell yield was determined. Each value represents a separate preparation.\n\nMeasurement of intracellular mediators in enterocytes isolated from jejunal biopsy specimens of control and cystic fibrosis patients\n897\n\nIntracellular mediators in control and cystic fibrosis enterocytes\n\n| | Control | Cystic fibrosis |\n||||\n| Calcium (nmol/l) | | |\n| Basal | 287 (85) [9] | 263 (37) [2] |\n| Ionomycin (100 nmol/l) | 640 (30) [3] | 663 [1] |\n| cAMP (fmol/100 000 cells) | | |\n| Basal | 716 (304) [13] | 575 (49) [5] |\n| VIP (100 nmol/l) | 4144 (445) [3] | 4061 (169) [3] |\n| PGE2 (7 \u00b5mol/l) | 1190 (445) [13] | 1251 (426) [4] |\n\ncAMP=adenosine 3'5'cyclic monophosphate; VIP=vasoactive intestinal polypeptide; PGE2=prostaglandin E2.\nBasal and ionomycin stimulated changes in intracellular free calcium values of enterocytes isolated from jejunal biopsy specimens of control and cystic fibrosis patients were determined as described in the text. For the cAMP determinations, enterocytes were incubated for 10 minutes at 37\u00b0C with 1 mmol/l IBMX, and were then incubated for a further five minutes with either vehicle only (basal), VIP, or PGE2. The reaction was stopped and the cAMP extracted from the cells and analysed as described in the text.\n\nINTRACELLULAR FREE CALCIUM\nThe basal values of intracellular free calcium did not seem to differ between normal and cystic fibrosis enterocytes (Table). The intracellular free calcium concentration of isolated enterocytes could be increased by exposing the cells to ionomycin, a nonfluorescent calcium ionophore, inducing a 2.2 fold increase in intracellular free calcium of normal enterocytes and a 2.5 fold increase in cystic fibrosis enterocytes (Table). However, the enterocytes isolated from both normal and cystic fibrosis biopsy specimens all failed to respond to secretagogues known to mobilise calcium (acetylcholine, carbachol, substance P, 5hydroxytryptamine), which act mainly through cAMP (PGE2, VIP, dibutyrylcAMP), or which act through cGMP (Escherichia coli STa). A range of doses and exposure times to each of these agents failed to change the intracellular free calcium values within the enterocytes. The changes in intracellular free calcium values in normal and cystic fibrosis enterocytes in response to secretagogue challenge could not, therefore, be compared. This lack of effect of secretagogues on intracellular calcium values was also observed using rat enterocytes prepared by the method of Kimmich.24\n\ncAMP VALUES\nEnterocytes isolated from human jejunal biopsy specimens retained the ability to respond to stimulation by both PGE2 and VIP with an increase in cAMP. The basal value of cAMP production of cystic fibrosis enterocytes seemed to be lower than that of the normal enterocytes, although the difference was not significant, p0.05 (Table). In the presence of the phosphodiesterase inhibitor, IBMX, the maximum rise in cAMP was observed after five minutes of PGE2 stimulation (Fig 4). PGE2 induced a 1.9 fold increase in cAMP production above basal values in normal enterocytes, p<0.05 (Fig 5; Table), which was not significantly different (p0.05) from the 2.2 fold increase over basal values induced in cystic fibrosis enterocytes (p<0.05). VIP was found to be a more potent stimulus for cAMP generation in both the normal and cystic fibrosis enterocytes. The cAMP values were increased 6.3 fold in the control enterocytes compared with a 7.1 fold rise in the cystic fibrosis enterocytes (Table), suggesting that the cystic fibrosis enterocytes respond as well as the normal enterocytes to VIP.\n\nDiscussion\nA method has been developed for the isolation of enterocytes from human jejunal biopsy specimens which maximises the yield of viable enterocytes obtained. These enterocytes have been used to study the values of intracellular free\n\n898\n\nHutchin, Dobson, Brown, Hardcastle, Hardcastle, Taylor\n\ncalcium and the increase in cAMP induced by secretagogues in normal and cystic fibrosis cells. The results indicate that the cystic fibrosis enterocytes retain the ability to respond to secretagogue stimulation with an increase in the cAMP value, and there is not significant difference in either the basal cAMP value or in the response to stimulation between normal and cystic fibrosis enterocytes. Previously, similar results have been obtained using other epithelial tissues that are affected by cystic fibrosis (sweat ducts41; airways tissues14,42,45; salivary glands43; rectum44).\n\nBasal intracellular calcium values of cystic fibrosis and normal enterocytes also seem to be similar, but although changes in intracellular calcium concentration could be induced by the ionophore ionomycin, they were consistently unresponsive to secretagogues that act via membrane receptors. This is probably not a consequence of membrane receptor impairment, since enterocytes isolated under identical conditions were capable of responding to PG and VIP stimulation with an increased cAMP accumulation. Thus some other factor, perhaps related to either the isolation procedure itself or to the viability of the enterocytes upon incubation, may contribute to the lack of detectable calcium responses. Basal calcium values for normal and cystic fibrosis nasal epithelium were reported by Murphy et al29 and more recently by Boucher et al5 and both groups found no significant difference in the basal calcium concentrations between cystic fibrosis and normal cells. Although Boucher et al5 found an increase in intracellular free calcium in response to stimulation by bradykinin which was equal in magnitude between normal and cystic fibrosis cells, Murphy et al29 were unable to observe changes in intracellular calcium concentrations in response to agents that increase cAMP. While Murphy et al suggested that the lack of response may be a consequence of the disaggregation procedure, they concluded that it was more likely that substantial changes in intracellular calcium concentrations in response to cAMP accumulation are not a major feature of human respiratory epithelia. Values of intracellular calcium in mammalian enterocytes obtained using fluorescent indicators have not been previously reported, although values of intracellular calcium have been reported for chicken enterocytes,30,31 and these cells have been shown to respond to secretagogue challenge with an increase in intracellular calcium. These responses were small (25\u201365 nmol/l changes), however, and were strongly influenced by age, species, and even diet of the donor chicken (Chang, personal communication). Furthermore, Chang and coworkers have been unable to obtain similar data for mammalian cells. At least one other group has also attempted to obtain values of intracellular calcium for mammalian enterocytes using fluorescent indicators,32 but without success. The mammalian enterocyte system does not, therefore, seem to be ideal for these types of studies. It may be that the changes in intracellular calcium values induced in enterocytes by secretagogue challenge are very small or localised to specific cellular pools in vivo, or both, so may be undetected in the in vitro system. Alternatively, calcium mobilisation may be of lesser importance in these tissues.\n\nThe results obtained with VIP in this study are particularly interesting in the light of recent reports of sparse innervation of cystic fibrosis nasal and small intestinal mucosae by fibres that contain immunoreactive VIP.33\u201335 There is not a generalised loss of these fibres since VIP immunoreactive fibres innervating the muscle layers and myenteric plexus of the intestine are largely unaffected. As there is evidence to suggest that VIP is the major noncholinergic transmitter of secretomotor neurones, controlling water and electrolyte secretion in the small intestine and promoting an increase in blood flow to the mucosa,36\u201339 the deficiency of VIP containing neurones within the mucosa in cystic fibrosis was postulated to contribute to the pathogenesis of the disease. Our studies, however, show that the enterocytes of the intestinal mucosa of cystic fibrosis patients retain the ability to respond to VIP with an increase in cAMP production that was equal in size to the response obtained in normal tissue. Thus, despite the sparse innervation, the receptors for VIP seem to be present on the cystic fibrosis enterocytes and they also seem to be functionally coupled to adenylyl cyclase. This was also confirmed in another recent study of fetal intestine,40 in which the receptors for VIP were found to be present in equal abundance and to have similar biochemical and functional properties to those from normal intestine. Thus, the lack of innervation of VIP containing fibres to the intestinal mucosa does not seem secondary to a lack of functional VIP receptors, but may be brought about as a consequence of the ability of the enterocyte to attract or to sustain the fibres, perhaps as a result of an absent or abnormal membrane protein in the epithelial cells.\n\nThe gene coding for the cystic fibrosis defect has recently been identified and sequenced, and a putative structure determined for the defective protein.8\u201310 Called the cystic fibrosis transmembrane conductance regulator (CFTR), the protein is proposed to consist of five domains: two hydrophobic regions which comprise potential membrane spanning helices; two nucleotide binding folds; and a large cytoplasmic domain which contains consensus sequences for phosphorylation by protein kinase C and cAMPdependent kinase. Approximately 70% of cystic fibrosis patients seem to share a common mutation, a deletion of three nucleotides coding for a single phenylalanine residue at the centre of the first nucleotide binding domain.10 The CFTR shows considerable organisational and structural homology with a superfamily of prokaryotic and eukaryotic transport proteins, all of which seem to couple ATP hydrolysis to the pumping of molecules into or out of the cell.45 By analogy with these proteins, it has been proposed that the cystic fibrosis gene product may be an ATP dependent transport protein, although the nature of the transported molecule and the precise function of the CFTR, and its relation with chloride channel function, remains unclear. This is compounded by the fact that many of the details of the events leading to chloride secretion in normal epithelia are still unknown. It is\n\nMeasurement of intracellular mediators in enterocytes isolated from jejunal biopsy specimens of control and cystic fibrosis patients 899\n\nuncertain whether the activated kinases directly affect the chloride channels themselves or a regulatory protein responsible for chloride channel activity (CFTR?)",
+      "page_markdown": {
+        "0": "Gut, 1991, 32, 893-899\n\n893\n\n# Measurement of intracellular mediators in enterocytes isolated from jejunal biopsy specimens of control and cystic fibrosis patients\n\nB W Hitchin, P R M Dobson, B L Brown, J Hardcastle, P T Hardcastle, C J Taylor\n\n## Abstract\n\nA method that maximises the yield of viable enterocytes has been developed for the isolation of enterocytes from human jejunal biopsy specimens. These enterocytes have been used to study the values of intracellular free calcium and the rises in adenosine 3' 5'-cyclic monophosphate (cAMP) induced by secretagogues in normal and cystic fibrosis cells. Basal intracellular free calcium of cystic fibrosis enterocytes, measured fluorimetrically with fura-2, was within the range of the basal intracellular free calcium of non-cystic fibrosis enterocytes (cystic fibrosis 263 nmol/l; non-cystic fibrosis 287 nmol/l). Changes in intracellular free calcium were observed after exposure to ionomycin: a 100 nmol/l solution induced a 2.5 fold increase in intracellular free calcium in the cystic fibrosis enterocytes and a 2.2 fold increase in the intracellular free calcium concentration of the non-cystic fibrosis enterocytes. Basal cAMP values were not significantly different between cystic fibrosis and non-cystic fibrosis enterocytes (cystic fibrosis 575 fmol/100 000 cells; non-cystic fibrosis 716 fmol/100 000 cells, p>0.05) and the enterocyte cAMP value increased in response to stimulation with prostaglandin E2 (7 \u00b5mol/l) (cystic fibrosis 2.2 fold increase over basal, p<0.05; non-cystic fibrosis 1.9 fold stimulation over basal, p<0.05) and vasoactive intestinal polypeptide (100 nmol/l) (cystic fibrosis 7.1 fold increase over basal, p<0.05; non-cystic fibrosis 5.8 fold increase over basal, p<0.05). There was no significant difference in the magnitude of the response between cystic fibrosis and non-cystic fibrosis enterocytes (p>0.05). These results indicate that the cystic fibrosis defect in the small intestine, as in other affected epithelia, seems to be distal to the production of second messengers. The small intestine is therefore an appropriate model in which to study the biochemical defect in cystic fibrosis.\n\nprocess which increases transepithelial electrical activity,13 and this can be detected as a rise in short circuit current. In our previous studies, changes in transepithelial electrical activity have been used to detect changes in ion transport across the small bowel of biopsy material from children with and without cystic fibrosis.7 These studies have shown that while intestinal tissue from non-cystic fibrosis patients responded to a variety of secretagogues with an activation of chloride secretion, cystic fibrosis tissue failed to exhibit such a response to all secretagogues tested,7 indicating the absence of a functional mechanism for chloride secretion. Both groups of tissue showed a normal response to mucosal glucose, indicative of tissue viability. Thus the intestine, like the epithelia of the airways3-5 and sweat glands,12 fails to transport chloride in response to stimulation by agents that act via the second messenger, adenosine 3' 5'-cyclic monophosphate (cAMP). In contrast to airway tissues,5,11,14,15 the intestine also fails to transport chloride in response to secretagogues that act via changes in intracellular calcium,6,7 or guanosine 3' 5'-cyclic monophosphate (cGMP).15 The calcium ionophore A23187 did, however, induce a small short circuit current change in some cystic fibrosis biopsy specimens,7 while barium chloride, which stimulates intestinal secretion by releasing intracellular calcium,17,18 also increased the short circuit current in both control and cystic fibrosis biopsy specimens,19 suggesting that the mechanism for receptor operated increase of intracellular calcium may be impaired in the intestine of patients with cystic fibrosis. To determine whether abnormalities in epithelial ion transport in the small intestine of patients with cystic fibrosis reflect abnormal regulation of second messenger concentrations, cytosolic free calcium and cAMP values of enterocytes isolated from human jejunal biopsy specimens from cystic fibrosis and non-cystic fibrosis (control) patients were measured.\n\n## Methods\n\nFura 2/AM and ionomycin were purchased from Calbiochem, Cambridgeshire. (3H)-inulin and adenosine 3' 5'-cyclic monophosphoric acid 2'-O-succinyltyrosine (125I)-methylester were from Amersham International, Amersham, Buckinghamshire. RPMI-1640, phosphate buffered saline (PBS), and penicillin and streptomycin were from Gibco-Europe, Paisley, Strathclyde. Fetal calf serum (FCS) was obtained from Northumbria Biologicals, Northumberland. Vasoactive intestinal polypeptide (VIP) was obtained from Peninsula Laboratories,\n\nInstitute of Endocrinology, Department of Human Metabolism and Clinical Biochemistry, University Medical School, Sheffield\nB W Hitchin\nP R M Dobson\nB L Brown\n\nDepartments of Biomedical Science and Paediatrics, The University, Western Bank, Sheffield\nJ Hardcastle\nP T Hardcastle\nC J Taylor\n\nCorrespondence to:\nProfessor B L Brown, Institute of Endocrinology, Department of Human Metabolism and Clinical Biochemistry, Beech Hill Road, Sheffield S10 2RX.\n\nAccepted for publication 4 September 1990\n\nCystic fibrosis is an autosomal recessive disease, characterised by deficient chloride permeability in epithelia, including sweat glands,1,2 airways,3-5 and intestine.6,7 Although the gene coding for a protein associated with the defect has recently been identified,8-10 the exact biochemical nature of the defect remains unknown. It has been localised, however, to the apical membrane of the affected cells, where regulation of the chloride channels seems to be impaired,11,12 leading to a failure of the chloride secretory mechanism. Chloride secretion is an electrogenic",
+        "1": "894\nHitchin, Dobson, Brown, Hardcastle, Hardcastle, Taylor\n\nMerseyside. Prostaglandin E2 (PGE2), 3-isobutyl-1-methylxanthine (IBMX), bovine serum albumin (BSA) fraction V, hyaluronidase type I-S, and soybean trypsin inhibitor type I-S were from Sigma Chemical Co, Poole, Dorset.\n\nFura 2/AM and IBMX were dissolved in dimethylsulphoxide (DMSO) and were stored at -20\u00b0C. The Fura 2/AM was stored in the dark under argon at a stock concentration of 2 mmol/l, while the IBMX was stored at a stock concentration of 0.5 mmol/l. PGE2 was dissolved in ethanol and stored at -20\u00b0C at a stock concentration of 10 mg/ml. The concentration of DMSO in the incubations did not exceed 0.01%, and the concentration of ethanol did not exceed 0.001%.\n\n### EXPRESSION OF RESULTS\nThe statistics used were Student's t tests, paired or unpaired as appropriate. The level of statistical significance was set at p<0.05. Data are expressed as mean (SD), with the number of experiments in parentheses. Each experiment was performed on a separate enterocyte preparation.\n\n### ISOLATION OF ENTEROCYTES\n#### Rat tissue\nMale 200-250 g Wistar rats fed ad libitum were used for the preparation of enterocytes. The rats were killed by cervical dislocation and the small intestine was quickly removed and flushed free of contents with ice cold PBS. The intestine was opened longitudinally to form a sheet, and the tissue sheets were divided up into approximately 1 mm\u00b3 slices. The tissue was washed three times in sterile tissue medium (RPMI-1640 medium containing 25 mmol/l HEPES, 2 mmol/l glutamine, 0.01% trypsin inhibitor, 100 U/ml penicillin, and 100 \u00b5g/ml streptomycin) and transferred to oxygen saturated tissue medium containing 10% FCS and 0.15 mg/ml hyaluronidase. It was then incubated over a range of times at 4\u00b0C to allow the enzyme to penetrate the tissue without dissociation of the enterocytes. Excess medium was decanted off to leave moist tissue, and the enterocytes were released by gentle tituration of the tissue after a further 30 minutes incubation at 37\u00b0C under an atmosphere of 100% oxygen. The released enterocytes were collected by centrifugation at 100 g for two minutes, washed twice with tissue medium containing 0.1% BSA by resuspension and centrifugation, and then counted using either a haemocytometer or a Coulter counter. They were finally resuspended in experimental medium at the appropriate cell concentration for the experiment.\n\n#### Human tissue\nTissue samples for cAMP determinations were obtained from five children with cystic fibrosis (mean age 3.7 years, range 1 month-12 years) and 13 control children (mean age 6 years, range 4 months-17 years). In one child a biopsy was performed to confirm the diagnosis of cystic fibrosis in the face of conflicting sweat test results; the remaining four children were under investigation for malabsorption that was unresponsive to pancreatic enzymes. Partial villus atrophy was found in one cystic fibrosis patient associated with a cryptosporidia infection. The control children underwent biopsy as part of their investigation for chronic diarrhoea or failure to thrive. Tissue samples used for calcium determinations were obtained from two cystic fibrosis patients (2 months and 2 years of age) and nine control children (mean age 7.5 years, range 11 months-29 years). Biopsy tissue was obtained either endoscopically from the distal duodenum or via a double port Crosby or Watson biopsy capsule from the proximal jejunum and placed on ice in oxygen saturated tissue medium containing 0.1% BSA. The tissue was divided into 1 mm\u00b3 pieces and the enterocytes were isolated as described for rat tissue.\n\n### ENTEROCYTE VIABILITY\nViability was assessed by the ability of the enterocytes to exclude 0.05% trypan blue, and by assessing the cellular values of both potassium and adenosine triphosphate (ATP). For the trypan blue determinations, the enterocytes were mixed with trypan blue, left to stand at room temperature for two to five minutes, then the percentage of cells which excluded the dye was determined. ATP and potassium values were determined in cellular extracts prepared after rapid sedimentation of the cells from the medium by centrifugation for 15 seconds in a Beckman microfuge. The cells were extracted using 0.5% trichloroacetic acid. ATP in the cellular extracts was determined using a kit obtained from Sigma Diagnostics, while potassium values were determined by flame photometry using a Corning flame photometer. A correction was made for trapped extracellular fluid using [\u00b3H]-inulin.\n\n### cAMP ASSAY\nEnterocytes were resuspended in tissue medium containing 0.1% BSA at a cell concentration of 400 000 cells/ml. Cells (100 000) were preincubated with IBMX (1 mmol/l) for 10 minutes at 37\u00b0C. PGE2 or VIP was added to a final concentration of 7 \u00b5mol/l or 100 nmol/l respectively, and the cells were incubated for a further period (as indicated from each experiment) at 37\u00b0C. The reaction was terminated by the addition of ice cold ethanol to a final concentration of 65% (vol/vol). The cAMP was extracted from the cells as described previously,\u00b2\u2070 and was measured by radioimmunoassay.\u00b2\u00b9\n\n### DETERMINATION OF INTRACELLULAR FREE Ca\u00b2\u207a VALUES\nEnterocytes were resuspended in tissue medium containing 0.1% BSA at a cell concentration of 1-3 million cells/ml and were incubated for 30 minutes at 37\u00b0C with 2 \u00b5mol/l Fura 2/AM. The cells were diluted fivefold with tissue medium, washed twice with fresh tissue medium and once with PBS, then resuspended in oxygen saturated study buffer (137 mmol/l NaCl, 5 mmol/l KCl, 0.4 mmol/l MgSO\u2084, 0.5 mmol/l MgCl\u2082, 0.4",
+        "2": "Measurement of intracellular mediators in enterocytes isolated from jejunal biopsy specimens of control and cystic fibrosis patients\n895\n\nFigure 1: Histological sections of rat small intestine incubated with hyaluronidase (original magnification \u00d790). (A) before hyaluronidase treatment, (B) after 30 minutes incubation at 37\u00b0C, (C) after 120 minutes incubation at 37\u00b0C, and (D) after 24 hours pretreatment at 4\u00b0C followed by 30 minutes at 37\u00b0C. The cells were isolated as described in the text, and the remaining tissue was processed for histological section.\n\nmmol/l NaH2PO4, 1 mmol/l CaCl2, 10 mmol/l glucose, 1 mmol/l glutamine, 20 mmol/l HEPES, pH 7\u00b74) at a concentration of 0\u00b75\u20131 million cells/ml.\n\nFluorescence measurements were made on a Perkin-Elmer LS-5B luminescence spectrometer with excitation wavelength at 340 nm (5 nm slit) and emission wavelength at 510 nm (10 nm slit). Enterocytes (3 ml) were placed in a stirred cuvette at room temperature, and intracellular free calcium was measured essentially as described by Tsien et al22 as modified by Wrench et al.23 The maximum fluorescence (Fmax) was determined after the addition of 10 \u00b5mol/l digitonin to lyse the cells and the minimum fluorescence (Fmin) was obtained by the addition of 100 \u00b5mol/l manganese chloride. However, a true Fmax was not obtained using this method since the enterocytes tended to aggregate and sediment after addition of the digitonin, causing the calcium fluorescence to rise initially but then apparently to fall. A similar effect was observed when the enterocytes were lysed using Triton X-100. Ionomycin (100 \u00b5mol/",
+        "3": "896\n\nHitchin, Dobson, Brown, Hardcastle, Hardcastle, Taylor\n\nrafts of cells rather than single cells, and the cells produced have been shown to be permeable to Ca+ and other ions.26 27\n\nIncubation of rat tissue with hyaluronidase for 30 minutes at 37\u00b0C without any cold exposure released enterocytes mainly from the villus tips (compare Fig 1A with Fig 1B). The amount of cells released was increased by incubating the tissue for longer with the enzyme, but even after a two hour incubation large amounts of enterocytes remained undissociated from the tissue (Fig 1C). Tissue samples were therefore incubated with hyaluronidase in the cold (4\u00b0C) to allow the enzyme to penetrate the tissue in an inactive state without dissociation of the cells. RPMI-1640 has been used for organ culture of human intestine,28 so was used as the incubation medium in these experiments. After cold enzyme treatment, the tissue was warmed to 37\u00b0C for 30 minutes to activate the enzyme and release the cells. There was little increase in the cell yield obtained during a 37\u00b0C incubation after the initial four hours of cold exposure (Fig 2), but then there was a rapid increase in cell yield following warm incubation after four to 16 hours of cold incubation, with no further increase in yield when the period of cold incubation was extended to 24 hours. By 24 hours most of the enterocytes had been released from the tissue (Fig 2; Fig 1D). A similar pattern of cell release was also observed for human tissue (Fig 3).\n\n**CELL VIABILITY**\n\nBoth rat and human enterocytes isolated with hyaluronidase at 37\u00b0C were able to exclude trypan blue after all time periods of cold enzyme exposure: the percentage of cells capable of excluding trypan blue increased with the time of prior cold exposure from 80-85% exclusion without prior cold exposure to 95-98% trypan blue exclusion after 24 hours prior cold exposure, presumably as the more senescent enterocytes from the villus tips were autolysed.\n\nBasal potassium and ATP values of rat enterocytes remained approximately constant during the initial 20 hours of cold enzyme treatment and subsequent warm incubation at 233 to 270 nmol potassium/mg protein and 5.2 to 5.9 nmol ATP/mg protein, but fell rapidly between 20 and 24 hours of cold exposure to 120 (8) [3] nmol potassium/mg protein and 3.1 (0.4) [3] nmol ATP/mg protein by 24 hours. Values for potassium and ATP of human enterocytes were not obtained for early time points of cold enzyme treatment, since insufficient cells were released. However, the ATP value observed in human enterocytes prepared after 20 hours of cold exposure was 5.0 (0.3) [3] nmol/mg protein, which is comparable with the rat enterocyte value, and the potassium value was greater than that observed for rat enterocytes at 458 (56) [3] nmol/mg protein.\n\nEnterocytes were therefore routinely isolated from human jejunal biopsy specimens after incubation in the cold for 20 hours with hyaluronidase followed by a 30 minute incubation at 37\u00b0C, since this procedure yielded the maximum number of single cells without compromising the cellular viability.\n\nFigure 2: Effect of time of incubation with hyaluronidase in the cold on the yield of rat enterocytes obtained from rat small intestine after a 30 minute incubation at 37\u00b0C. Rat small intestine was incubated with hyaluronidase for a range of times at 4\u00b0C. At each time point the enterocytes were isolated as described in the text and the wet weight of cells was determined.\n\n1), however, caused incomplete calcium release, but at higher concentrations the cells also aggregated. The reported calcium values are therefore likely to seem high. The intracellular free calcium was calculated using the equation, Ca2+i= 224\u00d7{F-Fmin}/{Fmax-F}, where F is the base line level of fluorescence and 224 is the dissociation constant of Fura 2 (in nmol/l). Minimum autofluorescence of the cells was noted and subtracted from all measurements.\n\n**Results**\n\n**ISOLATION OF ENTEROCYTES**\n\nThe two most common methods used to isolate enterocytes are either hyaluronidase treatment24 or the use of Ca2+ chelators such as EDTA or citrate25 to disrupt epithelial structure. We chose to isolate enterocytes using the former method, since the latter method tends to produce\n\nFigure 3: Effect of time of incubation with hyaluronidase in the cold on the yield of human enterocytes obtained from human jejunal biopsy specimens after a 30 minute incubation at 37\u00b0C. Human small intestinal biopsy specimens were incubated with hyaluronidase for a range of times at 4\u00b0C. At each time point the enterocytes were isolated as described in the text and the mean cell yield was determined. Each value represents a separate preparation.",
+        "4": "Measurement of intracellular mediators in enterocytes isolated from jejunal biopsy specimens of control and cystic fibrosis patients\n897\n\n**Intracellular mediators in control and cystic fibrosis enterocytes**\n\n| | Control | Cystic fibrosis |\n|---|---|---|\n| Calcium (nmol/l) | | |\n| Basal | 287 (85) [9] | 263 (37) [2] |\n| Ionomycin (100 nmol/l) | 640 (30) [3] | 663 [1] |\n| cAMP (fmol/100 000 cells) | | |\n| Basal | 716 (304) [13] | 575 (49) [5] |\n| VIP (100 nmol/l) | 4144 (445) [3] | 4061 (169) [3] |\n| PGE2 (7 \u00b5mol/l) | 1190 (445) [13] | 1251 (426) [4] |\n\ncAMP=adenosine 3'5'-cyclic monophosphate; VIP=vasoactive intestinal polypeptide; PGE2=prostaglandin E2.\nBasal and ionomycin stimulated changes in intracellular free calcium values of enterocytes isolated from jejunal biopsy specimens of control and cystic fibrosis patients were determined as described in the text. For the cAMP determinations, enterocytes were incubated for 10 minutes at 37\u00b0C with 1 mmol/l IBMX, and were then incubated for a further five minutes with either vehicle only (basal), VIP, or PGE2. The reaction was stopped and the cAMP extracted from the cells and analysed as described in the text.\n\n**INTRACELLULAR FREE CALCIUM**\nThe basal values of intracellular free calcium did not seem to differ between normal and cystic fibrosis enterocytes (Table). The intracellular free calcium concentration of isolated enterocytes could be increased by exposing the cells to ionomycin, a non-fluorescent calcium ionophore, inducing a 2.2 fold increase in intracellular free calcium of normal enterocytes and a 2.5 fold increase in cystic fibrosis enterocytes (Table). However, the enterocytes isolated from both normal and cystic fibrosis biopsy specimens all failed to respond to secretagogues known to mobilise calcium (acetylcholine, carbachol, substance P, 5-hydroxytryptamine), which act mainly through cAMP (PGE2, VIP, dibutyryl-cAMP), or which act through cGMP (Escherichia coli STa). A range of doses and exposure times to each of these agents failed to change the intracellular free calcium values within the enterocytes. The changes in intracellular free calcium values in normal and cystic fibrosis enterocytes in response to secretagogue challenge could not, therefore, be compared. This lack of effect of secretagogues on intracellular calcium values was also observed using rat enterocytes prepared by the method of Kimmich.24\n\n**cAMP VALUES**\nEnterocytes isolated from human jejunal biopsy specimens retained the ability to respond to stimulation by both PGE2 and VIP with an increase in cAMP. The basal value of cAMP production of cystic fibrosis enterocytes seemed to be lower than that of the normal enterocytes, although the difference was not significant, p>0.05 (Table). In the presence of the phosphodiesterase inhibitor, IBMX, the maximum rise in cAMP was observed after five minutes of PGE2 stimulation (Fig 4). PGE2 induced a 1.9 fold increase in cAMP production above basal values in normal enterocytes, p<0.05 (Fig 5; Table), which was not significantly different (p>0.05) from the 2.2 fold increase over basal values induced in cystic fibrosis enterocytes (p<0.05). VIP was found to be a more potent stimulus for cAMP generation in both the normal and cystic fibrosis enterocytes. The cAMP values were increased 6.3 fold in the control enterocytes compared with a 7.1 fold rise in the cystic fibrosis enterocytes (Table), suggesting that the cystic fibrosis enterocytes respond as well as the normal enterocytes to VIP.\n\n**Discussion**\nA method has been developed for the isolation of enterocytes from human jejunal biopsy specimens which maximises the yield of viable enterocytes obtained. These enterocytes have been used to study the values of intracellular free",
+        "5": "898\n\nHutchin, Dobson, Brown, Hardcastle, Hardcastle, Taylor\n\ncalcium and the increase in cAMP induced by secretagogues in normal and cystic fibrosis cells. The results indicate that the cystic fibrosis enterocytes retain the ability to respond to secretagogue stimulation with an increase in the cAMP value, and there is not significant difference in either the basal cAMP value or in the response to stimulation between normal and cystic fibrosis enterocytes. Previously, similar results have been obtained using other epithelial tissues that are affected by cystic fibrosis (sweat ducts41; airways tissues14,42,45; salivary glands43; rectum44).\n\nBasal intracellular calcium values of cystic fibrosis and normal enterocytes also seem to be similar, but although changes in intracellular calcium concentration could be induced by the ionophore ionomycin, they were consistently unresponsive to secretagogues that act via membrane receptors. This is probably not a consequence of membrane receptor impairment, since enterocytes isolated under identical conditions were capable of responding to PG and VIP stimulation with an increased cAMP accumulation. Thus some other factor, perhaps related to either the isolation procedure itself or to the viability of the enterocytes upon incubation, may contribute to the lack of detectable calcium responses. Basal calcium values for normal and cystic fibrosis nasal epithelium were reported by Murphy et al29 and more recently by Boucher et al5 and both groups found no significant difference in the basal calcium concentrations between cystic fibrosis and normal cells. Although Boucher et al5 found an increase in intracellular free calcium in response to stimulation by bradykinin which was equal in magnitude between normal and cystic fibrosis cells, Murphy et al29 were unable to observe changes in intracellular calcium concentrations in response to agents that increase cAMP. While Murphy et al suggested that the lack of response may be a consequence of the disaggregation procedure, they concluded that it was more likely that substantial changes in intracellular calcium concentrations in response to cAMP accumulation are not a major feature of human respiratory epithelia. Values of intracellular calcium in mammalian enterocytes obtained using fluorescent indicators have not been previously reported, although values of intracellular calcium have been reported for chicken enterocytes,30,31 and these cells have been shown to respond to secretagogue challenge with an increase in intracellular calcium. These responses were small (25\u201365 nmol/l changes), however, and were strongly influenced by age, species, and even diet of the donor chicken (Chang, personal communication). Furthermore, Chang and co-workers have been unable to obtain similar data for mammalian cells. At least one other group has also attempted to obtain values of intracellular calcium for mammalian enterocytes using fluorescent indicators,32 but without success. The mammalian enterocyte system does not, therefore, seem to be ideal for these types of studies. It may be that the changes in intracellular calcium values induced in enterocytes by secretagogue challenge are very small or localised to specific cellular pools in vivo, or both, so may be undetected in the in vitro system. Alternatively, calcium mobilisation may be of lesser importance in these tissues.\n\nThe results obtained with VIP in this study are particularly interesting in the light of recent reports of sparse innervation of cystic fibrosis nasal and small intestinal mucosae by fibres that contain immunoreactive VIP.33\u201335 There is not a generalised loss of these fibres since VIP immunoreactive fibres innervating the muscle layers and myenteric plexus of the intestine are largely unaffected. As there is evidence to suggest that VIP is the major non-cholinergic transmitter of secretomotor neurones, controlling water and electrolyte secretion in the small intestine and promoting an increase in blood flow to the mucosa,36\u201339 the deficiency of VIP containing neurones within the mucosa in cystic fibrosis was postulated to contribute to the pathogenesis of the disease. Our studies, however, show that the enterocytes of the intestinal mucosa of cystic fibrosis patients retain the ability to respond to VIP with an increase in cAMP production that was equal in size to the response obtained in normal tissue. Thus, despite the sparse innervation, the receptors for VIP seem to be present on the cystic fibrosis enterocytes and they also seem to be functionally coupled to adenylyl cyclase. This was also confirmed in another recent study of fetal intestine,40 in which the receptors for VIP were found to be present in equal abundance and to have similar biochemical and functional properties to those from normal intestine. Thus, the lack of innervation of VIP containing fibres to the intestinal mucosa does not seem secondary to a lack of functional VIP receptors, but may be brought about as a consequence of the ability of the enterocyte to attract or to sustain the fibres, perhaps as a result of an absent or abnormal membrane protein in the epithelial cells.\n\nThe gene coding for the cystic fibrosis defect has recently been identified and sequenced, and a putative structure determined for the defective protein.8\u201310 Called the cystic fibrosis transmembrane conductance regulator (CFTR), the protein is proposed to consist of five domains: two hydrophobic regions which comprise potential membrane spanning helices; two nucleotide binding folds; and a large cytoplasmic domain which contains consensus sequences for phosphorylation by protein kinase C and cAMP-dependent kinase. Approximately 70% of cystic fibrosis patients seem to share a common mutation, a deletion of three nucleotides coding for a single phenylalanine residue at the centre of the first nucleotide binding domain.10 The CFTR shows considerable organisational and structural homology with a super-family of prokaryotic and eukaryotic transport proteins, all of which seem to couple ATP hydrolysis to the pumping of molecules into or out of the cell.45 By analogy with these proteins, it has been proposed that the cystic fibrosis gene product may be an ATP dependent transport protein, although the nature of the transported molecule and the precise function of the CFTR, and its relation with chloride channel function, remains unclear. This is compounded by the fact that many of the details of the events leading to chloride secretion in normal epithelia are still unknown. It is",
+        "6": "Measurement of intracellular mediators in enterocytes isolated from jejunal biopsy specimens of control and cystic fibrosis patients 899\n\nuncertain whether the activated kinases directly affect the chloride channels themselves or a regulatory protein responsible for chloride channel activity (CFTR?)"
+      }
+    },
+    "document": {
+      "elements": [
+        {
+          "attributes": {},
+          "bbox": {
+            "coord": [
+              73,
+              46,
+              219,
+              56
+            ],
+            "page_id": 0
+          },
+          "confidence": 0.95,
+          "content": "Gut, 1991, 32, 893-899",
+          "id": "p0-e1",
+          "order": 1,
+          "page_id": 0,
+          "type": "header"
+        },
+        {
+          "attributes": {},
+          "bbox": {
+            "coord": [
+              873,
+              46,
+              900,
+              56
+            ],
+            "page_id": 0
+          },
+          "confidence": 0.98,
+          "content": "893",
+          "id": "p0-e2",
+          "order": 2,
+          "page_id": 0,
+          "type": "page_number"
+        },
+        {
+          "attributes": {},
+          "bbox": {
+            "coord": [
+              230,
+              78,
+              925,
+              145
+            ],
+            "page_id": 0
+          },
+          "confidence": 0.99,
+          "content": "Measurement of intracellular mediators in enterocytes isolated from jejunal biopsy specimens of control and cystic fibrosis patients",
+          "id": "p0-e3",
+          "order": 3,
+          "page_id": 0,
+          "type": "heading"
+        },
+        {
+          "attributes": {},
+          "bbox": {
+            "coord": [
+              230,
+              165,
+              800,
+              178
+            ],
+            "page_id": 0
+          },
+          "confidence": 0.98,
+          "content": "B W Hitchin, P R M Dobson, B L Brown, J Hardcastle, P T Hardcastle, C J Taylor",
+          "id": "p0-e4",
+          "order": 4,
+          "page_id": 0,
+          "type": "text"
+        },
+        {
+          "attributes": {},
+          "bbox": {
+            "coord": [
+              230,
+              195,
+              280,
+              205
+            ],
+            "page_id": 0
+          },
+          "confidence": 0.99,
+          "content": "Abstract",
+          "id": "p0-e5",
+          "order": 5,
+          "page_id": 0,
+          "type": "heading"
+        },
+        {
+          "attributes": {},
+          "bbox": {
+            "coord": [
+              79,
+              56,
+              101,
+              66
+            ],
+            "page_id": 1
+          },
+          "confidence": 0.95,
+          "content": "894",
+          "id": "p1-e1",
+          "order": 1,
+          "page_id": 1,
+          "type": "page_number"
+        },
+        {
+          "attributes": {},
+          "bbox": {
+            "coord": [
+              612,
+              56,
+              919,
+              66
+            ],
+            "page_id": 1
+          },
+          "confidence": 0.95,
+          "content": "Hitchin, Dobson, Brown, Hardcastle, Hardcastle, Taylor",
+          "id": "p1-e2",
+          "order": 2,
+          "page_id": 1,
+          "type": "header"
+        },
+        {
+          "attributes": {},
+          "bbox": {
+            "coord": [
+              270,
+              85,
+              585,
+              145
+            ],
+            "page_id": 1
+          },
+          "confidence": 0.98,
+          "content": "Merseyside. Prostaglandin E2 (PGE2), 3-isobutyl-1-methylxanthine (IBMX), bovine serum albumin (BSA) fraction V, hyaluronidase type I-S, and soybean trypsin inhibitor type I-S were from Sigma Chemical Co, Poole, Dorset.",
+          "id": "p1-e3",
+          "order": 3,
+          "page_id": 1,
+          "type": "text"
+        },
+        {
+          "attributes": {},
+          "bbox": {
+            "coord": [
+              74,
+              46,
+              732,
+              56
+            ],
+            "page_id": 2
+          },
+          "confidence": 0.95,
+          "content": "Measurement of intracellular mediators in enterocytes isolated from jejunal biopsy specimens of control and cystic fibrosis patients",
+          "id": "p2-e1",
+          "order": 1,
+          "page_id": 2,
+          "type": "header"
+        },
+        {
+          "attributes": {},
+          "bbox": {
+            "coord": [
+              885,
+              46,
+              922,
+              56
+            ],
+            "page_id": 2
+          },
+          "confidence": 0.98,
+          "content": "895",
+          "id": "p2-e2",
+          "order": 2,
+          "page_id": 2,
+          "type": "page_number"
+        },
+        {
+          "attributes": {},
+          "bbox": {
+            "coord": [
+              74,
+              86,
+              922,
+              778
+            ],
+            "page_id": 2
+          },
+          "confidence": 0.9,
+          "content": "A B C D",
+          "id": "p2-e3",
+          "order": 3,
+          "page_id": 2,
+          "type": "figure"
+        },
+        {
+          "attributes": {},
+          "bbox": {
+            "coord": [
+              74,
+              608,
+              232,
+              778
+            ],
+            "page_id": 2
+          },
+          "confidence": 0.92,
+          "content": "Figure 1: Histological sections of rat small intestine incubated with hyaluronidase (original magnification \u00d790). (A) before hyaluronidase treatment, (B) after 30 minutes incubation at 37\u00b0C, (C) after 120 minutes incubation at 37\u00b0C, and (D) after 24 hours pretreatment at 4\u00b0C followed by 30 minutes at 37\u00b0C. The cells were isolated as described in the text, and the remaining tissue was processed for histological section.",
+          "id": "p2-e4",
+          "order": 4,
+          "page_id": 2,
+          "type": "caption"
+        },
+        {
+          "attributes": {},
+          "bbox": {
+            "coord": [
+              252,
+              810,
+              578,
+              850
+            ],
+            "page_id": 2
+          },
+          "confidence": 0.94,
+          "content": "mmol/l NaH2PO4, 1 mmol/l CaCl2, 10 mmol/l glucose, 1 mmol/l glutamine, 20 mmol/l HEPES, pH 7\u00b74) at a concentration of 0\u00b75\u20131 million cells/ml.",
+          "id": "p2-e5",
+          "order": 5,
+          "page_id": 2,
+          "type": "text"
+        },
+        {
+          "attributes": {},
+          "bbox": {
+            "coord": [
+              252,
+              852,
+              578,
+              950
+            ],
+            "page_id": 2
+          },
+          "confidence": 0.93,
+          "content": "Fluorescence measurements were made on a Perkin-Elmer LS-5B luminescence spectrometer with excitation wavelength at 340 nm (5 nm slit) and emission wavelength at 510 nm (10 nm slit). Enterocytes (3 ml) were placed in a stirred cuvette at room temperature, and intracellular free calcium was measured essentially as described by Tsien et al22 as modified by Wrench",
+          "id": "p2-e6",
+          "order": 6,
+          "page_id": 2,
+          "type": "text"
+        },
+        {
+          "attributes": {},
+          "bbox": {
+            "coord": [
+              598,
+              810,
+              922,
+              950
+            ],
+            "page_id": 2
+          },
+          "confidence": 0.93,
+          "content": "et al.23 The maximum fluorescence (Fmax) was determined after the addition of 10 \u00b5mol/l digitonin to lyse the cells and the minimum fluorescence (Fmin) was obtained by the addition of 100 \u00b5mol/l manganese chloride. However, a true Fmax was not obtained using this method since the enterocytes tended to aggregate and sediment after addition of the digitonin, causing the calcium fluorescence to rise initially but then apparently to fall. A similar effect was observed when the enterocytes were lysed using Triton X-100. Ionomycin (100 \u00b5mol/",
+          "id": "p2-e7",
+          "order": 7,
+          "page_id": 2,
+          "type": "text"
+        },
+        {
+          "attributes": {},
+          "bbox": {
+            "coord": [
+              100,
+              50,
+              125,
+              60
+            ],
+            "page_id": 3
+          },
+          "confidence": 0.95,
+          "content": "896",
+          "id": "p3-e1",
+          "order": 1,
+          "page_id": 3,
+          "type": "page_number"
+        },
+        {
+          "attributes": {},
+          "bbox": {
+            "coord": [
+              610,
+              50,
+              900,
+              60
+            ],
+            "page_id": 3
+          },
+          "confidence": 0.95,
+          "content": "Hitchin, Dobson, Brown, Hardcastle, Hardcastle, Taylor",
+          "id": "p3-e2",
+          "order": 2,
+          "page_id": 3,
+          "type": "header"
+        },
+        {
+          "attributes": {},
+          "bbox": {
+            "coord": [
+              100,
+              80,
+              580,
+              280
+            ],
+            "page_id": 3
+          },
+          "confidence": 0.9,
+          "content": "Bar chart showing mg cells/g wet weight intestine vs Time (hours)",
+          "id": "p3-e3",
+          "order": 3,
+          "page_id": 3,
+          "type": "figure"
+        },
+        {
+          "attributes": {},
+          "bbox": {
+            "coord": [
+              100,
+              290,
+              580,
+              320
+            ],
+            "page_id": 3
+          },
+          "confidence": 0.95,
+          "content": "Figure 2: Effect of time of incubation with hyaluronidase in the cold on the yield of rat enterocytes obtained from rat small intestine after a 30 minute incubation at 37\u00b0C. Rat small intestine was incubated with hyaluronidase for a range of times at 4\u00b0C. At each time point the enterocytes were isolated as described in the text and the wet weight of cells was determined.",
+          "id": "p3-e4",
+          "order": 4,
+          "page_id": 3,
+          "type": "caption"
+        },
+        {
+          "attributes": {},
+          "bbox": {
+            "coord": [
+              76,
+              50,
+              735,
+              60
+            ],
+            "page_id": 4
+          },
+          "confidence": 0.95,
+          "content": "Measurement of intracellular mediators in enterocytes isolated from jejunal biopsy specimens of control and cystic fibrosis patients",
+          "id": "p4-e1",
+          "order": 1,
+          "page_id": 4,
+          "type": "header"
+        },
+        {
+          "attributes": {},
+          "bbox": {
+            "coord": [
+              870,
+              50,
+              900,
+              60
+            ],
+            "page_id": 4
+          },
+          "confidence": 0.98,
+          "content": "897",
+          "id": "p4-e2",
+          "order": 2,
+          "page_id": 4,
+          "type": "page_number"
+        },
+        {
+          "attributes": {},
+          "bbox": {
+            "coord": [
+              240,
+              85,
+              580,
+              95
+            ],
+            "page_id": 4
+          },
+          "confidence": 0.92,
+          "content": "Intracellular mediators in control and cystic fibrosis enterocytes",
+          "id": "p4-e3",
+          "order": 3,
+          "page_id": 4,
+          "type": "heading"
+        },
+        {
+          "attributes": {},
+          "bbox": {
+            "coord": [
+              240,
+              105,
+              580,
+              195
+            ],
+            "page_id": 4
+          },
+          "confidence": 0.94,
+          "content": "| | Control | Cystic fibrosis |\n|---|---|---|\n| Calcium (nmol/l) | | |\n| Basal | 287 (85) [9] | 263 (37) [2] |\n| Ionomycin (100 nmol/l) | 640 (30) [3] | 663 [1] |\n| cAMP (fmol/100 000 cells) | | |\n| Basal | 716 (304) [13] | 575 (49) [5] |\n| VIP (100 nmol/l) | 4144 (445) [3] | 4061 (169) [3] |\n| PGE2 (7 \u00b5mol/l) | 1190 (445) [13] | 1251 (426) [4] |",
+          "id": "p4-e4",
+          "order": 4,
+          "page_id": 4,
+          "type": "table"
+        },
+        {
+          "attributes": {},
+          "bbox": {
+            "coord": [
+              240,
+              200,
+              580,
+              290
+            ],
+            "page_id": 4
+          },
+          "confidence": 0.93,
+          "content": "cAMP=adenosine 3'5'-cyclic monophosphate; VIP=vasoactive intestinal polypeptide; PGE2=prostaglandin E2.\nBasal and ionomycin stimulated changes in intracellular free calcium values of enterocytes isolated from jejunal biopsy specimens of control and cystic fibrosis patients were determined as described in the text. For the cAMP determinations, enterocytes were incubated for 10 minutes at 37\u00b0C with 1 mmol/l IBMX, and were then incubated for a further five minutes with either vehicle only (basal), VIP, or PGE2. The reaction was stopped and the cAMP extracted from the cells and analysed as described in the text.",
+          "id": "p4-e5",
+          "order": 5,
+          "page_id": 4,
+          "type": "text"
+        },
+        {
+          "attributes": {},
+          "bbox": {
+            "coord": [
+              240,
+              315,
+              450,
+              325
+            ],
+            "page_id": 4
+          },
+          "confidence": 0.96,
+          "content": "INTRACELLULAR FREE CALCIUM",
+          "id": "p4-e6",
+          "order": 6,
+          "page_id": 4,
+          "type": "heading"
+        },
+        {
+          "attributes": {},
+          "bbox": {
+            "coord": [
+              84,
+              59,
+              107,
+              69
+            ],
+            "page_id": 5
+          },
+          "confidence": 0.98,
+          "content": "898",
+          "id": "p5-e1",
+          "order": 1,
+          "page_id": 5,
+          "type": "page_number"
+        },
+        {
+          "attributes": {},
+          "bbox": {
+            "coord": [
+              624,
+              59,
+              915,
+              69
+            ],
+            "page_id": 5
+          },
+          "confidence": 0.95,
+          "content": "Hutchin, Dobson, Brown, Hardcastle, Hardcastle, Taylor",
+          "id": "p5-e2",
+          "order": 2,
+          "page_id": 5,
+          "type": "header"
+        },
+        {
+          "attributes": {},
+          "bbox": {
+            "coord": [
+              269,
+              89,
+              584,
+              251
+            ],
+            "page_id": 5
+          },
+          "confidence": 0.97,
+          "content": "calcium and the increase in cAMP induced by secretagogues in normal and cystic fibrosis cells. The results indicate that the cystic fibrosis enterocytes retain the ability to respond to secretagogue stimulation with an increase in the cAMP value, and there is not significant difference in either the basal cAMP value or in the response to stimulation between normal and cystic fibrosis enterocytes. Previously, similar results have been obtained using other epithelial tissues that are affected by cystic fibrosis (sweat ducts41; airways tissues14,42,45; salivary glands43; rectum44).",
+          "id": "p5-e3",
+          "order": 3,
+          "page_id": 5,
+          "type": "text"
+        }
+      ],
+      "pages": [
+        {
+          "height": 2347,
+          "id": 0,
+          "image_uri": "jobs/11097292bb2b457e8fc5d6e38e5aa227/pages/0/page.png",
+          "page_hash": "0ec05421a884c091b393ada351d7abfcb1f56d91b74f9975a8b81404366c7f76",
+          "rotation": 0,
+          "width": 1654
+        },
+        {
+          "height": 2347,
+          "id": 1,
+          "image_uri": "jobs/11097292bb2b457e8fc5d6e38e5aa227/pages/1/page.png",
+          "page_hash": "f468ec00eecd2a5b77f11cf15d51430c1f7b55ee595e2d14ae6044937dc3502a",
+          "rotation": 0,
+          "width": 1654
+        },
+        {
+          "height": 2347,
+          "id": 2,
+          "image_uri": "jobs/11097292bb2b457e8fc5d6e38e5aa227/pages/2/page.png",
+          "page_hash": "a72ecdeabe05d5982ed5a56ef9e37862a801144edcb6ab97b63fb57c5d9ce9dc",
+          "rotation": 0,
+          "width": 1654
+        },
+        {
+          "height": 2347,
+          "id": 3,
+          "image_uri": "jobs/11097292bb2b457e8fc5d6e38e5aa227/pages/3/page.png",
+          "page_hash": "677a15e9c35bc1b68c67a04aa16bcd1e5fc275458af15bd0e3569e5e4cbeb891",
+          "rotation": 0,
+          "width": 1654
+        },
+        {
+          "height": 2347,
+          "id": 4,
+          "image_uri": "jobs/11097292bb2b457e8fc5d6e38e5aa227/pages/4/page.png",
+          "page_hash": "3850cbbacf54827463875113d04ae45b87df8cca3a23e8bfad8c7e1134910d36",
+          "rotation": 0,
+          "width": 1654
+        },
+        {
+          "height": 2347,
+          "id": 5,
+          "image_uri": "jobs/11097292bb2b457e8fc5d6e38e5aa227/pages/5/page.png",
+          "page_hash": "938512604431f98b0ad7f1e4d3ae55056391f357cab453339dda1fe9b2f6225a",
+          "rotation": 0,
+          "width": 1654
+        },
+        {
+          "height": 2347,
+          "id": 6,
+          "image_uri": "jobs/11097292bb2b457e8fc5d6e38e5aa227/pages/6/page.png",
+          "page_hash": "084e3072cf239de50bb7871a1242d8161c444684b54cfada58b0811a45f78c81",
+          "rotation": 0,
+          "width": 1654
+        }
+      ]
+    },
+    "error_status": [],
+    "metadata": {
+      "file_metadata": {
+        "bytes": 9933255,
+        "file_name": "inline.pdf",
+        "mime_type": "application/pdf",
+        "pages_total": 7
+      },
+      "job_id": "11097292bb2b457e8fc5d6e38e5aa227",
+      "models": {
+        "page_vlm": "Qwen/Qwen3.5-27B-FP8"
+      },
+      "pipeline_mode": "balanced",
+      "schema_version": "1.0",
+      "timings": {
+        "aggregate_ms": 0,
+        "elapsed_ms": 662944,
+        "split_ms": 15810,
+        "submit_ms": 146
+      }
+    }
+  },
+  "status": "completed"
+}

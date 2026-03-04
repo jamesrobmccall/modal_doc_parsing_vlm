@@ -5,8 +5,9 @@ import shutil
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any, Protocol, TypeVar
+from uuid import uuid4
 
-from pydantic import BaseModel
+from pydantic import BaseModel, ValidationError
 
 from .types_result import (
     ChunkParseSummary,
@@ -86,7 +87,9 @@ class FileSystemStorageBackend:
 
     def _write_json(self, path: Path, value: dict[str, Any]) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(json.dumps(value, indent=2, sort_keys=True), encoding="utf-8")
+        temp_path = path.parent / f".{path.name}.{uuid4().hex}.tmp"
+        temp_path.write_text(json.dumps(value, indent=2, sort_keys=True), encoding="utf-8")
+        temp_path.replace(path)
         self.commit()
 
     def _read_model(self, path: Path, model_type: type[T]) -> T | None:
@@ -207,7 +210,10 @@ class FileSystemStorageBackend:
     def list_page_results(self, job_id: str) -> list[PageParseResult]:
         results: list[PageParseResult] = []
         for path in sorted((self.job_dir(job_id) / "pages").glob("*/result.json")):
-            result = self._read_model(path, PageParseResult)
+            try:
+                result = self._read_model(path, PageParseResult)
+            except ValidationError:
+                continue
             if result is not None:
                 results.append(result)
         return results

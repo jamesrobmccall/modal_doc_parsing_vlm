@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from enum import Enum
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
@@ -150,13 +150,15 @@ class DocumentParseResult(StrictModel):
 class PageElementCandidate(StrictModel):
     type: ElementType | str
     content: str
-    bbox: BoundingBox | None = None
+    bbox: BoundingBox | Annotated[list[int], Field(min_length=4, max_length=4)] | None = None
     order: int | None = None
     confidence: float | None = None
     attributes: dict[str, Any] = Field(default_factory=dict)
 
 
 class PageModelOutput(StrictModel):
+    model_config = ConfigDict(extra="ignore", populate_by_name=True)
+
     page_markdown: str = ""
     elements: list[PageElementCandidate] = Field(default_factory=list)
     notes: list[str] = Field(default_factory=list)

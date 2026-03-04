@@ -108,3 +108,14 @@ def test_storage_round_trip_page_result_and_final_result(tmp_path):
     assert storage.read_final_result(manifest.job_id).metadata.job_id == manifest.job_id
     assert storage.read_result_text(manifest.job_id, "markdown") == "markdown"
     assert storage.read_result_text(manifest.job_id, "text") == "text"
+
+
+def test_list_page_results_skips_transient_invalid_json(tmp_path):
+    storage = FileSystemStorageBackend(tmp_path)
+    manifest = make_manifest()
+    storage.create_job_manifest(manifest)
+    page_dir = storage.job_dir(manifest.job_id) / "pages" / "0"
+    page_dir.mkdir(parents=True, exist_ok=True)
+    (page_dir / "result.json").write_text("\x00\x00\x00\x00", encoding="utf-8")
+
+    assert storage.list_page_results(manifest.job_id) == []

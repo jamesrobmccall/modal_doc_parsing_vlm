@@ -16,9 +16,11 @@ from .types_result import (
 
 def extract_json_object(raw_text: str) -> str:
     start = raw_text.find("{")
-    end = raw_text.rfind("}")
-    if start == -1 or end == -1 or end < start:
+    if start == -1:
         raise ValueError("No JSON object found in model output")
+    end = raw_text.rfind("}")
+    if end == -1 or end < start:
+        return raw_text[start:]
     return raw_text[start : end + 1]
 
 
@@ -42,11 +44,22 @@ def coerce_element_type(value: ElementType | str) -> ElementType:
         return ElementType.UNKNOWN
 
 
+def coerce_bbox(
+    value: BoundingBox | list[int] | None,
+    *,
+    page_id: int,
+) -> BoundingBox:
+    if value is None:
+        return BoundingBox(coord=[0, 0, 0, 0], page_id=page_id)
+    if isinstance(value, BoundingBox):
+        return BoundingBox(coord=value.coord, page_id=page_id)
+    return BoundingBox(coord=value, page_id=page_id)
+
+
 def normalize_page_output(raw_output: PageModelOutput, page_id: int) -> list[DocumentElement]:
     elements: list[DocumentElement] = []
     for index, item in enumerate(raw_output.elements, start=1):
-        bbox = item.bbox or BoundingBox(coord=[0, 0, 0, 0], page_id=page_id)
-        bbox = BoundingBox(coord=bbox.coord, page_id=page_id)
+        bbox = coerce_bbox(item.bbox, page_id=page_id)
         order = item.order or index
         elements.append(
             DocumentElement(

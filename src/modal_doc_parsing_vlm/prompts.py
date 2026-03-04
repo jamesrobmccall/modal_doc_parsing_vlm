@@ -24,7 +24,8 @@ COMMON_OUTPUT_SPEC = """Return JSON only with this exact shape:
 }
 The bbox coordinates must be integers in image pixel space.
 Do not wrap the JSON in markdown fences.
-Do not include commentary outside the JSON object."""
+Do not include commentary outside the JSON object.
+Do not include chain-of-thought, analysis, or reasoning text."""
 
 
 BALANCED_TASK = """Parse this document page into structured layout elements.
@@ -42,7 +43,8 @@ If a region is ambiguous, prefer a conservative element split and mention uncert
 
 STRICT_JSON_REMINDER = """Your previous answer was not valid JSON.
 Retry and output a single valid JSON object only.
-Do not add prose, explanations, comments, markdown fences, or trailing text."""
+Do not add prose, explanations, comments, markdown fences, or trailing text.
+Do not emit reasoning content."""
 
 
 def build_page_prompt(
@@ -58,17 +60,11 @@ def build_page_prompt(
     )
     strict_line = STRICT_JSON_REMINDER + "\n" if strict_json else ""
     return (
-        "<|im_start|>system\n"
         "You are a careful document parser.\n"
-        "<|im_end|>\n"
-        "<|im_start|>user\n"
-        "<|vision_start|><|image_pad|><|vision_end|>\n"
         f"Prompt version: {PROMPT_VERSION}\n"
         f"Page id: {page_id}\n"
         f"{language_line}"
         f"{task}\n"
         f"{strict_line}"
         f"{COMMON_OUTPUT_SPEC}\n"
-        "<|im_end|>\n"
-        "<|im_start|>assistant\n"
     )
