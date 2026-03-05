@@ -17,13 +17,36 @@ ENABLED_RUNTIME_PROFILES = tuple(
 
 ARTIFACT_ROOT = Path("/artifacts")
 HF_CACHE_ROOT = Path("/root/.cache/huggingface")
+HF_HUB_CACHE_ROOT = HF_CACHE_ROOT / "hub"
 VLLM_CACHE_ROOT = Path("/root/.cache/vllm")
+TORCHINDUCTOR_CACHE_ROOT = VLLM_CACHE_ROOT / "torchinductor"
+PADDLE_CACHE_ROOT = Path("/root/.paddleocr")
 
 HF_CACHE_VOLUME_NAME = "doc-parse-hf-cache"
 VLLM_CACHE_VOLUME_NAME = "doc-parse-vllm-cache"
 ARTIFACTS_VOLUME_NAME = "doc-parse-artifacts"
+PADDLE_CACHE_VOLUME_NAME = "doc-parse-paddle-cache"
 JOB_STATUS_DICT_NAME = "doc-parse-job-status"
 IDEMPOTENCY_DICT_NAME = "doc-parse-idempotency"
+
+STARTUP_WARMUP_ENABLED = os.environ.get("DOC_PARSE_STARTUP_WARMUP", "").lower() in {
+    "1",
+    "true",
+    "yes",
+}
+STARTUP_WARMUP_MAX_TOKENS = int(
+    os.environ.get("DOC_PARSE_STARTUP_WARMUP_MAX_TOKENS", "32")
+)
+ENABLE_ASYNC_REFINEMENT = os.environ.get("DOC_PARSE_ASYNC_REFINEMENT", "1").lower() in {
+    "1",
+    "true",
+    "yes",
+}
+ENABLE_DEEP_REFINE = os.environ.get("DOC_PARSE_ENABLE_DEEP_REFINE", "").lower() in {
+    "1",
+    "true",
+    "yes",
+}
 
 RETENTION_DAYS = 7
 DEFAULT_POLL_AFTER_SECONDS = 2
@@ -31,8 +54,22 @@ DEFAULT_STATUS_POLL_INTERVAL_SECONDS = 2.0
 ORCHESTRATOR_TIMEOUT_SECONDS = 60 * 60
 ENGINE_TIMEOUT_SECONDS = 60 * 30
 SCALEDOWN_WINDOW_SECONDS = 60 * 5
+OCR_SCALEDOWN_WINDOW_SECONDS = 60 * 20
+OCR_MIN_CONTAINERS = int(os.environ.get("DOC_PARSE_OCR_MIN_CONTAINERS", "1"))
+OCR_BUFFER_CONTAINERS = int(os.environ.get("DOC_PARSE_OCR_BUFFER_CONTAINERS", "1"))
+OCR_ALLOW_CONCURRENT_INPUTS = int(
+    os.environ.get("DOC_PARSE_OCR_ALLOW_CONCURRENT_INPUTS", "1")
+)
+FALLBACK_MIN_CONTAINERS = int(os.environ.get("DOC_PARSE_FALLBACK_MIN_CONTAINERS", "0"))
+FALLBACK_BUFFER_CONTAINERS = int(
+    os.environ.get("DOC_PARSE_FALLBACK_BUFFER_CONTAINERS", "1")
+)
+FALLBACK_ALLOW_CONCURRENT_INPUTS = int(
+    os.environ.get("DOC_PARSE_FALLBACK_ALLOW_CONCURRENT_INPUTS", "1")
+)
 
 CONTROL_PLANE_PYTHON_VERSION = "3.12"
+OCR_PYTHON_VERSION = os.environ.get("DOC_PARSE_OCR_PYTHON_VERSION", "3.10")
 CUDA_IMAGE = "nvidia/cuda:12.9.0-devel-ubuntu22.04"
 VLLM_NIGHTLY_EXTRA_INDEX_URL = "https://wheels.vllm.ai/nightly"
 VLLM_UV_EXTRA_OPTIONS = (
@@ -42,6 +79,8 @@ VLLM_UV_EXTRA_OPTIONS = (
 )
 
 QWEN35_VLLM_PACKAGE = "vllm"
+PADDLE_OCR_ENGINE_NAME = "PP-StructureV3"
+PADDLE_OCR_GPU = os.environ.get("DOC_PARSE_OCR_GPU", "A10G")
 
 CONTROL_PLANE_DEPENDENCIES = [
     "fastapi==0.121.1",
@@ -59,9 +98,29 @@ COMMON_VLLM_DEPENDENCIES = [
     "transformers==4.57.2",
 ]
 
+OCR_DEPENDENCIES = [
+    *CONTROL_PLANE_DEPENDENCIES,
+    "numpy==2.2.6",
+    "paddlepaddle==3.0.0",
+    "paddleocr==2.10.0",
+    "opencv-python-headless==4.12.0.88",
+]
+
 HEALTH_RESPONSE = {"status": "ok"}
-TERMINAL_STATUSES = {"completed", "completed_with_errors", "failed"}
-ACTIVE_STATUSES = {"queued", "splitting", "submitting", "running", "aggregating"}
+TERMINAL_STATUSES = {
+    "completed",
+    "completed_fast",
+    "completed_final",
+    "completed_with_errors",
+    "failed",
+}
+ACTIVE_STATUSES = {
+    "queued",
+    "splitting",
+    "submitting",
+    "running",
+    "aggregating",
+}
 
 MIME_TO_SUFFIX = {
     "application/pdf": ".pdf",
@@ -78,6 +137,7 @@ RENDER_DPI = {
     "balanced": 200,
     "accurate": 300,
 }
+FAST_PROFILE_RENDER_DPI = int(os.environ.get("DOC_PARSE_FAST_PROFILE_RENDER_DPI", "150"))
 
 MAX_PAGES_PER_CHUNK = {
     "balanced": 16,
@@ -85,6 +145,37 @@ MAX_PAGES_PER_CHUNK = {
 }
 
 PROMPT_VERSION = "2026-03-03"
+
+ROUTING_EXTRACTABLE_CHAR_THRESHOLD = int(
+    os.environ.get("DOC_PARSE_ROUTING_EXTRACTABLE_CHAR_THRESHOLD", "500")
+)
+ROUTING_PRINTABLE_RATIO_THRESHOLD = float(
+    os.environ.get("DOC_PARSE_ROUTING_PRINTABLE_RATIO_THRESHOLD", "0.9")
+)
+FALLBACK_MEAN_OCR_CONFIDENCE_THRESHOLD = float(
+    os.environ.get("DOC_PARSE_FALLBACK_MEAN_OCR_CONFIDENCE_THRESHOLD", "0.88")
+)
+FALLBACK_TEXT_COVERAGE_THRESHOLD = float(
+    os.environ.get("DOC_PARSE_FALLBACK_TEXT_COVERAGE_THRESHOLD", "0.60")
+)
+FALLBACK_TABLE_CONFIDENCE_THRESHOLD = float(
+    os.environ.get("DOC_PARSE_FALLBACK_TABLE_CONFIDENCE_THRESHOLD", "0.80")
+)
+FALLBACK_MIN_ELEMENT_COUNT = int(os.environ.get("DOC_PARSE_FALLBACK_MIN_ELEMENT_COUNT", "3"))
+
+
+@dataclass(frozen=True)
+class OcrRuntimeProfile:
+    name: str
+    engine_name: str
+    gpu: str
+
+
+OCR_RUNTIME_PROFILE = OcrRuntimeProfile(
+    name="ocr-fast",
+    engine_name=PADDLE_OCR_ENGINE_NAME,
+    gpu=PADDLE_OCR_GPU,
+)
 
 
 @dataclass(frozen=True)
@@ -100,29 +191,35 @@ class RuntimeProfile:
     disable_thinking: bool = False
     max_model_len: int = 16384
     enforce_eager: bool = False
+    fallback_model_id: str | None = None
+    deep_refine_model_id: str | None = None
 
 
 RUNTIME_PROFILES = {
     "prod": RuntimeProfile(
         name="prod",
-        model_id="Qwen/Qwen3.5-27B-FP8",
-        gpu="H100",
+        model_id="Qwen/Qwen2.5-VL-7B-Instruct",
+        gpu="A10G",
         vllm_package=QWEN35_VLLM_PACKAGE,
         vllm_extra_index_url=VLLM_NIGHTLY_EXTRA_INDEX_URL,
         vllm_extra_options=VLLM_UV_EXTRA_OPTIONS,
         disable_thinking=True,
         max_model_len=8192,
+        fallback_model_id="Qwen/Qwen2.5-VL-7B-Instruct",
+        deep_refine_model_id="Qwen/Qwen3.5-27B-FP8",
     ),
     "dev": RuntimeProfile(
         name="dev",
-        model_id="Qwen/Qwen3.5-27B-FP8",
-        gpu="H100",
+        model_id="Qwen/Qwen2.5-VL-7B-Instruct",
+        gpu="A10G",
         vllm_package=QWEN35_VLLM_PACKAGE,
         vllm_extra_index_url=VLLM_NIGHTLY_EXTRA_INDEX_URL,
         vllm_extra_options=VLLM_UV_EXTRA_OPTIONS,
         disable_thinking=True,
         enforce_eager=True,
         max_model_len=8192,
+        fallback_model_id="Qwen/Qwen2.5-VL-7B-Instruct",
+        deep_refine_model_id="Qwen/Qwen3.5-27B-FP8",
     ),
 }
 

@@ -1,0 +1,14 @@
+{
+  "document_json_fast": "/jobs/21a31fc3d21e4c54ab59655d09f43778/result/document_parse_result.fast.json",
+  "document_json_final": "/jobs/21a31fc3d21e4c54ab59655d09f43778/result/document_parse_result.final.json",
+  "document_json_latest": "/jobs/21a31fc3d21e4c54ab59655d09f43778/result/document_parse_result.json",
+  "document_markdown_fast": "/jobs/21a31fc3d21e4c54ab59655d09f43778/result/document.fast.md",
+  "document_markdown_final": "/jobs/21a31fc3d21e4c54ab59655d09f43778/result/document.final.md",
+  "document_markdown_latest": "/jobs/21a31fc3d21e4c54ab59655d09f43778/result/document.md",
+  "document_text_fast": "/jobs/21a31fc3d21e4c54ab59655d09f43778/result/document.fast.txt",
+  "document_text_final": "/jobs/21a31fc3d21e4c54ab59655d09f43778/result/document.final.txt",
+  "document_text_latest": "/jobs/21a31fc3d21e4c54ab59655d09f43778/result/document.txt",
+  "job_root": "/jobs/21a31fc3d21e4c54ab59655d09f43778",
+  "result_root": "/jobs/21a31fc3d21e4c54ab59655d09f43778/result",
+  "volume_name": "doc-parse-artifacts"
+}

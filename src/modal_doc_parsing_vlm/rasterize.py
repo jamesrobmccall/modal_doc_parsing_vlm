@@ -81,13 +81,14 @@ def rasterize_document(
     output_dir: Path,
     page_range: str | None = None,
     max_pages: int | None = None,
+    dpi_override: int | None = None,
 ) -> list[RasterizedPage]:
     output_dir.mkdir(parents=True, exist_ok=True)
     if mime_type == MimeType.PDF:
         document = fitz.open(stream=source_bytes, filetype="pdf")
         all_page_ids = parse_page_range(page_range, document.page_count)
         selected_page_ids = apply_max_pages(all_page_ids, max_pages)
-        dpi = RENDER_DPI[mode.value]
+        dpi = dpi_override or RENDER_DPI[mode.value]
         zoom = dpi / 72.0
         rasterized: list[RasterizedPage] = []
         for page_id in selected_page_ids:

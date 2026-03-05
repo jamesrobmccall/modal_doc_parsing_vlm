@@ -25,6 +25,8 @@ def make_mcp_server(service):
         page_range: str | None = None,
         language_hint: str | None = None,
         debug: dict | None = None,
+        result_level: str = "latest",
+        latency_profile: str = "balanced",
     ):
         """Submit a document parse job and return a job id for polling."""
         request = SubmitDocumentParseRequest.model_validate(
@@ -37,6 +39,8 @@ def make_mcp_server(service):
                 "page_range": page_range,
                 "language_hint": language_hint,
                 "debug": debug,
+                "result_level": result_level,
+                "latency_profile": latency_profile,
             }
         )
         response = service.submit_document_parse(request)
@@ -55,6 +59,7 @@ def make_mcp_server(service):
         format: str,
         include_pages: bool = False,
         include_debug: bool = False,
+        result_level: str = "latest",
     ):
         """Fetch the final document parse result in JSON, Markdown, or plain text."""
         request = GetDocumentParseResultRequest(
@@ -62,6 +67,7 @@ def make_mcp_server(service):
             format=format,
             include_pages=include_pages,
             include_debug=include_debug,
+            result_level=result_level,
         )
         response = service.get_document_parse_result(request)
         return response.model_dump(mode="json")

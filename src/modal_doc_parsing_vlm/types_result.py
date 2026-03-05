@@ -26,6 +26,23 @@ class ParseMode(str, Enum):
     ACCURATE = "accurate"
 
 
+class LatencyProfile(str, Enum):
+    FAST = "fast"
+    BALANCED = "balanced"
+    MAX_QUALITY = "max_quality"
+
+
+class ResultLevel(str, Enum):
+    LATEST = "latest"
+    FAST = "fast"
+    FINAL = "final"
+
+
+class QualityStage(str, Enum):
+    FAST = "fast"
+    FINAL = "final"
+
+
 class OutputFormat(str, Enum):
     JSON = "json"
     MARKDOWN = "markdown"
@@ -38,6 +55,8 @@ class JobStatus(str, Enum):
     SUBMITTING = "submitting"
     RUNNING = "running"
     AGGREGATING = "aggregating"
+    COMPLETED_FAST = "completed_fast"
+    COMPLETED_FINAL = "completed_final"
     COMPLETED = "completed"
     COMPLETED_WITH_ERRORS = "completed_with_errors"
     FAILED = "failed"
@@ -63,6 +82,12 @@ class ElementType(str, Enum):
     UNKNOWN = "unknown"
 
 
+class ParseEngine(str, Enum):
+    DIGITAL_TEXT = "digital_text"
+    PADDLE_OCR = "paddle_ocr"
+    VLM_FALLBACK = "vlm_fallback"
+
+
 class DebugOptions(StrictModel):
     persist_page_images: bool = True
     save_raw_model_output: bool = False
@@ -73,6 +98,7 @@ class JobTimings(StrictModel):
     split_ms: int = 0
     submit_ms: int = 0
     aggregate_ms: int = 0
+    refine_ms: int = 0
     elapsed_ms: int = 0
 
 
@@ -128,13 +154,17 @@ class FileMetadata(StrictModel):
 
 
 class ModelMetadata(StrictModel):
-    page_vlm: str
+    page_vlm: str | None = None
+    fast_ocr: str | None = None
+    fallback_vlm: str | None = None
 
 
 class ResultMetadata(StrictModel):
     job_id: str
     schema_version: str
     pipeline_mode: ParseMode
+    quality_stage: QualityStage = QualityStage.FAST
+    result_revision: int = 1
     models: ModelMetadata
     file_metadata: FileMetadata
     timings: JobTimings
@@ -178,6 +208,10 @@ class PageParseResult(StrictModel):
     inference_ms: int = 0
     raw_output_path: str | None = None
     prompt_path: str | None = None
+    result_revision: int = 1
+    engine: ParseEngine = ParseEngine.VLM_FALLBACK
+    confidence_summary: dict[str, float] = Field(default_factory=dict)
+    fallback_triggered: bool = False
 
 
 class PageTask(StrictModel):
@@ -194,6 +228,11 @@ class PageTask(StrictModel):
     result_path: str
     raw_output_path: str | None = None
     prompt_path: str | None = None
+    result_revision: int = 1
+    route_metrics: dict[str, float] = Field(default_factory=dict)
+    source_text: str | None = None
+    route_engine: ParseEngine | None = None
+    latency_profile: LatencyProfile = LatencyProfile.BALANCED
 
 
 class PageChunk(StrictModel):
@@ -235,6 +274,11 @@ class JobManifest(StrictModel):
     max_pages: int | None = None
     language_hint: str | None = None
     chunk_ids: list[str] = Field(default_factory=list)
+    latency_profile: LatencyProfile = LatencyProfile.BALANCED
+    result_level: ResultLevel = ResultLevel.LATEST
+    pending_refinement_pages: list[int] = Field(default_factory=list)
+    result_revision: int = 0
+    fallback_model_id: str | None = None
 
 
 class JobProgressSnapshot(StrictModel):
@@ -251,6 +295,8 @@ class JobProgressSnapshot(StrictModel):
     runtime_profile: str | None = None
     parser_version: str | None = None
     chunk_function_call_id: str | None = None
+    result_revision: int = 0
+    pending_refinement_pages: int = 0
 
 
 class IdempotencyRecord(StrictModel):
@@ -268,6 +314,8 @@ class ResultEnvelope(StrictModel):
     result: dict[str, Any] | str
     pages: list[PageParseResult] | None = None
     debug: dict[str, Any] | None = None
+    quality_stage: QualityStage | None = None
+    result_revision: int | None = None
 
     @model_validator(mode="after")
     def ensure_result_shape(self) -> "ResultEnvelope":
@@ -275,4 +323,8 @@ class ResultEnvelope(StrictModel):
             raise ValueError("JSON result envelopes must contain an object result")
         if self.format != OutputFormat.JSON and not isinstance(self.result, str):
             raise ValueError("Text and markdown envelopes must contain string results")
+        if self.result_revision is None:
+            self.result_revision = self.metadata.result_revision
+        if self.quality_stage is None:
+            self.quality_stage = self.metadata.quality_stage
         return self

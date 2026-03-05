@@ -17,6 +17,8 @@ from .types_result import (
     PageChunk,
     PageParseResult,
     PageTask,
+    QualityStage,
+    ResultLevel,
 )
 
 T = TypeVar("T", bound=BaseModel)
@@ -118,6 +120,9 @@ class FileSystemStorageBackend:
     def page_result_path(self, job_id: str, page_id: int) -> Path:
         return self.job_dir(job_id) / "pages" / str(page_id) / "result.json"
 
+    def page_result_revision_path(self, job_id: str, page_id: int, result_revision: int) -> Path:
+        return self.job_dir(job_id) / "pages" / str(page_id) / f"result.r{result_revision}.json"
+
     def page_image_path(self, job_id: str, page_id: int) -> Path:
         return self.job_dir(job_id) / "pages" / str(page_id) / "page.png"
 
@@ -127,11 +132,29 @@ class FileSystemStorageBackend:
     def final_json_path(self, job_id: str) -> Path:
         return self.job_dir(job_id) / "result" / "document_parse_result.json"
 
+    def final_stage_json_path(self, job_id: str, stage: QualityStage) -> Path:
+        return self.job_dir(job_id) / "result" / f"document_parse_result.{stage.value}.json"
+
+    def final_stage_revision_json_path(
+        self, job_id: str, stage: QualityStage, result_revision: int
+    ) -> Path:
+        return (
+            self.job_dir(job_id)
+            / "result"
+            / f"document_parse_result.{stage.value}.r{result_revision}.json"
+        )
+
     def final_markdown_path(self, job_id: str) -> Path:
         return self.job_dir(job_id) / "result" / "document.md"
 
+    def final_stage_markdown_path(self, job_id: str, stage: QualityStage) -> Path:
+        return self.job_dir(job_id) / "result" / f"document.{stage.value}.md"
+
     def final_text_path(self, job_id: str) -> Path:
         return self.job_dir(job_id) / "result" / "document.txt"
+
+    def final_stage_text_path(self, job_id: str, stage: QualityStage) -> Path:
+        return self.job_dir(job_id) / "result" / f"document.{stage.value}.txt"
 
     def create_job_manifest(self, manifest: JobManifest) -> None:
         self.write_job_manifest(manifest)
@@ -202,14 +225,68 @@ class FileSystemStorageBackend:
         return tasks
 
     def write_page_result(self, result: PageParseResult) -> None:
+        revision_path = self.page_result_revision_path(
+            result.job_id,
+            result.page_id,
+            result.result_revision,
+        )
+        self._write_model(revision_path, result)
         self._write_model(self.page_result_path(result.job_id, result.page_id), result)
 
-    def read_page_result(self, job_id: str, page_id: int) -> PageParseResult | None:
+    def read_page_result(
+        self,
+        job_id: str,
+        page_id: int,
+        *,
+        result_revision: int | None = None,
+    ) -> PageParseResult | None:
+        if result_revision is not None:
+            return self._read_model(
+                self.page_result_revision_path(job_id, page_id, result_revision),
+                PageParseResult,
+            )
         return self._read_model(self.page_result_path(job_id, page_id), PageParseResult)
 
-    def list_page_results(self, job_id: str) -> list[PageParseResult]:
+    def _revision_from_result_path(self, path: Path) -> int | None:
+        stem = path.stem
+        if ".r" not in stem:
+            return None
+        try:
+            return int(stem.split(".r", 1)[1])
+        except ValueError:
+            return None
+
+    def _best_revision_path(self, page_dir: Path, result_revision: int) -> Path | None:
+        candidates: list[tuple[int, Path]] = []
+        for path in page_dir.glob("result.r*.json"):
+            revision = self._revision_from_result_path(path)
+            if revision is None or revision > result_revision:
+                continue
+            candidates.append((revision, path))
+        if not candidates:
+            return None
+        candidates.sort(key=lambda item: item[0], reverse=True)
+        return candidates[0][1]
+
+    def list_page_results(
+        self,
+        job_id: str,
+        *,
+        result_revision: int | None = None,
+    ) -> list[PageParseResult]:
         results: list[PageParseResult] = []
-        for path in sorted((self.job_dir(job_id) / "pages").glob("*/result.json")):
+        page_dirs = sorted((self.job_dir(job_id) / "pages").glob("*"))
+        for page_dir in page_dirs:
+            if not page_dir.is_dir():
+                continue
+            if result_revision is None:
+                path = page_dir / "result.json"
+            else:
+                path = self._best_revision_path(page_dir, result_revision)
+                if path is None:
+                    continue
+            if not path.exists():
+                continue
             try:
                 result = self._read_model(path, PageParseResult)
             except ValidationError:
@@ -224,26 +301,92 @@ class FileSystemStorageBackend:
             summary.model_dump(mode="json"),
         )
 
-    def write_final_result(self, job_id: str, result, markdown: str, text: str) -> None:
+    def write_final_result(
+        self,
+        job_id: str,
+        result,
+        markdown: str,
+        text: str,
+        *,
+        quality_stage: QualityStage = QualityStage.FINAL,
+        result_revision: int = 1,
+    ) -> None:
+        self._write_model(
+            self.final_stage_revision_json_path(job_id, quality_stage, result_revision),
+            result,
+        )
+        self._write_model(self.final_stage_json_path(job_id, quality_stage), result)
         self._write_model(self.final_json_path(job_id), result)
         self.final_markdown_path(job_id).parent.mkdir(parents=True, exist_ok=True)
+        self.final_stage_markdown_path(job_id, quality_stage).write_text(
+            markdown,
+            encoding="utf-8",
+        )
+        self.final_stage_text_path(job_id, quality_stage).write_text(
+            text,
+            encoding="utf-8",
+        )
         self.final_markdown_path(job_id).write_text(markdown, encoding="utf-8")
         self.final_text_path(job_id).write_text(text, encoding="utf-8")
         self.commit()
 
-    def read_final_result(self, job_id: str):
+    def read_final_result(
+        self,
+        job_id: str,
+        *,
+        result_level: ResultLevel = ResultLevel.LATEST,
+    ):
         from .types_result import DocumentParseResult
 
-        result = self._read_model(self.final_json_path(job_id), DocumentParseResult)
+        if result_level == ResultLevel.FINAL:
+            path = self.final_stage_json_path(job_id, QualityStage.FINAL)
+        elif result_level == ResultLevel.FAST:
+            path = self.final_stage_json_path(job_id, QualityStage.FAST)
+        else:
+            final_path = self.final_stage_json_path(job_id, QualityStage.FINAL)
+            fast_path = self.final_stage_json_path(job_id, QualityStage.FAST)
+            if final_path.exists():
+                path = final_path
+            elif fast_path.exists():
+                path = fast_path
+            else:
+                path = self.final_json_path(job_id)
+        result = self._read_model(path, DocumentParseResult)
         if result is None:
-            raise FileNotFoundError(f"No final result for job_id: {job_id}")
+            raise FileNotFoundError(
+                f"No {result_level.value} result available for job_id: {job_id}"
+            )
         return result
 
-    def read_result_text(self, job_id: str, format_name: str) -> str:
+    def read_result_text(
+        self,
+        job_id: str,
+        format_name: str,
+        *,
+        result_level: ResultLevel = ResultLevel.LATEST,
+    ) -> str:
+        if result_level == ResultLevel.FINAL:
+            markdown_path = self.final_stage_markdown_path(job_id, QualityStage.FINAL)
+            text_path = self.final_stage_text_path(job_id, QualityStage.FINAL)
+        elif result_level == ResultLevel.FAST:
+            markdown_path = self.final_stage_markdown_path(job_id, QualityStage.FAST)
+            text_path = self.final_stage_text_path(job_id, QualityStage.FAST)
+        else:
+            final_markdown = self.final_stage_markdown_path(job_id, QualityStage.FINAL)
+            final_text = self.final_stage_text_path(job_id, QualityStage.FINAL)
+            if final_markdown.exists() and final_text.exists():
+                markdown_path = final_markdown
+                text_path = final_text
+            else:
+                markdown_path = self.final_stage_markdown_path(job_id, QualityStage.FAST)
+                text_path = self.final_stage_text_path(job_id, QualityStage.FAST)
+                if not markdown_path.exists() or not text_path.exists():
+                    markdown_path = self.final_markdown_path(job_id)
+                    text_path = self.final_text_path(job_id)
         if format_name == "markdown":
-            return self.final_markdown_path(job_id).read_text(encoding="utf-8")
+            return markdown_path.read_text(encoding="utf-8")
         if format_name == "text":
-            return self.final_text_path(job_id).read_text(encoding="utf-8")
+            return text_path.read_text(encoding="utf-8")
         raise ValueError(f"Unsupported text format: {format_name}")
 
     def get_status(self, job_id: str) -> JobProgressSnapshot | None:
