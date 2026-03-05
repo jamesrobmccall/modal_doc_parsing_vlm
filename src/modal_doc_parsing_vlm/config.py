@@ -7,7 +7,7 @@ from pathlib import Path
 
 APP_NAME = "modal-doc-parsing-vlm"
 SCHEMA_VERSION = "1.0"
-PARSER_VERSION = "1.2.1"
+PARSER_VERSION = "1.2.2"
 DEFAULT_RUNTIME_PROFILE = os.environ.get("DOC_PARSE_RUNTIME_PROFILE", "prod")
 ENABLED_RUNTIME_PROFILES = tuple(
     profile.strip()
@@ -16,6 +16,12 @@ ENABLED_RUNTIME_PROFILES = tuple(
 )
 
 ARTIFACT_ROOT = Path("/artifacts")
+LOCAL_RESULT_OUTPUT_ROOT = Path(
+    os.environ.get(
+        "DOC_PARSE_LOCAL_OUTPUT_ROOT",
+        str(Path.home() / ".cache" / "modal-doc-parsing-vlm" / "job-results"),
+    )
+).expanduser()
 HF_CACHE_ROOT = Path("/root/.cache/huggingface")
 HF_HUB_CACHE_ROOT = HF_CACHE_ROOT / "hub"
 VLLM_CACHE_ROOT = Path("/root/.cache/vllm")
@@ -161,6 +167,12 @@ ROUTING_EXTRACTABLE_CHAR_THRESHOLD = int(
 )
 ROUTING_PRINTABLE_RATIO_THRESHOLD = float(
     os.environ.get("DOC_PARSE_ROUTING_PRINTABLE_RATIO_THRESHOLD", "0.9")
+)
+ROUTING_COMMON_WORD_RATIO_THRESHOLD = float(
+    os.environ.get("DOC_PARSE_ROUTING_COMMON_WORD_RATIO_THRESHOLD", "0.02")
+)
+ROUTING_MIN_WORDS_FOR_LANGUAGE_CHECK = int(
+    os.environ.get("DOC_PARSE_ROUTING_MIN_WORDS_FOR_LANGUAGE_CHECK", "40")
 )
 FALLBACK_MEAN_OCR_CONFIDENCE_THRESHOLD = float(
     os.environ.get("DOC_PARSE_FALLBACK_MEAN_OCR_CONFIDENCE_THRESHOLD", "0.88")

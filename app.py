@@ -29,6 +29,7 @@ from modal_doc_parsing_vlm.config import (
     HF_CACHE_VOLUME_NAME,
     IDEMPOTENCY_DICT_NAME,
     JOB_STATUS_DICT_NAME,
+    LOCAL_RESULT_OUTPUT_ROOT,
     ORCHESTRATOR_TIMEOUT_SECONDS,
     PADDLE_CACHE_VOLUME_NAME,
     RETENTION_DAYS,
@@ -491,7 +492,7 @@ def cache_model_weights(runtime_profile_name: str = DEFAULT_RUNTIME_PROFILE):
 @app.local_entrypoint()
 def download_result(
     job_id: str,
-    output_dir: str = "./tmp/job-results",
+    output_dir: str = str(LOCAL_RESULT_OUTPUT_ROOT),
     include_pages: bool = True,
     include_debug: bool = True,
     result_level: str = "latest",
@@ -515,7 +516,7 @@ def smoke_test(
     runtime_profile_name: str = "dev",
     save_raw_model_output: bool = True,
     save_prompt_text: bool = True,
-    output_dir: str = "./tmp/job-results",
+    output_dir: str = str(LOCAL_RESULT_OUTPUT_ROOT),
     result_level: str = "latest",
 ):
     if sample_path is None:

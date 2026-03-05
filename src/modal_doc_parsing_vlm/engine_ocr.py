@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import re
+from html import unescape
 from typing import Any
 
 import modal
@@ -28,6 +30,12 @@ from .types_result import (
     PageTask,
     ParseEngine,
 )
+
+
+_WHITESPACE_RE = re.compile(r"\s+")
+_HTML_TAG_RE = re.compile(r"<[^>]+>")
+_TABLE_ROW_RE = re.compile(r"<tr[^>]*>(.*?)</tr>", flags=re.IGNORECASE | re.DOTALL)
+_TABLE_CELL_RE = re.compile(r"<t[hd][^>]*>(.*?)</t[hd]>", flags=re.IGNORECASE | re.DOTALL)
 
 
 def build_ocr_image() -> modal.Image:
@@ -60,6 +68,8 @@ def _element_type_from_layout(layout_type: str) -> ElementType:
     normalized = layout_type.lower()
     if normalized in {"title", "heading"}:
         return ElementType.HEADING
+    if normalized in {"list", "list_item", "bullet_list"}:
+        return ElementType.LIST_ITEM
     if normalized == "table":
         return ElementType.TABLE
     if normalized in {"figure", "image"}:
@@ -75,6 +85,307 @@ def _element_type_from_layout(layout_type: str) -> ElementType:
     if normalized == "caption":
         return ElementType.CAPTION
     return ElementType.TEXT
+
+
+def _normalize_text(value: str) -> str:
+    return _WHITESPACE_RE.sub(" ", value).strip()
+
+
+def _strip_html(value: str) -> str:
+    without_scripts = re.sub(
+        r"<(script|style)[^>]*>.*?</\1>",
+        "",
+        value,
+        flags=re.IGNORECASE | re.DOTALL,
+    )
+    text = _HTML_TAG_RE.sub(" ", without_scripts)
+    return _normalize_text(unescape(text))
+
+
+def _html_table_to_markdown(table_html: str) -> str:
+    rows: list[list[str]] = []
+    for row_html in _TABLE_ROW_RE.findall(table_html):
+        cells = [_strip_html(cell) for cell in _TABLE_CELL_RE.findall(row_html)]
+        if any(cell for cell in cells):
+            rows.append(cells)
+    if not rows:
+        return _strip_html(table_html)
+
+    width = max(len(row) for row in rows)
+    normalized_rows = [row + [""] * (width - len(row)) for row in rows]
+    header = normalized_rows[0]
+    body = normalized_rows[1:]
+    if not body:
+        body = [[""] * width]
+
+    lines = [
+        "| " + " | ".join(header) + " |",
+        "| " + " | ".join(["---"] * width) + " |",
+    ]
+    lines.extend("| " + " | ".join(row) + " |" for row in body)
+    return "\n".join(lines).strip()
+
+
+def _extract_text(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        text = value.strip()
+        if "<" in text and ">" in text:
+            return _strip_html(text)
+        return _normalize_text(text)
+    if isinstance(value, (int, float)):
+        return str(value)
+    if isinstance(value, (list, tuple)):
+        parts = [_extract_text(item) for item in value]
+        return "\n".join(part for part in parts if part).strip()
+    if isinstance(value, dict):
+        for key in ("text", "content", "label", "markdown"):
+            extracted = _extract_text(value.get(key))
+            if extracted:
+                return extracted
+        parts: list[str] = []
+        for key in ("res", "items", "texts", "cells", "rows", "data"):
+            extracted = _extract_text(value.get(key))
+            if extracted:
+                parts.append(extracted)
+        if parts:
+            return "\n".join(parts).strip()
+        fallback = " ".join(_extract_text(v) for v in value.values())
+        return _normalize_text(fallback)
+    return ""
+
+
+def _table_markdown_from_res(value: Any) -> str:
+    if value is None:
+        return ""
+    if isinstance(value, str):
+        candidate = value.strip()
+        if "<table" in candidate.lower():
+            return _html_table_to_markdown(candidate)
+        return ""
+    if isinstance(value, dict):
+        for key in ("html", "table_html"):
+            candidate = value.get(key)
+            if isinstance(candidate, str) and candidate.strip():
+                return _html_table_to_markdown(candidate)
+        for key in ("markdown", "table_markdown", "md"):
+            candidate = value.get(key)
+            if isinstance(candidate, str) and candidate.strip():
+                return candidate.strip()
+        for nested in value.values():
+            nested_markdown = _table_markdown_from_res(nested)
+            if nested_markdown:
+                return nested_markdown
+        return ""
+    if isinstance(value, (list, tuple)):
+        for item in value:
+            nested_markdown = _table_markdown_from_res(item)
+            if nested_markdown:
+                return nested_markdown
+    return ""
+
+
+def _layout_block_content(block_type: str, block: dict[str, Any]) -> str:
+    normalized_type = block_type.lower()
+    if normalized_type == "table":
+        table_markdown = _table_markdown_from_res(block.get("res"))
+        if table_markdown:
+            return table_markdown
+    for key in ("text", "res"):
+        extracted = _extract_text(block.get(key))
+        if extracted:
+            return extracted
+    return ""
+
+
+def _bbox_area(coord: list[int]) -> int:
+    x0, y0, x1, y1 = coord
+    return max(0, x1 - x0) * max(0, y1 - y0)
+
+
+def _intersection_area(a: list[int], b: list[int]) -> int:
+    ax0, ay0, ax1, ay1 = a
+    bx0, by0, bx1, by1 = b
+    ix0 = max(ax0, bx0)
+    iy0 = max(ay0, by0)
+    ix1 = min(ax1, bx1)
+    iy1 = min(ay1, by1)
+    if ix1 <= ix0 or iy1 <= iy0:
+        return 0
+    return (ix1 - ix0) * (iy1 - iy0)
+
+
+def _boxes_duplicate(a: list[int], b: list[int], *, threshold: float = 0.75) -> bool:
+    shared = _intersection_area(a, b)
+    if shared <= 0:
+        return False
+    smallest = min(_bbox_area(a), _bbox_area(b))
+    if smallest <= 0:
+        return False
+    return (shared / smallest) >= threshold
+
+
+def _element_sort_key(element: DocumentElement) -> tuple[int, int, int]:
+    x0, y0, _x1, _y1 = element.bbox.coord
+    return (y0, x0, element.order)
+
+
+def _render_markdown_block(element: DocumentElement) -> str:
+    if not element.content.strip():
+        return ""
+    if element.type == ElementType.TABLE:
+        return element.content.strip()
+
+    content = _normalize_text(element.content)
+    if not content:
+        return ""
+    if element.type == ElementType.HEADING:
+        level = "##"
+        if str(element.attributes.get("layout_type", "")).lower() == "title":
+            level = "#"
+        return f"{level} {content}"
+    if element.type == ElementType.LIST_ITEM:
+        return f"- {content}"
+    if element.type == ElementType.CAPTION:
+        return f"*{content}*"
+    if element.type == ElementType.HEADER:
+        return f"> [header] {content}"
+    if element.type == ElementType.FOOTER:
+        return f"> [footer] {content}"
+    if element.type == ElementType.PAGE_NUMBER:
+        return f"> [page] {content}"
+    return content
+
+
+def _page_markdown_from_elements(elements: list[DocumentElement]) -> str:
+    paragraph_types = {ElementType.TEXT, ElementType.UNKNOWN, ElementType.FOOTNOTE}
+    blocks: list[str] = []
+    paragraph_lines: list[str] = []
+
+    def flush_paragraph() -> None:
+        if paragraph_lines:
+            blocks.append(" ".join(paragraph_lines))
+            paragraph_lines.clear()
+
+    for element in elements:
+        block = _render_markdown_block(element)
+        if not block:
+            continue
+        if element.type in paragraph_types:
+            paragraph_lines.append(block)
+            continue
+        flush_paragraph()
+        blocks.append(block)
+    flush_paragraph()
+    return "\n\n".join(blocks).strip()
+
+
+def _ocr_elements_from_output(ocr_output: list[Any], *, page_id: int) -> list[DocumentElement]:
+    elements: list[DocumentElement] = []
+    lines: list[Any] = []
+    if isinstance(ocr_output, list) and ocr_output:
+        first_page = ocr_output[0]
+        if isinstance(first_page, list):
+            lines = first_page
+
+    for line in lines:
+        if not isinstance(line, (list, tuple)) or len(line) < 2:
+            continue
+        quad = line[0]
+        text_info = line[1]
+        if (
+            not isinstance(text_info, (list, tuple))
+            or len(text_info) < 2
+            or not text_info[0]
+        ):
+            continue
+        text = _normalize_text(str(text_info[0]))
+        if not text:
+            continue
+        try:
+            confidence = float(text_info[1])
+        except (TypeError, ValueError):
+            confidence = 0.0
+        elements.append(
+            DocumentElement(
+                id=f"p{page_id}-ocr-{len(elements) + 1}",
+                page_id=page_id,
+                type=ElementType.TEXT,
+                content=text,
+                bbox=_bbox_from_quad(quad, page_id),
+                order=len(elements) + 1,
+                confidence=confidence,
+                attributes={"source": "ocr"},
+            )
+        )
+    return elements
+
+
+def _layout_elements_from_output(layout_output: list[Any], *, page_id: int) -> list[DocumentElement]:
+    elements: list[DocumentElement] = []
+    for block in layout_output or []:
+        if not isinstance(block, dict):
+            continue
+        block_type = str(block.get("type", "")).strip()
+        bbox = block.get("bbox")
+        if not block_type or bbox is None or not isinstance(bbox, (list, tuple)) or len(bbox) != 4:
+            continue
+        try:
+            x0, y0, x1, y1 = [int(float(value)) for value in bbox]
+        except (TypeError, ValueError):
+            continue
+        element_type = _element_type_from_layout(block_type)
+        content = _layout_block_content(block_type, block)
+        if not content and element_type in {
+            ElementType.TEXT,
+            ElementType.HEADING,
+            ElementType.LIST_ITEM,
+            ElementType.CAPTION,
+        }:
+            continue
+        score = block.get("score", 0.9)
+        try:
+            confidence = float(score)
+        except (TypeError, ValueError):
+            confidence = 0.9
+        attributes = {"layout_type": block_type, "source": "layout"}
+        if element_type == ElementType.TABLE and content.startswith("|"):
+            attributes["table_format"] = "markdown"
+        elements.append(
+            DocumentElement(
+                id=f"p{page_id}-layout-{len(elements) + 1}",
+                page_id=page_id,
+                type=element_type,
+                content=content,
+                bbox=BoundingBox(coord=[x0, y0, x1, y1], page_id=page_id),
+                order=len(elements) + 1,
+                confidence=confidence,
+                attributes=attributes,
+            )
+        )
+    return elements
+
+
+def _merge_layout_and_ocr_elements(
+    layout_elements: list[DocumentElement],
+    ocr_elements: list[DocumentElement],
+) -> list[DocumentElement]:
+    merged: list[DocumentElement] = list(layout_elements)
+    if not layout_elements:
+        merged = list(ocr_elements)
+    else:
+        layout_boxes = [element.bbox.coord for element in layout_elements]
+        for ocr_element in ocr_elements:
+            if any(_boxes_duplicate(ocr_element.bbox.coord, box) for box in layout_boxes):
+                continue
+            merged.append(ocr_element)
+
+    merged.sort(key=_element_sort_key)
+    return [
+        element.model_copy(update={"order": index})
+        for index, element in enumerate(merged, start=1)
+    ]
 
 
 def _coverage_ratio(elements: list[DocumentElement], *, width: int, height: int) -> float:
@@ -144,67 +455,13 @@ def create_ocr_engine_cls(
                         f"error={layout_warning[:160]}"
                     )
 
-            elements: list[DocumentElement] = []
-            order = 1
-            lines: list[Any] = []
-            if isinstance(ocr_output, list) and ocr_output:
-                first_page = ocr_output[0]
-                if isinstance(first_page, list):
-                    lines = first_page
-            for line in lines:
-                if not isinstance(line, (list, tuple)) or len(line) < 2:
-                    continue
-                quad = line[0]
-                text_info = line[1]
-                if (
-                    not isinstance(text_info, (list, tuple))
-                    or len(text_info) < 2
-                    or not text_info[0]
-                ):
-                    continue
-                text = str(text_info[0]).strip()
-                confidence = float(text_info[1])
-                if not text:
-                    continue
-                elements.append(
-                    DocumentElement(
-                        id=f"p{task.page_id}-e{order}",
-                        page_id=task.page_id,
-                        type=ElementType.TEXT,
-                        content=text,
-                        bbox=_bbox_from_quad(quad, task.page_id),
-                        order=order,
-                        confidence=confidence,
-                        attributes={},
-                    )
-                )
-                order += 1
-
-            for block in layout_output or []:
-                block_type = str(block.get("type", "")).strip()
-                bbox = block.get("bbox")
-                text = str(block.get("res") or block.get("text") or "").strip()
-                if not block_type or bbox is None:
-                    continue
-                x0, y0, x1, y1 = [int(value) for value in bbox]
-                elements.append(
-                    DocumentElement(
-                        id=f"p{task.page_id}-e{order}",
-                        page_id=task.page_id,
-                        type=_element_type_from_layout(block_type),
-                        content=text,
-                        bbox=BoundingBox(coord=[x0, y0, x1, y1], page_id=task.page_id),
-                        order=order,
-                        confidence=float(block.get("score", 0.9)),
-                        attributes={"layout_type": block_type},
-                    )
-                )
-                order += 1
-
-            elements.sort(key=lambda element: element.order)
-            page_markdown = "\n\n".join(
-                element.content for element in elements if element.content
-            ).strip()
+            ocr_elements = _ocr_elements_from_output(ocr_output, page_id=task.page_id)
+            layout_elements = _layout_elements_from_output(
+                layout_output,
+                page_id=task.page_id,
+            )
+            elements = _merge_layout_and_ocr_elements(layout_elements, ocr_elements)
+            page_markdown = _page_markdown_from_elements(elements)
             confidences = [element.confidence for element in elements if element.confidence is not None]
             mean_confidence = sum(confidences) / len(confidences) if confidences else 0.0
             table_confidences = [

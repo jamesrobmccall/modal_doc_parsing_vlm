@@ -11,6 +11,7 @@ OCR-first document parsing on Modal with staged results:
 2. Route each page:
    - digital-native text layer => `digital_text` engine
    - otherwise => `paddle_ocr` engine
+   - if extracted PDF text appears low-language-quality (e.g., encoded/garbled layer), force `paddle_ocr`
 3. Aggregate fast result (`result_revision=1`, `quality_stage=fast`).
 4. Detect hard pages via fallback policy.
 5. Refine only those pages with VLM fallback.
@@ -21,6 +22,10 @@ OCR-first document parsing on Modal with staged results:
 - OCR runtime profile:
   - engine: `PP-StructureV3` (PaddleOCR image path)
   - GPU: `A10G`
+  - structured markdown generation:
+    - headings/list/caption formatting
+    - HTML table -> Markdown table conversion
+    - OCR/layout dedupe by bbox overlap
   - Modal scaling defaults:
     - `min_containers=0`
     - `buffer_containers=0`
@@ -78,6 +83,12 @@ Smoke test (fast/final selectable):
 PATH="$HOME/.local/bin:$PATH" modal run app.py::smoke_test --runtime-profile-name dev --latency-profile fast --result-level latest
 ```
 
+For best structure quality (layout + tables), use `balanced` or `max_quality` latency profile:
+
+```bash
+PATH="$HOME/.local/bin:$PATH" modal run app.py::smoke_test --runtime-profile-name dev --latency-profile balanced --result-level latest
+```
+
 Smoke test with automatic cleanup trap (recommended for ad-hoc testing):
 
 ```bash
@@ -88,6 +99,13 @@ Download result:
 
 ```bash
 PATH="$HOME/.local/bin:$PATH" modal run app.py::download_result --job-id <job_id> --result-level latest
+```
+
+Local result bundle default path (outside repo): `~/.cache/modal-doc-parsing-vlm/job-results`.
+Override with:
+
+```bash
+export DOC_PARSE_LOCAL_OUTPUT_ROOT="$HOME/Documents/modal-doc-parse-results"
 ```
 
 Mark stale jobs failed now (watchdog action):
