@@ -550,19 +550,20 @@ export default function App() {
             Home / New Parse
           </button>
         </div>
-        <h1>Turn PDFs into production-ready Markdown.</h1>
+        <h1>Parse documents. Extract entities.</h1>
         <p className="hero-copy">
-          Upload a PDF or image, run GPU-accelerated OCR with a single quality
-          profile, and review live Markdown beside the source document.
+          Upload a PDF or image for GPU-accelerated OCR to Markdown, or paste raw text directly
+          to run structured entity extraction — with GLM-5 or Qwen 2.5.
         </p>
         <div className="hero-badges">
           <span>GPU workers</span>
           <span>Live stage telemetry</span>
-          <span>Markdown + JSON + Text exports</span>
+          <span>GLM-5 &amp; Qwen entity extraction</span>
         </div>
       </header>
 
-      <section className="control-card">
+      <section className="workflows">
+        <div className="parse-col">
         <form onSubmit={handleSubmit} className="upload-form">
           <label
             className={`dropzone ${isDragging ? "is-dragging" : ""}`}
@@ -728,6 +729,9 @@ export default function App() {
           {actionMessage ? <p className="action-message">{actionMessage}</p> : null}
           {formError ? <p className="error-message">{formError}</p> : null}
         </div>
+        </div>
+
+        <EntityPanel jobId={jobId} />
       </section>
 
       <section className="workspace">
@@ -830,9 +834,6 @@ export default function App() {
         </article>
       </section>
 
-      {jobId && statusPayload && RESULT_AVAILABLE_STATUSES.has(statusPayload.status) && (
-        <EntityPanel jobId={jobId} />
-      )}
     </div>
   );
 }

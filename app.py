@@ -154,8 +154,8 @@ def build_service(runtime_profile_name: str | None = None) -> DocumentParseServi
     def schedule_job(job_id: str, selected_profile_name: str) -> None:
         run_orchestrator.spawn(job_id, selected_profile_name)
 
-    def _suggest_entities_fn(job_id: str) -> dict:
-        return suggest_entities_remote.remote(job_id)
+    def _suggest_entities_fn(job_id: str, model_backend: str = "qwen_local") -> dict:
+        return suggest_entities_remote.remote(job_id, model_backend)
 
     def _schedule_entity_extraction(job_id: str, request_payload: dict) -> None:
         run_entity_extraction.spawn(job_id, request_payload)
@@ -295,30 +295,79 @@ def store_upload_remote(data: bytes, file_name: str, mime_type: str | None = Non
     return upload_id
 
 
-@app.function(image=control_plane_image, volumes={str(ARTIFACT_ROOT): artifacts_volume})
-def suggest_entities_remote(job_id: str) -> dict:
+def _glm_suggest_entities(markdown: str, page_count: int) -> dict:
+    """Run entity suggestion via the GLM-5 hosted endpoint."""
+    from json_repair import repair_json
+
+    from modal_doc_parsing_vlm.prompts_extraction import build_entity_suggestion_prompt
+
+    messages = build_entity_suggestion_prompt(
+        document_markdown=markdown,
+        page_count=page_count,
+    )
+    result = _glm_chat_completion(messages)
+    repaired = repair_json(result["content"], return_objects=False)
+    data = json.loads(repaired)
+    return {
+        "entities": data.get("entities", []),
+        "document_summary": data.get("document_summary", ""),
+        "inference_ms": result["inference_ms"],
+    }
+
+
+def _coerce_entity(raw_entity: dict) -> dict | None:
+    """Strip unknown fields so StrictModel validation doesn't reject LLM output."""
+    ENTITY_KEYS = {"entity_name", "description", "fields"}
+    FIELD_KEYS = {"name", "field_type", "description", "required", "examples"}
+    cleaned = {k: v for k, v in raw_entity.items() if k in ENTITY_KEYS}
+    if "fields" in cleaned and isinstance(cleaned["fields"], list):
+        cleaned["fields"] = [
+            {k: v for k, v in f.items() if k in FIELD_KEYS}
+            for f in cleaned["fields"]
+            if isinstance(f, dict)
+        ]
+    return cleaned if "entity_name" in cleaned and "fields" in cleaned else None
+
+
+@app.function(
+    image=control_plane_image,
+    volumes={str(ARTIFACT_ROOT): artifacts_volume},
+    secrets=[modal.Secret.from_name("model_token")],
+)
+def suggest_entities_remote(job_id: str, model_backend: str = "qwen_local") -> dict:
     from modal_doc_parsing_vlm.types_extraction import (
         EntityDefinition,
         EntitySuggestionResponse,
+        ExtractionModelBackend,
     )
 
-    print(f"[app] suggest_entities job_id={job_id}")
+    use_glm = model_backend == ExtractionModelBackend.GLM_HOSTED.value
+
+    print(f"[app] suggest_entities job_id={job_id} model_backend={model_backend}")
     storage = build_storage()
     result = storage.read_final_result(job_id)
     markdown = result.derived.document_markdown
-    page_count = len(result.document.pages)
+    page_count = max(len(result.document.pages), 1)
 
-    engine = ExtractionEngine()
-    raw = engine.suggest_entities.remote({
-        "document_markdown": markdown,
-        "page_count": page_count,
-    })
+    if use_glm:
+        raw = _glm_suggest_entities(markdown, page_count)
+    else:
+        engine = ExtractionEngine()
+        raw = engine.suggest_entities.remote({
+            "document_markdown": markdown,
+            "page_count": page_count,
+        })
 
     entities: list[EntityDefinition] = []
     for raw_entity in raw.get("entities", []):
+        cleaned = _coerce_entity(raw_entity) if isinstance(raw_entity, dict) else None
+        if cleaned is None:
+            print(f"[app] suggest: skipping malformed entity: {raw_entity!r}")
+            continue
         try:
-            entities.append(EntityDefinition.model_validate(raw_entity))
-        except Exception:
+            entities.append(EntityDefinition.model_validate(cleaned))
+        except Exception as exc:
+            print(f"[app] suggest: entity validation failed: {exc!r} raw={raw_entity!r}")
             continue
 
     suggestion = EntitySuggestionResponse(
@@ -331,7 +380,7 @@ def suggest_entities_remote(job_id: str) -> dict:
 
 
 def _glm_chat_completion(messages: list[dict], json_schema: dict | None = None) -> dict:
-    """Call the Modal-hosted GLM-5 endpoint (OpenAI-compatible)."""
+    """Call the Modal-hosted GLM-5 endpoint (OpenAI-compatible) with retry on gateway errors."""
     import httpx
     import os
 
@@ -352,11 +401,56 @@ def _glm_chat_completion(messages: list[dict], json_schema: dict | None = None) 
             "json_schema": {"name": "extraction", "strict": True, "schema": json_schema},
         }
 
-    started = time.perf_counter()
-    resp = httpx.post(GLM_API_BASE, json=body, headers=headers, timeout=300)
-    resp.raise_for_status()
-    elapsed_ms = int((time.perf_counter() - started) * 1000)
+    RETRYABLE = {502, 503, 504}
+    max_attempts = 4
+    delay = 4.0
 
+    started = time.perf_counter()
+    last_exc: Exception | None = None
+    for attempt in range(1, max_attempts + 1):
+        try:
+            resp = httpx.post(GLM_API_BASE, json=body, headers=headers, timeout=300)
+            if resp.status_code in RETRYABLE and attempt < max_attempts:
+                print(
+                    f"[glm] attempt {attempt}/{max_attempts} got {resp.status_code}, "
+                    f"retrying in {delay:.0f}s…"
+                )
+                time.sleep(delay)
+                delay *= 2
+                continue
+            resp.raise_for_status()
+            break
+        except httpx.HTTPStatusError as exc:
+            last_exc = exc
+            if exc.response.status_code in RETRYABLE and attempt < max_attempts:
+                print(
+                    f"[glm] attempt {attempt}/{max_attempts} got {exc.response.status_code}, "
+                    f"retrying in {delay:.0f}s…"
+                )
+                time.sleep(delay)
+                delay *= 2
+                continue
+            raise RuntimeError(
+                f"GLM-5 endpoint returned {exc.response.status_code}. "
+                "The hosted model may be temporarily unavailable — try Qwen 2.5 instead."
+            ) from exc
+        except httpx.RequestError as exc:
+            last_exc = exc
+            if attempt < max_attempts:
+                print(f"[glm] attempt {attempt}/{max_attempts} request error: {exc}, retrying in {delay:.0f}s…")
+                time.sleep(delay)
+                delay *= 2
+                continue
+            raise RuntimeError(
+                f"GLM-5 endpoint unreachable: {exc}. "
+                "Check that the GLM-5 Modal app is deployed and the endpoint URL is correct."
+            ) from exc
+    else:
+        raise RuntimeError(
+            f"GLM-5 endpoint failed after {max_attempts} attempts. Last error: {last_exc}"
+        )
+
+    elapsed_ms = int((time.perf_counter() - started) * 1000)
     data = resp.json()
     content = data["choices"][0]["message"]["content"]
     return {"content": content, "inference_ms": elapsed_ms}

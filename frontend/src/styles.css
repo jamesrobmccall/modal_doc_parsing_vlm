@@ -144,15 +144,21 @@ body {
   letter-spacing: 0.01em;
 }
 
-.control-card {
+.workflows {
   display: grid;
-  grid-template-columns: minmax(0, 490px) minmax(0, 1fr);
+  grid-template-columns: minmax(0, 560px) minmax(0, 1fr);
   gap: 0.95rem;
   align-items: start;
 }
 
-.control-card > * {
+.workflows > * {
   min-width: 0;
+}
+
+.parse-col {
+  display: grid;
+  gap: 0.95rem;
+  align-content: start;
 }
 
 .upload-form,
@@ -694,7 +700,7 @@ body {
 }
 
 @media (max-width: 1260px) {
-  .control-card {
+  .workflows {
     grid-template-columns: 1fr;
   }
 
@@ -762,6 +768,105 @@ body {
 
 .entity-panel {
   min-width: 0;
+  display: grid;
+  grid-template-rows: auto 1fr;
+}
+
+/* Input mode tab switcher */
+.input-mode-toggle {
+  display: flex;
+  gap: 0.3rem;
+  padding: 0.3rem;
+  background: var(--paper-2);
+  border: 1.5px solid var(--line-soft);
+  border-radius: 10px;
+  width: fit-content;
+}
+
+.input-mode-btn {
+  border: 1.5px solid transparent;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--ink-soft);
+  padding: 0.32rem 0.75rem;
+  font: inherit;
+  font-size: 0.83rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.14s, color 0.14s, border-color 0.14s;
+}
+
+.input-mode-btn:hover {
+  background: #fff;
+  color: var(--ink);
+}
+
+.input-mode-btn.active {
+  background: #fff;
+  color: var(--ink);
+  border-color: var(--line-soft);
+  box-shadow: 0 1px 4px rgba(17, 16, 14, 0.1);
+}
+
+/* Raw text textarea */
+.text-input-mode {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.text-input-hint {
+  margin: 0;
+  font-size: 0.86rem;
+  color: var(--ink-soft);
+  line-height: 1.45;
+}
+
+.raw-text-input {
+  width: 100%;
+  min-height: 160px;
+  border: 1.5px solid var(--line-soft);
+  border-radius: 10px;
+  background: #fff;
+  padding: 0.62rem 0.72rem;
+  font: inherit;
+  font-size: 0.88rem;
+  color: var(--ink);
+  resize: vertical;
+  line-height: 1.5;
+}
+
+.raw-text-input:focus {
+  outline: 2px solid color-mix(in oklab, var(--accent) 62%, white);
+  outline-offset: 2px;
+}
+
+/* Disabled idle state */
+.entity-idle--disabled p {
+  color: var(--ink-soft);
+}
+
+/* Inline link button */
+.inline-link {
+  background: none;
+  border: none;
+  padding: 0;
+  font: inherit;
+  color: var(--accent);
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.inline-link:hover {
+  color: #0a6b55;
+}
+
+/* Idle actions row */
+.entity-idle-actions {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
 }
 
 .entity-body {

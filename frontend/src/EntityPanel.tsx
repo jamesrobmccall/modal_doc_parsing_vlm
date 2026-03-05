@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 type ExtractionMode = "per_page" | "whole_document";
 type ExtractionPhase = "idle" | "suggesting" | "editing" | "extracting" | "done";
 type ModelBackend = "qwen_local" | "glm_hosted";
+type InputMode = "document" | "text";
 
 interface EntityFieldDefinition {
   name: string;
@@ -44,20 +45,77 @@ function emptyEntity(): EntityDefinition {
   return { entity_name: "", description: "", fields: [emptyField()] };
 }
 
-export default function EntityPanel({ jobId }: { jobId: string }) {
+export default function EntityPanel({ jobId }: { jobId: string | null }) {
+  const [inputMode, setInputMode] = useState<InputMode>("document");
+  const [rawText, setRawText] = useState("");
+  const [isCreatingTextJob, setIsCreatingTextJob] = useState(false);
+  const [activeJobId, setActiveJobId] = useState<string | null>(jobId);
+
   const [phase, setPhase] = useState<ExtractionPhase>("idle");
   const [entities, setEntities] = useState<EntityDefinition[]>([]);
   const [docSummary, setDocSummary] = useState("");
-  const [extractionMode, setExtractionMode] = useState<ExtractionMode>("per_page");
+  const [extractionMode, setExtractionMode] = useState<ExtractionMode>("whole_document");
   const [modelBackend, setModelBackend] = useState<ModelBackend>("qwen_local");
   const [extractionResult, setExtractionResult] = useState<ExtractionResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
+  // Sync activeJobId from prop when in document mode
+  useEffect(() => {
+    if (inputMode === "document") {
+      setActiveJobId(jobId);
+    }
+  }, [jobId, inputMode]);
+
+  // Reset state when switching input modes
+  const switchInputMode = (mode: InputMode) => {
+    setInputMode(mode);
+    setPhase("idle");
+    setEntities([]);
+    setDocSummary("");
+    setExtractionResult(null);
+    setError(null);
+    if (mode === "document") {
+      setActiveJobId(jobId);
+      setExtractionMode("per_page");
+    } else {
+      setActiveJobId(null);
+      setExtractionMode("whole_document");
+    }
+  };
+
+  const createTextJob = async () => {
+    if (!rawText.trim()) return;
+    setIsCreatingTextJob(true);
+    setError(null);
+    try {
+      const res = await fetch("/api/text-jobs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ text: rawText }),
+      });
+      if (!res.ok) {
+        const body = await res.json().catch(() => ({}));
+        throw new Error((body as { detail?: string }).detail || `Failed to create text job (${res.status})`);
+      }
+      const data = await res.json();
+      setActiveJobId(data.job_id);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to create text job.");
+    } finally {
+      setIsCreatingTextJob(false);
+    }
+  };
+
   const suggestEntities = async () => {
+    if (!activeJobId) return;
     setPhase("suggesting");
     setError(null);
     try {
-      const res = await fetch(`/api/jobs/${jobId}/entities/suggest`, { method: "POST" });
+      const res = await fetch(`/api/jobs/${activeJobId}/entities/suggest`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ model_backend: modelBackend }),
+      });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error((body as { detail?: string }).detail || `Suggest failed (${res.status})`);
@@ -73,13 +131,14 @@ export default function EntityPanel({ jobId }: { jobId: string }) {
   };
 
   const runExtraction = async () => {
+    if (!activeJobId) return;
     setPhase("extracting");
     setError(null);
     try {
-      const res = await fetch(`/api/jobs/${jobId}/entities/extract`, {
+      const res = await fetch(`/api/jobs/${activeJobId}/entities/extract`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ job_id: jobId, entities, extraction_mode: extractionMode, model_backend: modelBackend }),
+        body: JSON.stringify({ job_id: activeJobId, entities, extraction_mode: extractionMode, model_backend: modelBackend }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
@@ -93,13 +152,13 @@ export default function EntityPanel({ jobId }: { jobId: string }) {
 
   // Poll for extraction result
   useEffect(() => {
-    if (phase !== "extracting") return;
+    if (phase !== "extracting" || !activeJobId) return;
     let cancelled = false;
     let timeoutId: number | undefined;
 
     const poll = async () => {
       try {
-        const res = await fetch(`/api/jobs/${jobId}/entities/result`);
+        const res = await fetch(`/api/jobs/${activeJobId}/entities/result`);
         if (res.status === 409) {
           if (!cancelled) timeoutId = window.setTimeout(poll, 3000);
           return;
@@ -127,7 +186,7 @@ export default function EntityPanel({ jobId }: { jobId: string }) {
       cancelled = true;
       if (timeoutId !== undefined) window.clearTimeout(timeoutId);
     };
-  }, [phase, jobId]);
+  }, [phase, activeJobId]);
 
   const updateEntity = (idx: number, patch: Partial<EntityDefinition>) => {
     setEntities((prev) => prev.map((e, i) => (i === idx ? { ...e, ...patch } : e)));
@@ -173,7 +232,7 @@ export default function EntityPanel({ jobId }: { jobId: string }) {
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
-    a.download = `${jobId}-entities.json`;
+    a.download = `${activeJobId}-entities.json`;
     document.body.append(a);
     a.click();
     a.remove();
@@ -193,12 +252,15 @@ export default function EntityPanel({ jobId }: { jobId: string }) {
     }
   }
 
+  const canSuggest = inputMode === "document" ? !!activeJobId : !!activeJobId;
+  const documentModeNoJob = inputMode === "document" && !activeJobId;
+
   return (
     <section className="entity-panel panel">
       <div className="panel-head">
         <h2>Entity Extraction</h2>
         <span>
-          {phase === "idle" && "Suggest entities from the parsed document"}
+          {phase === "idle" && (inputMode === "text" && !activeJobId ? "Paste text to extract entities" : "Ready to suggest entities")}
           {phase === "suggesting" && "Analyzing document..."}
           {phase === "editing" && `${entities.length} entit${entities.length === 1 ? "y" : "ies"} to extract`}
           {phase === "extracting" && "Running extraction on GPU..."}
@@ -207,15 +269,117 @@ export default function EntityPanel({ jobId }: { jobId: string }) {
       </div>
 
       <div className="panel-body entity-body">
-        {phase === "idle" && (
+
+        {/* Input mode switcher */}
+        <div className="input-mode-toggle">
+          <button
+            type="button"
+            className={`input-mode-btn${inputMode === "document" ? " active" : ""}`}
+            onClick={() => switchInputMode("document")}
+          >
+            From Document
+          </button>
+          <button
+            type="button"
+            className={`input-mode-btn${inputMode === "text" ? " active" : ""}`}
+            onClick={() => switchInputMode("text")}
+          >
+            Raw Text
+          </button>
+        </div>
+
+        {/* Model backend toggle — always visible */}
+        {phase !== "done" && (
+          <div className="entity-model-toggle">
+            <label className="field">
+              <span>Model Backend</span>
+              <div className="model-toggle-group">
+                <button
+                  type="button"
+                  className={`model-toggle-btn${modelBackend === "qwen_local" ? " active" : ""}`}
+                  onClick={() => setModelBackend("qwen_local")}
+                >
+                  <strong>Qwen 2.5-3B</strong>
+                  <small>Private &middot; Open Source &middot; Guided JSON</small>
+                </button>
+                <button
+                  type="button"
+                  className={`model-toggle-btn${modelBackend === "glm_hosted" ? " active" : ""}`}
+                  onClick={() => setModelBackend("glm_hosted")}
+                >
+                  <strong>GLM-5 (Modal-hosted)</strong>
+                  <small>Hosted endpoint &middot; Larger model</small>
+                </button>
+              </div>
+            </label>
+          </div>
+        )}
+
+        {/* Text input mode — show textarea until job is created */}
+        {inputMode === "text" && !activeJobId && phase === "idle" && (
+          <div className="text-input-mode">
+            <p className="text-input-hint">
+              Paste raw text below. A temporary job will be created so you can run entity
+              suggestion and extraction directly, without parsing a document.
+            </p>
+            <textarea
+              className="raw-text-input"
+              value={rawText}
+              onChange={(e) => setRawText(e.target.value)}
+              placeholder="Paste your text here..."
+              rows={8}
+            />
+            <button
+              className="submit-btn"
+              type="button"
+              onClick={createTextJob}
+              disabled={!rawText.trim() || isCreatingTextJob}
+            >
+              {isCreatingTextJob ? "Creating job..." : "Use This Text"}
+            </button>
+          </div>
+        )}
+
+        {/* Document mode — no job yet */}
+        {documentModeNoJob && phase === "idle" && (
+          <div className="entity-idle entity-idle--disabled">
+            <p>
+              Parse a document above to enable entity suggestion, or switch to{" "}
+              <button
+                type="button"
+                className="inline-link"
+                onClick={() => switchInputMode("text")}
+              >
+                Raw Text mode
+              </button>{" "}
+              to paste text directly.
+            </p>
+          </div>
+        )}
+
+        {/* Main idle state — job ready */}
+        {phase === "idle" && canSuggest && (
           <div className="entity-idle">
             <p>
-              Use a small LLM to suggest structured entities from your parsed document,
-              then review and run extraction.
+              {inputMode === "text"
+                ? "Text loaded. Use a small LLM to suggest structured entities, then review and run extraction."
+                : "Use a small LLM to suggest structured entities from your parsed document, then review and run extraction."}
             </p>
-            <button className="submit-btn" type="button" onClick={suggestEntities}>
-              Suggest Entities
-            </button>
+            <div className="entity-idle-actions">
+              <button className="submit-btn" type="button" onClick={suggestEntities}>
+                Suggest Entities
+              </button>
+              <button
+                className="ghost-btn"
+                type="button"
+                onClick={() => {
+                  setEntities([emptyEntity()]);
+                  setPhase("editing");
+                }}
+              >
+                Define Manually
+              </button>
+            </div>
           </div>
         )}
 
@@ -232,42 +396,20 @@ export default function EntityPanel({ jobId }: { jobId: string }) {
           <div className="entity-editor">
             {docSummary && <p className="entity-summary">{docSummary}</p>}
 
-            <div className="entity-mode-toggle">
-              <label className="field">
-                <span>Extraction Mode</span>
-                <select
-                  value={extractionMode}
-                  onChange={(e) => setExtractionMode(e.target.value as ExtractionMode)}
-                >
-                  <option value="per_page">Per Page (extract from each page independently)</option>
-                  <option value="whole_document">Whole Document (single extraction pass)</option>
-                </select>
-              </label>
-            </div>
-
-            <div className="entity-model-toggle">
-              <label className="field">
-                <span>Model Backend</span>
-                <div className="model-toggle-group">
-                  <button
-                    type="button"
-                    className={`model-toggle-btn${modelBackend === "qwen_local" ? " active" : ""}`}
-                    onClick={() => setModelBackend("qwen_local")}
+            {inputMode === "document" && (
+              <div className="entity-mode-toggle">
+                <label className="field">
+                  <span>Extraction Mode</span>
+                  <select
+                    value={extractionMode}
+                    onChange={(e) => setExtractionMode(e.target.value as ExtractionMode)}
                   >
-                    <strong>Qwen 2.5-3B</strong>
-                    <small>Private &middot; Open Source &middot; Guided JSON</small>
-                  </button>
-                  <button
-                    type="button"
-                    className={`model-toggle-btn${modelBackend === "glm_hosted" ? " active" : ""}`}
-                    onClick={() => setModelBackend("glm_hosted")}
-                  >
-                    <strong>GLM-5 (Modal-hosted)</strong>
-                    <small>Hosted endpoint &middot; Larger model</small>
-                  </button>
-                </div>
-              </label>
-            </div>
+                    <option value="per_page">Per Page (extract from each page independently)</option>
+                    <option value="whole_document">Whole Document (single extraction pass)</option>
+                  </select>
+                </label>
+              </div>
+            )}
 
             {entities.map((entity, entityIdx) => (
               <div key={entityIdx} className="entity-card">
@@ -412,7 +554,7 @@ export default function EntityPanel({ jobId }: { jobId: string }) {
                 Download Entities (JSON)
               </button>
               <button className="ghost-btn" type="button" onClick={resetToEdit}>
-                Edit & Re-extract
+                Edit &amp; Re-extract
               </button>
             </div>
           </div>

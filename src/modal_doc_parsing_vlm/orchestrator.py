@@ -29,13 +29,19 @@ from .types_api import (
 )
 from .types_result import (
     BoundingBox,
+    DerivedOutputs,
+    DocumentBody,
     DocumentElement,
     DocumentPage,
+    DocumentParseResult,
     FileMetadata,
     IdempotencyRecord,
     JobManifest,
     JobProgressSnapshot,
     JobStatus,
+    JobTimings,
+    MimeType,
+    ModelMetadata,
     OutputFormat,
     PageChunk,
     PageError,
@@ -43,8 +49,10 @@ from .types_result import (
     PageResultStatus,
     PageTask,
     ParseEngine,
+    ParseMode,
     QualityStage,
     ResultEnvelope,
+    ResultMetadata,
     LatencyProfile,
 )
 
@@ -651,3 +659,72 @@ class DocumentParseService:
         return GetDocumentParseResultResponse.model_validate(
             envelope.model_dump(mode="json")
         )
+
+    def create_text_job(self, text: str) -> str:
+        """Create a minimal job seeded with raw text for entity extraction."""
+        import hashlib
+
+        job_id = uuid4().hex
+        text_bytes = text.encode("utf-8")
+        fingerprint = hashlib.sha256(text_bytes).hexdigest()
+
+        manifest = JobManifest(
+            job_id=job_id,
+            parser_version=PARSER_VERSION,
+            schema_version=SCHEMA_VERSION,
+            runtime_profile="text",
+            source_fingerprint=fingerprint,
+            request_payload={"source": "raw_text"},
+            output_formats=[OutputFormat.MARKDOWN, OutputFormat.TEXT],
+            model_id="",
+            pipeline_mode=ParseMode.BALANCED,
+            file_metadata=FileMetadata(
+                file_name="text_input.txt",
+                mime_type=MimeType.TEXT,
+                pages_total=0,
+                bytes=len(text_bytes),
+            ),
+        )
+        self.storage.create_job_manifest(manifest)
+
+        result = DocumentParseResult(
+            document=DocumentBody(),
+            derived=DerivedOutputs(
+                document_markdown=text,
+                document_text=text,
+            ),
+            metadata=ResultMetadata(
+                job_id=job_id,
+                schema_version=SCHEMA_VERSION,
+                pipeline_mode=ParseMode.BALANCED,
+                quality_stage=QualityStage.FINAL,
+                models=ModelMetadata(),
+                file_metadata=FileMetadata(
+                    file_name="text_input.txt",
+                    mime_type=MimeType.TEXT,
+                    pages_total=0,
+                    bytes=len(text_bytes),
+                ),
+                timings=JobTimings(),
+            ),
+        )
+        self.storage.write_final_result(
+            job_id,
+            result,
+            text,
+            text,
+            quality_stage=QualityStage.FINAL,
+            result_revision=1,
+        )
+
+        self.storage.set_status(
+            job_id,
+            _snapshot(
+                manifest,
+                status=JobStatus.COMPLETED_FINAL,
+                pages_total=0,
+                result_revision=1,
+                pending_refinement_pages=0,
+            ),
+        )
+        return job_id
