@@ -9,10 +9,12 @@ from .types_result import (
     DebugOptions,
     JobStatus,
     JobTimings,
+    LatencyProfile,
     MimeType,
     OutputFormat,
     PageError,
     ParseMode,
+    ResultLevel,
     ResultEnvelope,
 )
 
@@ -54,6 +56,8 @@ class SubmitDocumentParseRequest(StrictModel):
     page_range: str | None = None
     language_hint: str | None = None
     debug: DebugOptions | None = None
+    result_level: ResultLevel = ResultLevel.LATEST
+    latency_profile: LatencyProfile = LatencyProfile.BALANCED
 
     @field_validator("output_formats")
     @classmethod
@@ -110,6 +114,8 @@ class GetDocumentParseStatusResponse(StrictModel):
     progress_percent: float
     timings: JobTimings
     error_summary: list[PageError] | None = None
+    result_revision: int = 0
+    pending_refinement_pages: int = 0
 
 
 class GetDocumentParseResultRequest(StrictModel):
@@ -117,6 +123,7 @@ class GetDocumentParseResultRequest(StrictModel):
     format: OutputFormat
     include_pages: bool = False
     include_debug: bool = False
+    result_level: ResultLevel = ResultLevel.LATEST
 
 
 class GetDocumentParseResultResponse(ResultEnvelope):

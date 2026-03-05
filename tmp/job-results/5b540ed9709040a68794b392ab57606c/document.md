@@ -1,0 +1,7 @@
+Modal smoke test page 1.
+
+This PDF is used to validate the Modal GPU document parser scaffold.
+
+[{'text': 'This PDF is used to validate the Modal GPU document parser scaffold.', 'confidence': 0.9943366050720215, 'text_region': [[292.0, 406.0], [1864.0, 409.0], [1864.0, 472.0], [291.0, 468.0]]}]
+
+[{'text': 'Modal smoke test page 1.', 'confidence': 0.9746363759040833, 'text_region': [[295.0, 234.0], [1133.0, 238.0], [1133.0, 311.0], [295.0, 307.0]]}]

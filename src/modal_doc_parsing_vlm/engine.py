@@ -10,6 +10,9 @@ from .config import (
     COMMON_VLLM_DEPENDENCIES,
     CUDA_IMAGE,
     ENGINE_TIMEOUT_SECONDS,
+    FALLBACK_ALLOW_CONCURRENT_INPUTS,
+    FALLBACK_BUFFER_CONTAINERS,
+    FALLBACK_MIN_CONTAINERS,
     HF_CACHE_ROOT,
     HF_HUB_CACHE_ROOT,
     SAMPLING_MAX_TOKENS,
@@ -28,6 +31,8 @@ from .types_result import (
     PageChunk,
     PageParseResult,
     PageResultStatus,
+    PageTask,
+    ParseEngine,
     ParseMode,
 )
 
@@ -91,6 +96,13 @@ def _extract_output_text(output: Any) -> str:
     raise TypeError(f"Unsupported vLLM output type: {type(output)!r}")
 
 
+def _mean_confidence(elements) -> float:
+    values = [element.confidence for element in elements if element.confidence is not None]
+    if not values:
+        return 0.0
+    return sum(values) / len(values)
+
+
 def create_engine_cls(
     app: modal.App,
     *,
@@ -104,15 +116,17 @@ def create_engine_cls(
 
     @modal.enter()
     def start(self) -> None:
+        import threading
         from PIL import Image
-        from vllm import LLM, SamplingParams
+        from vllm import LLM
 
+        self._volume_lock = threading.Lock()
         self.runtime_profile_name = runtime_profile.name
         self.model_id = runtime_profile.model_id
         self.disable_thinking = runtime_profile.disable_thinking
         cache_status = describe_model_cache(self.model_id)
         print(
-            f"[engine:{self.runtime_profile_name}] loading model={self.model_id} "
+            f"[engine:fallback:{self.runtime_profile_name}] loading model={self.model_id} "
             f"gpu={runtime_profile.gpu} disable_thinking={self.disable_thinking} "
             f"enforce_eager={runtime_profile.enforce_eager} "
             f"cache_populated={cache_status.is_populated} "
@@ -132,13 +146,11 @@ def create_engine_cls(
         self.chat_template_kwargs = (
             {"enable_thinking": False} if runtime_profile.disable_thinking else None
         )
-        self.default_sampling_params = SamplingParams(
-            temperature=0.0,
-            max_tokens=SAMPLING_MAX_TOKENS["balanced"],
-        )
         if STARTUP_WARMUP_ENABLED:
+            from vllm import SamplingParams
+
             print(
-                f"[engine:{self.runtime_profile_name}] running optional startup warmup "
+                f"[engine:fallback:{self.runtime_profile_name}] running optional startup warmup "
                 f"max_tokens={STARTUP_WARMUP_MAX_TOKENS}"
             )
             blank = Image.new("RGB", (128, 128), color="white")
@@ -158,156 +170,120 @@ def create_engine_cls(
                 use_tqdm=False,
             )
             blank.close()
-            print(f"[engine:{self.runtime_profile_name}] optional startup warmup complete")
+            print(
+                f"[engine:fallback:{self.runtime_profile_name}] optional startup warmup complete"
+            )
         else:
             print(
-                f"[engine:{self.runtime_profile_name}] model initialized; "
+                f"[engine:fallback:{self.runtime_profile_name}] model initialized; "
                 "skipping optional startup warmup"
             )
 
-    def _sampling_params_for_chunk(self, chunk: PageChunk):
+    def _sampling_params_for_mode(self, mode: ParseMode):
         from vllm import SamplingParams
 
         return SamplingParams(
             temperature=0.0,
-            max_tokens=SAMPLING_MAX_TOKENS[chunk.mode.value],
+            max_tokens=SAMPLING_MAX_TOKENS[mode.value],
         )
 
-    def _attempt_parse(self, chunk: PageChunk, tasks, *, strict_json: bool) -> tuple[list[PageParseResult], list[tuple[Any, str, str]]]:
+    @modal.method()
+    def parse_page(self, task_payload: dict[str, Any]) -> dict[str, Any]:
         from PIL import Image
 
-        sampling_params = self._sampling_params_for_chunk(chunk)
-        prompts: dict[int, str] = {}
-        conversations = []
-        opened_images = []
-        for task in tasks:
-            prompt = build_page_prompt(
-                mode=chunk.mode,
-                page_id=task.page_id,
-                language_hint=chunk.language_hint,
-                strict_json=strict_json,
-            )
-            prompts[task.page_id] = prompt
-            image = Image.open(task.image_path).convert("RGB")
-            opened_images.append(image)
-            conversations.append(_prompt_to_messages(prompt, image))
-
-        started = time.perf_counter()
-        outputs = self.llm.chat(
-            conversations,
-            sampling_params=sampling_params,
-            chat_template_content_format="openai",
-            chat_template_kwargs=self.chat_template_kwargs,
-            use_tqdm=False,
+        task = PageTask.model_validate(task_payload)
+        prompt = build_page_prompt(
+            mode=task.mode,
+            page_id=task.page_id,
+            strict_json=False,
         )
-        inference_ms = int((time.perf_counter() - started) * 1000)
-
-        successes: list[PageParseResult] = []
-        failures: list[tuple[Any, str, str]] = []
-        for task, output in zip(tasks, outputs):
-            text = _extract_output_text(output)
+        with self._volume_lock:
+            artifacts_volume.reload()
+            with Image.open(task.image_path) as source_image:
+                image = source_image.convert("RGB")
+        started = time.perf_counter()
+        try:
+            outputs = self.llm.chat(
+                [_prompt_to_messages(prompt, image)],
+                sampling_params=self._sampling_params_for_mode(task.mode),
+                chat_template_content_format="openai",
+                chat_template_kwargs=self.chat_template_kwargs,
+                use_tqdm=False,
+            )
+            text = _extract_output_text(outputs[0])
+            parsed, elements = parse_and_normalize_page_output(text, task.page_id)
+            result = PageParseResult(
+                job_id=task.job_id,
+                chunk_id=task.chunk_id,
+                page_id=task.page_id,
+                status=PageResultStatus.COMPLETED,
+                page_markdown=parsed.page_markdown.strip(),
+                elements=elements,
+                attempts=1,
+                valid_on_first_pass=True,
+                warnings=parsed.notes,
+                inference_ms=int((time.perf_counter() - started) * 1000),
+                raw_output_path=task.raw_output_path,
+                prompt_path=task.prompt_path,
+                result_revision=task.result_revision,
+                engine=ParseEngine.VLM_FALLBACK,
+                fallback_triggered=True,
+                confidence_summary={
+                    "mean_ocr_confidence": float(_mean_confidence(elements)),
+                    "text_coverage_ratio": 1.0,
+                    "table_confidence": float(
+                        _mean_confidence(
+                            [element for element in elements if element.type.value == "table"]
+                        )
+                        if any(element.type.value == "table" for element in elements)
+                        else 1.0
+                    ),
+                },
+            )
             if task.prompt_path:
-                Path(task.prompt_path).write_text(prompts[task.page_id], encoding="utf-8")
+                Path(task.prompt_path).write_text(prompt, encoding="utf-8")
             if task.raw_output_path:
                 Path(task.raw_output_path).write_text(text, encoding="utf-8")
-            try:
-                parsed, elements = parse_and_normalize_page_output(text, task.page_id)
-                successes.append(
-                    PageParseResult(
-                        job_id=chunk.job_id,
-                        chunk_id=chunk.chunk_id,
-                        page_id=task.page_id,
-                        status=PageResultStatus.COMPLETED,
-                        page_markdown=parsed.page_markdown.strip(),
-                        elements=elements,
-                        attempts=1,
-                        valid_on_first_pass=not strict_json,
-                        warnings=parsed.notes,
-                        inference_ms=inference_ms,
-                        raw_output_path=task.raw_output_path,
-                        prompt_path=task.prompt_path,
-                    )
-                )
-            except Exception as exc:  # noqa: BLE001
-                failures.append((task, text, str(exc)))
-
-        for image in opened_images:
+            artifacts_volume.commit()
+            return result.model_dump(mode="json")
+        except Exception as exc:  # noqa: BLE001
+            print(
+                f"[engine:fallback:{self.runtime_profile_name}] page_parse failure "
+                f"page_id={task.page_id} error={_preview_text(str(exc))}"
+            )
+            failed = PageParseResult(
+                job_id=task.job_id,
+                chunk_id=task.chunk_id,
+                page_id=task.page_id,
+                status=PageResultStatus.FAILED,
+                error=page_error(
+                    task.page_id,
+                    code="invalid_model_output",
+                    message=str(exc),
+                    retry_count=0,
+                    stage="page_parse",
+                ),
+                result_revision=task.result_revision,
+                engine=ParseEngine.VLM_FALLBACK,
+                fallback_triggered=True,
+            )
+            return failed.model_dump(mode="json")
+        finally:
             image.close()
-        return successes, failures
 
     @modal.method()
     def parse_chunk(self, chunk_payload: dict[str, Any]) -> dict[str, Any]:
         chunk = PageChunk.model_validate(chunk_payload)
         storage = FileSystemStorageBackend(Path(chunk.artifact_root))
-        print(
-            f"[engine:{self.runtime_profile_name}] parse_chunk start "
-            f"job_id={chunk.job_id} chunk_id={chunk.chunk_id} pages={len(chunk.pages)}"
-        )
-
         completed = 0
         failed = 0
-        pending_tasks = list(chunk.pages)
-        strict_json = False
-
-        for attempt in range(1, 4):
-            if not pending_tasks:
-                break
-            print(
-                f"[engine:{self.runtime_profile_name}] parse_chunk attempt={attempt} "
-                f"chunk_id={chunk.chunk_id} pending_pages={len(pending_tasks)} "
-                f"strict_json={strict_json}"
-            )
-
-            successes, failures = self._attempt_parse(
-                chunk,
-                pending_tasks,
-                strict_json=strict_json,
-            )
-            print(
-                f"[engine:{self.runtime_profile_name}] parse_chunk attempt={attempt} "
-                f"chunk_id={chunk.chunk_id} successes={len(successes)} failures={len(failures)}"
-            )
-            next_pending = []
-            for result in successes:
-                result.attempts = attempt
-                result.valid_on_first_pass = attempt == 1
-                storage.write_page_result(result)
+        for task in chunk.pages:
+            result = PageParseResult.model_validate(self.parse_page(task.model_dump(mode="json")))
+            storage.write_page_result(result)
+            if result.status == PageResultStatus.COMPLETED:
                 completed += 1
-
-            for task, raw_text, error_message in failures:
-                print(
-                    f"[engine:{self.runtime_profile_name}] page_parse failure "
-                    f"chunk_id={chunk.chunk_id} page_id={task.page_id} attempt={attempt} "
-                    f"error={_preview_text(error_message, limit=320)} "
-                    f"raw_output={_preview_text(raw_text)}"
-                )
-                if attempt < 3:
-                    next_pending.append(task)
-                    continue
-                storage.write_page_result(
-                    PageParseResult(
-                        job_id=chunk.job_id,
-                        chunk_id=chunk.chunk_id,
-                        page_id=task.page_id,
-                        status=PageResultStatus.FAILED,
-                        attempts=attempt,
-                        valid_on_first_pass=False,
-                        error=page_error(
-                            task.page_id,
-                            code="invalid_model_output",
-                            message=error_message,
-                            retry_count=attempt - 1,
-                            stage="page_parse",
-                        ),
-                        raw_output_path=task.raw_output_path,
-                        prompt_path=task.prompt_path,
-                    )
-                )
+            else:
                 failed += 1
-
-            pending_tasks = next_pending
-            strict_json = True
-
         summary = ChunkParseSummary(
             job_id=chunk.job_id,
             chunk_id=chunk.chunk_id,
@@ -316,27 +292,22 @@ def create_engine_cls(
             pages_failed=failed,
         )
         storage.write_chunk_summary(summary)
-        print(
-            f"[engine:{self.runtime_profile_name}] parse_chunk done "
-            f"job_id={chunk.job_id} chunk_id={chunk.chunk_id} "
-            f"completed={completed} failed={failed}"
-        )
         return summary.model_dump(mode="json")
 
     @modal.exit()
     def stop(self) -> None:
         del self.llm
 
-    cls_name = f"{runtime_profile.name.title()}ParserEngine"
+    cls_name = f"{runtime_profile.name.title()}FallbackEngine"
     raw_cls = type(
         cls_name,
         (),
         {
-            "__doc__": f"{runtime_profile.name} parser engine using {runtime_profile.model_id}.",
+            "__doc__": f"{runtime_profile.name} fallback parser using {runtime_profile.model_id}.",
             "__module__": export_module,
             "start": start,
-            "_sampling_params_for_chunk": _sampling_params_for_chunk,
-            "_attempt_parse": _attempt_parse,
+            "_sampling_params_for_mode": _sampling_params_for_mode,
+            "parse_page": parse_page,
             "parse_chunk": parse_chunk,
             "stop": stop,
         },
@@ -345,7 +316,10 @@ def create_engine_cls(
         image=image,
         gpu=runtime_profile.gpu,
         timeout=ENGINE_TIMEOUT_SECONDS,
+        min_containers=FALLBACK_MIN_CONTAINERS,
+        buffer_containers=FALLBACK_BUFFER_CONTAINERS,
         scaledown_window=SCALEDOWN_WINDOW_SECONDS,
+        allow_concurrent_inputs=FALLBACK_ALLOW_CONCURRENT_INPUTS,
         volumes={
             str(HF_CACHE_ROOT): hf_cache_volume,
             str(VLLM_CACHE_ROOT): vllm_cache_volume,

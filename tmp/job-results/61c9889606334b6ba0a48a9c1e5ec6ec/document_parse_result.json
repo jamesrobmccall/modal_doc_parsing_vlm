@@ -1,0 +1,105 @@
+{
+  "derived": {
+    "document_markdown": "[{'text': 'This PDF is used to validate the Modal GPU document parser scaffold.', 'confidence': 0.9984396696090698, 'text_region': [[199.0, 278.0], [1242.0, 278.0], [1242.0, 312.0], [199.0, 312.0]]}]\n\n[{'text': 'Modal smoke test page 1', 'confidence': 0.9841268658638, 'text_region': [[199.0, 158.0], [755.0, 158.0], [755.0, 207.0], [199.0, 207.0]]}]",
+    "document_text": "[{'text': 'This PDF is used to validate the Modal GPU document parser scaffold.', 'confidence': 0.9984396696090698, 'textregion': [[199.0, 278.0], [1242.0, 278.0], [1242.0, 312.0], [199.0, 312.0]]}]\n\n[{'text': 'Modal smoke test page 1', 'confidence': 0.9841268658638, 'textregion': [[199.0, 158.0], [755.0, 158.0], [755.0, 207.0], [199.0, 207.0]]}]",
+    "page_markdown": {
+      "0": "[{'text': 'This PDF is used to validate the Modal GPU document parser scaffold.', 'confidence': 0.9984396696090698, 'text_region': [[199.0, 278.0], [1242.0, 278.0], [1242.0, 312.0], [199.0, 312.0]]}]\n\n[{'text': 'Modal smoke test page 1', 'confidence': 0.9841268658638, 'text_region': [[199.0, 158.0], [755.0, 158.0], [755.0, 207.0], [199.0, 207.0]]}]"
+    }
+  },
+  "document": {
+    "elements": [
+      {
+        "attributes": {
+          "layout_type": "text"
+        },
+        "bbox": {
+          "coord": [
+            199,
+            275,
+            1242,
+            316
+          ],
+          "page_id": 0
+        },
+        "confidence": 0.8032629489898682,
+        "content": "[{'text': 'This PDF is used to validate the Modal GPU document parser scaffold.', 'confidence': 0.9984396696090698, 'text_region': [[199.0, 278.0], [1242.0, 278.0], [1242.0, 312.0], [199.0, 312.0]]}]",
+        "id": "p0-e1",
+        "order": 1,
+        "page_id": 0,
+        "type": "text"
+      },
+      {
+        "attributes": {
+          "layout_type": "title"
+        },
+        "bbox": {
+          "coord": [
+            199,
+            155,
+            749,
+            213
+          ],
+          "page_id": 0
+        },
+        "confidence": 0.7242108583450317,
+        "content": "[{'text': 'Modal smoke test page 1', 'confidence': 0.9841268658638, 'text_region': [[199.0, 158.0], [755.0, 158.0], [755.0, 207.0], [199.0, 207.0]]}]",
+        "id": "p0-e2",
+        "order": 2,
+        "page_id": 0,
+        "type": "heading"
+      }
+    ],
+    "pages": [
+      {
+        "height": 2339,
+        "id": 0,
+        "image_uri": "jobs/61c9889606334b6ba0a48a9c1e5ec6ec/pages/0/page.png",
+        "page_hash": "6a8e910defff707ef34e6d53986b8134acc50fa1ae07902255ea4aed8ca15602",
+        "rotation": 0,
+        "width": 1653
+      },
+      {
+        "height": 2339,
+        "id": 1,
+        "image_uri": "jobs/61c9889606334b6ba0a48a9c1e5ec6ec/pages/1/page.png",
+        "page_hash": "c2fd694cf2880ea35728a3f6d59b78c9fa1a7463a866b95dfd7f85ed47b06dcb",
+        "rotation": 0,
+        "width": 1653
+      }
+    ]
+  },
+  "error_status": [
+    {
+      "code": "ocr_failure",
+      "message": "could not execute a primitive",
+      "page_id": 1,
+      "retry_count": 0,
+      "stage": "ocr"
+    }
+  ],
+  "metadata": {
+    "file_metadata": {
+      "bytes": 1690,
+      "file_name": "inline.pdf",
+      "mime_type": "application/pdf",
+      "pages_total": 2
+    },
+    "job_id": "61c9889606334b6ba0a48a9c1e5ec6ec",
+    "models": {
+      "fallback_vlm": "Qwen/Qwen2.5-VL-7B-Instruct",
+      "fast_ocr": "PP-StructureV3",
+      "page_vlm": "Qwen/Qwen2.5-VL-7B-Instruct"
+    },
+    "pipeline_mode": "balanced",
+    "quality_stage": "final",
+    "result_revision": 1,
+    "schema_version": "1.0",
+    "timings": {
+      "aggregate_ms": 1303,
+      "elapsed_ms": 17594,
+      "refine_ms": 0,
+      "split_ms": 2622,
+      "submit_ms": 3484
+    }
+  }
+}

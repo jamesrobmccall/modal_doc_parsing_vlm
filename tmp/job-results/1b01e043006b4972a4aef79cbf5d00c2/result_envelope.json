@@ -1,0 +1,156 @@
+{
+  "debug": {
+    "pages": {}
+  },
+  "format": "json",
+  "job_id": "1b01e043006b4972a4aef79cbf5d00c2",
+  "metadata": {
+    "file_metadata": {
+      "bytes": 2138,
+      "file_name": "inline.pdf",
+      "mime_type": "application/pdf",
+      "pages_total": 2
+    },
+    "job_id": "1b01e043006b4972a4aef79cbf5d00c2",
+    "models": {
+      "fallback_vlm": "Qwen/Qwen2.5-VL-7B-Instruct",
+      "fast_ocr": "PP-StructureV3",
+      "page_vlm": "Qwen/Qwen2.5-VL-7B-Instruct"
+    },
+    "pipeline_mode": "accurate",
+    "quality_stage": "fast",
+    "result_revision": 1,
+    "schema_version": "1.0",
+    "timings": {
+      "aggregate_ms": 0,
+      "elapsed_ms": 7643,
+      "refine_ms": 0,
+      "split_ms": 2778,
+      "submit_ms": 0
+    }
+  },
+  "pages": [
+    {
+      "attempts": 0,
+      "chunk_id": "page",
+      "confidence_summary": {},
+      "elements": [],
+      "engine": "paddle_ocr",
+      "error": {
+        "code": "ocr_failure",
+        "message": "[Errno 2] No such file or directory: '/artifacts/jobs/1b01e043006b4972a4aef79cbf5d00c2/pages/0/page.png'",
+        "page_id": 0,
+        "retry_count": 0,
+        "stage": "ocr"
+      },
+      "fallback_triggered": false,
+      "inference_ms": 0,
+      "job_id": "1b01e043006b4972a4aef79cbf5d00c2",
+      "page_id": 0,
+      "page_markdown": "",
+      "prompt_path": null,
+      "raw_output_path": null,
+      "result_revision": 1,
+      "status": "failed",
+      "valid_on_first_pass": false,
+      "warnings": []
+    },
+    {
+      "attempts": 0,
+      "chunk_id": "page",
+      "confidence_summary": {},
+      "elements": [],
+      "engine": "paddle_ocr",
+      "error": {
+        "code": "ocr_failure",
+        "message": "[Errno 2] No such file or directory: '/artifacts/jobs/1b01e043006b4972a4aef79cbf5d00c2/pages/1/page.png'",
+        "page_id": 1,
+        "retry_count": 0,
+        "stage": "ocr"
+      },
+      "fallback_triggered": false,
+      "inference_ms": 0,
+      "job_id": "1b01e043006b4972a4aef79cbf5d00c2",
+      "page_id": 1,
+      "page_markdown": "",
+      "prompt_path": null,
+      "raw_output_path": null,
+      "result_revision": 1,
+      "status": "failed",
+      "valid_on_first_pass": false,
+      "warnings": []
+    }
+  ],
+  "quality_stage": "fast",
+  "result": {
+    "derived": {
+      "document_markdown": "",
+      "document_text": "",
+      "page_markdown": {}
+    },
+    "document": {
+      "elements": [],
+      "pages": [
+        {
+          "height": 3509,
+          "id": 0,
+          "image_uri": "jobs/1b01e043006b4972a4aef79cbf5d00c2/pages/0/page.png",
+          "page_hash": "0bef70591ba2d6d4adcb8c308068350ccfb1ead83a37917662eded2a3a38a615",
+          "rotation": 0,
+          "width": 2480
+        },
+        {
+          "height": 3509,
+          "id": 1,
+          "image_uri": "jobs/1b01e043006b4972a4aef79cbf5d00c2/pages/1/page.png",
+          "page_hash": "29feffc7d38843fef4c0472373cf8bf0728ec92f39085bd5e1f0a60049d5188a",
+          "rotation": 0,
+          "width": 2480
+        }
+      ]
+    },
+    "error_status": [
+      {
+        "code": "ocr_failure",
+        "message": "[Errno 2] No such file or directory: '/artifacts/jobs/1b01e043006b4972a4aef79cbf5d00c2/pages/0/page.png'",
+        "page_id": 0,
+        "retry_count": 0,
+        "stage": "ocr"
+      },
+      {
+        "code": "ocr_failure",
+        "message": "[Errno 2] No such file or directory: '/artifacts/jobs/1b01e043006b4972a4aef79cbf5d00c2/pages/1/page.png'",
+        "page_id": 1,
+        "retry_count": 0,
+        "stage": "ocr"
+      }
+    ],
+    "metadata": {
+      "file_metadata": {
+        "bytes": 2138,
+        "file_name": "inline.pdf",
+        "mime_type": "application/pdf",
+        "pages_total": 2
+      },
+      "job_id": "1b01e043006b4972a4aef79cbf5d00c2",
+      "models": {
+        "fallback_vlm": "Qwen/Qwen2.5-VL-7B-Instruct",
+        "fast_ocr": "PP-StructureV3",
+        "page_vlm": "Qwen/Qwen2.5-VL-7B-Instruct"
+      },
+      "pipeline_mode": "accurate",
+      "quality_stage": "fast",
+      "result_revision": 1,
+      "schema_version": "1.0",
+      "timings": {
+        "aggregate_ms": 0,
+        "elapsed_ms": 7643,
+        "refine_ms": 0,
+        "split_ms": 2778,
+        "submit_ms": 0
+      }
+    }
+  },
+  "result_revision": 1,
+  "status": "completed_fast"
+}

@@ -1,0 +1,161 @@
+{
+  "derived": {
+    "document_markdown": "Modal live smoke test run 4 page 1.\n\nGenerated at 2026-03-03T15:08:58.654795\n\n[{'text': 'Used to validate remote Modal GPU execution after export-module fix', 'confidence': 0.9883909225463867, 'text_region': [[299.0, 501.0], [1845.0, 501.0], [1845.0, 548.0], [299.0, 548.0]]}]\n\n[{'text': 'Generated at 2026-03-03T15:08:58.654795', 'confidence': 0.9961000084877014, 'text_region': [[303.0, 417.0], [1266.0, 417.0], [1266.0, 464.0], [303.0, 464.0]]}]\n\n[{'text': 'Modal live smoke test run 4 page 1.', 'confidence': 0.9810903072357178, 'text_region': [[295.0, 234.0], [1454.0, 238.0], [1454.0, 311.0], [295.0, 307.0]]}]",
+    "document_text": "Modal live smoke test run 4 page 1.\n\nGenerated at 20260303T15:08:58.654795\n\n[{'text': 'Used to validate remote Modal GPU execution after exportmodule fix', 'confidence': 0.9883909225463867, 'textregion': [[299.0, 501.0], [1845.0, 501.0], [1845.0, 548.0], [299.0, 548.0]]}]\n\n[{'text': 'Generated at 20260303T15:08:58.654795', 'confidence': 0.9961000084877014, 'textregion': [[303.0, 417.0], [1266.0, 417.0], [1266.0, 464.0], [303.0, 464.0]]}]\n\n[{'text': 'Modal live smoke test run 4 page 1.', 'confidence': 0.9810903072357178, 'textregion': [[295.0, 234.0], [1454.0, 238.0], [1454.0, 311.0], [295.0, 307.0]]}]",
+    "page_markdown": {
+      "0": "Modal live smoke test run 4 page 1.\n\nGenerated at 2026-03-03T15:08:58.654795\n\n[{'text': 'Used to validate remote Modal GPU execution after export-module fix', 'confidence': 0.9883909225463867, 'text_region': [[299.0, 501.0], [1845.0, 501.0], [1845.0, 548.0], [299.0, 548.0]]}]\n\n[{'text': 'Generated at 2026-03-03T15:08:58.654795', 'confidence': 0.9961000084877014, 'text_region': [[303.0, 417.0], [1266.0, 417.0], [1266.0, 464.0], [303.0, 464.0]]}]\n\n[{'text': 'Modal live smoke test run 4 page 1.', 'confidence': 0.9810903072357178, 'text_region': [[295.0, 234.0], [1454.0, 238.0], [1454.0, 311.0], [295.0, 307.0]]}]"
+    }
+  },
+  "document": {
+    "elements": [
+      {
+        "attributes": {},
+        "bbox": {
+          "coord": [
+            295,
+            234,
+            1454,
+            311
+          ],
+          "page_id": 0
+        },
+        "confidence": 0.9810903072357178,
+        "content": "Modal live smoke test run 4 page 1.",
+        "id": "p0-e1",
+        "order": 1,
+        "page_id": 0,
+        "type": "text"
+      },
+      {
+        "attributes": {},
+        "bbox": {
+          "coord": [
+            303,
+            417,
+            1266,
+            464
+          ],
+          "page_id": 0
+        },
+        "confidence": 0.9961000084877014,
+        "content": "Generated at 2026-03-03T15:08:58.654795",
+        "id": "p0-e2",
+        "order": 2,
+        "page_id": 0,
+        "type": "text"
+      },
+      {
+        "attributes": {
+          "layout_type": "text"
+        },
+        "bbox": {
+          "coord": [
+            623,
+            499,
+            1530,
+            556
+          ],
+          "page_id": 0
+        },
+        "confidence": 0.5120767951011658,
+        "content": "[{'text': 'Used to validate remote Modal GPU execution after export-module fix', 'confidence': 0.9883909225463867, 'text_region': [[299.0, 501.0], [1845.0, 501.0], [1845.0, 548.0], [299.0, 548.0]]}]",
+        "id": "p0-e3",
+        "order": 3,
+        "page_id": 0,
+        "type": "text"
+      },
+      {
+        "attributes": {
+          "layout_type": "title"
+        },
+        "bbox": {
+          "coord": [
+            299,
+            413,
+            1260,
+            470
+          ],
+          "page_id": 0
+        },
+        "confidence": 0.6288153529167175,
+        "content": "[{'text': 'Generated at 2026-03-03T15:08:58.654795', 'confidence': 0.9961000084877014, 'text_region': [[303.0, 417.0], [1266.0, 417.0], [1266.0, 464.0], [303.0, 464.0]]}]",
+        "id": "p0-e4",
+        "order": 4,
+        "page_id": 0,
+        "type": "heading"
+      },
+      {
+        "attributes": {
+          "layout_type": "title"
+        },
+        "bbox": {
+          "coord": [
+            361,
+            232,
+            1270,
+            320
+          ],
+          "page_id": 0
+        },
+        "confidence": 0.6216955184936523,
+        "content": "[{'text': 'Modal live smoke test run 4 page 1.', 'confidence': 0.9810903072357178, 'text_region': [[295.0, 234.0], [1454.0, 238.0], [1454.0, 311.0], [295.0, 307.0]]}]",
+        "id": "p0-e5",
+        "order": 5,
+        "page_id": 0,
+        "type": "heading"
+      }
+    ],
+    "pages": [
+      {
+        "height": 3509,
+        "id": 0,
+        "image_uri": "jobs/d0729f568efb4da780063812683c4e35/pages/0/page.png",
+        "page_hash": "92793d9e8854f9f8c84a4a30671abe9075eaa7478c7f1343075391251da3b07f",
+        "rotation": 0,
+        "width": 2480
+      },
+      {
+        "height": 3509,
+        "id": 1,
+        "image_uri": "jobs/d0729f568efb4da780063812683c4e35/pages/1/page.png",
+        "page_hash": "9092fc5d6b54a92c7911cf808d54323f1f598e6a1ec16c0692f6c348ae32a500",
+        "rotation": 0,
+        "width": 2480
+      }
+    ]
+  },
+  "error_status": [
+    {
+      "code": "ocr_failure",
+      "message": "could not execute a primitive",
+      "page_id": 1,
+      "retry_count": 0,
+      "stage": "ocr"
+    }
+  ],
+  "metadata": {
+    "file_metadata": {
+      "bytes": 2130,
+      "file_name": "inline.pdf",
+      "mime_type": "application/pdf",
+      "pages_total": 2
+    },
+    "job_id": "d0729f568efb4da780063812683c4e35",
+    "models": {
+      "fallback_vlm": "Qwen/Qwen2.5-VL-7B-Instruct",
+      "fast_ocr": "PP-StructureV3",
+      "page_vlm": "Qwen/Qwen2.5-VL-7B-Instruct"
+    },
+    "pipeline_mode": "accurate",
+    "quality_stage": "fast",
+    "result_revision": 1,
+    "schema_version": "1.0",
+    "timings": {
+      "aggregate_ms": 0,
+      "elapsed_ms": 7473,
+      "refine_ms": 0,
+      "split_ms": 2872,
+      "submit_ms": 0
+    }
+  }
+}

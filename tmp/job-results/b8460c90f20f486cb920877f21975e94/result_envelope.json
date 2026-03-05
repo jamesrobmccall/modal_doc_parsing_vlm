@@ -1,0 +1,156 @@
+{
+  "debug": {
+    "pages": {}
+  },
+  "format": "json",
+  "job_id": "b8460c90f20f486cb920877f21975e94",
+  "metadata": {
+    "file_metadata": {
+      "bytes": 2065,
+      "file_name": "inline.pdf",
+      "mime_type": "application/pdf",
+      "pages_total": 2
+    },
+    "job_id": "b8460c90f20f486cb920877f21975e94",
+    "models": {
+      "fallback_vlm": "Qwen/Qwen2.5-VL-7B-Instruct",
+      "fast_ocr": "PP-StructureV3",
+      "page_vlm": "Qwen/Qwen2.5-VL-7B-Instruct"
+    },
+    "pipeline_mode": "accurate",
+    "quality_stage": "fast",
+    "result_revision": 1,
+    "schema_version": "1.0",
+    "timings": {
+      "aggregate_ms": 0,
+      "elapsed_ms": 7915,
+      "refine_ms": 0,
+      "split_ms": 2794,
+      "submit_ms": 0
+    }
+  },
+  "pages": [
+    {
+      "attempts": 0,
+      "chunk_id": "page",
+      "confidence_summary": {},
+      "elements": [],
+      "engine": "paddle_ocr",
+      "error": {
+        "code": "ocr_failure",
+        "message": "'NoneType' object is not iterable",
+        "page_id": 0,
+        "retry_count": 0,
+        "stage": "ocr"
+      },
+      "fallback_triggered": false,
+      "inference_ms": 0,
+      "job_id": "b8460c90f20f486cb920877f21975e94",
+      "page_id": 0,
+      "page_markdown": "",
+      "prompt_path": null,
+      "raw_output_path": null,
+      "result_revision": 1,
+      "status": "failed",
+      "valid_on_first_pass": false,
+      "warnings": []
+    },
+    {
+      "attempts": 0,
+      "chunk_id": "page",
+      "confidence_summary": {},
+      "elements": [],
+      "engine": "paddle_ocr",
+      "error": {
+        "code": "ocr_failure",
+        "message": "could not execute a primitive",
+        "page_id": 1,
+        "retry_count": 0,
+        "stage": "ocr"
+      },
+      "fallback_triggered": false,
+      "inference_ms": 0,
+      "job_id": "b8460c90f20f486cb920877f21975e94",
+      "page_id": 1,
+      "page_markdown": "",
+      "prompt_path": null,
+      "raw_output_path": null,
+      "result_revision": 1,
+      "status": "failed",
+      "valid_on_first_pass": false,
+      "warnings": []
+    }
+  ],
+  "quality_stage": "fast",
+  "result": {
+    "derived": {
+      "document_markdown": "",
+      "document_text": "",
+      "page_markdown": {}
+    },
+    "document": {
+      "elements": [],
+      "pages": [
+        {
+          "height": 3509,
+          "id": 0,
+          "image_uri": "jobs/b8460c90f20f486cb920877f21975e94/pages/0/page.png",
+          "page_hash": "31a93e1353ec96ff87c2852c919e92485a482cc7fe27dc6627ccc5bf5a9ffe0d",
+          "rotation": 0,
+          "width": 2480
+        },
+        {
+          "height": 3509,
+          "id": 1,
+          "image_uri": "jobs/b8460c90f20f486cb920877f21975e94/pages/1/page.png",
+          "page_hash": "b2f80eae56ab7dc9fac214f153aaff2ef4bc5caf8800906a0fc89f912de2f13a",
+          "rotation": 0,
+          "width": 2480
+        }
+      ]
+    },
+    "error_status": [
+      {
+        "code": "ocr_failure",
+        "message": "'NoneType' object is not iterable",
+        "page_id": 0,
+        "retry_count": 0,
+        "stage": "ocr"
+      },
+      {
+        "code": "ocr_failure",
+        "message": "could not execute a primitive",
+        "page_id": 1,
+        "retry_count": 0,
+        "stage": "ocr"
+      }
+    ],
+    "metadata": {
+      "file_metadata": {
+        "bytes": 2065,
+        "file_name": "inline.pdf",
+        "mime_type": "application/pdf",
+        "pages_total": 2
+      },
+      "job_id": "b8460c90f20f486cb920877f21975e94",
+      "models": {
+        "fallback_vlm": "Qwen/Qwen2.5-VL-7B-Instruct",
+        "fast_ocr": "PP-StructureV3",
+        "page_vlm": "Qwen/Qwen2.5-VL-7B-Instruct"
+      },
+      "pipeline_mode": "accurate",
+      "quality_stage": "fast",
+      "result_revision": 1,
+      "schema_version": "1.0",
+      "timings": {
+        "aggregate_ms": 0,
+        "elapsed_ms": 7915,
+        "refine_ms": 0,
+        "split_ms": 2794,
+        "submit_ms": 0
+      }
+    }
+  },
+  "result_revision": 1,
+  "status": "completed_fast"
+}

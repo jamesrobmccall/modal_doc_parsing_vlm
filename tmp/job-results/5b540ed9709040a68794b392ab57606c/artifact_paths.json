@@ -1,0 +1,14 @@
+{
+  "document_json_fast": "/jobs/5b540ed9709040a68794b392ab57606c/result/document_parse_result.fast.json",
+  "document_json_final": "/jobs/5b540ed9709040a68794b392ab57606c/result/document_parse_result.final.json",
+  "document_json_latest": "/jobs/5b540ed9709040a68794b392ab57606c/result/document_parse_result.json",
+  "document_markdown_fast": "/jobs/5b540ed9709040a68794b392ab57606c/result/document.fast.md",
+  "document_markdown_final": "/jobs/5b540ed9709040a68794b392ab57606c/result/document.final.md",
+  "document_markdown_latest": "/jobs/5b540ed9709040a68794b392ab57606c/result/document.md",
+  "document_text_fast": "/jobs/5b540ed9709040a68794b392ab57606c/result/document.fast.txt",
+  "document_text_final": "/jobs/5b540ed9709040a68794b392ab57606c/result/document.final.txt",
+  "document_text_latest": "/jobs/5b540ed9709040a68794b392ab57606c/result/document.txt",
+  "job_root": "/jobs/5b540ed9709040a68794b392ab57606c",
+  "result_root": "/jobs/5b540ed9709040a68794b392ab57606c/result",
+  "volume_name": "doc-parse-artifacts"
+}

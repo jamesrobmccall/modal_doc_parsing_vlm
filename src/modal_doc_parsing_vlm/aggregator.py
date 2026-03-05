@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 
+from .config import PADDLE_OCR_ENGINE_NAME
 from .types_result import (
     DerivedOutputs,
     DocumentBody,
@@ -11,6 +12,7 @@ from .types_result import (
     ModelMetadata,
     PageParseResult,
     PageResultStatus,
+    QualityStage,
     ResultMetadata,
 )
 
@@ -27,13 +29,22 @@ def _page_text(page_result: PageParseResult) -> str:
     return "\n".join(element.content for element in page_result.elements).strip()
 
 
-def aggregate_job(storage, job_id: str) -> DocumentParseResult:
+def aggregate_job(
+    storage,
+    job_id: str,
+    *,
+    quality_stage: QualityStage = QualityStage.FINAL,
+    result_revision: int = 1,
+) -> DocumentParseResult:
     manifest = storage.read_job_manifest(job_id)
     snapshot = storage.get_status(job_id)
     if snapshot is None:
         raise FileNotFoundError(f"Status missing for job_id: {job_id}")
 
-    page_results = sorted(storage.list_page_results(job_id), key=lambda result: result.page_id)
+    page_results = sorted(
+        storage.list_page_results(job_id, result_revision=result_revision),
+        key=lambda result: result.page_id,
+    )
     completed_pages = [
         result for result in page_results if result.status == PageResultStatus.COMPLETED
     ]
@@ -61,12 +72,6 @@ def aggregate_job(storage, job_id: str) -> DocumentParseResult:
     ).strip()
     document_text = "\n\n".join(document_text_parts).strip()
 
-    status = (
-        JobStatus.COMPLETED_WITH_ERRORS if errors else JobStatus.COMPLETED
-    )
-    if not completed_pages and errors:
-        status = JobStatus.FAILED
-
     result = DocumentParseResult(
         document=DocumentBody(pages=manifest.pages, elements=elements),
         derived=DerivedOutputs(
@@ -79,12 +84,34 @@ def aggregate_job(storage, job_id: str) -> DocumentParseResult:
             job_id=job_id,
             schema_version=manifest.schema_version,
             pipeline_mode=manifest.pipeline_mode,
-            models=ModelMetadata(page_vlm=manifest.model_id),
+            quality_stage=quality_stage,
+            result_revision=result_revision,
+            models=ModelMetadata(
+                page_vlm=manifest.model_id,
+                fast_ocr=PADDLE_OCR_ENGINE_NAME,
+                fallback_vlm=manifest.fallback_model_id or manifest.model_id,
+            ),
             file_metadata=manifest.file_metadata,
             timings=snapshot.timings,
         ),
     )
-    storage.write_final_result(job_id, result, document_markdown, document_text)
-    snapshot.status = status
+    storage.write_final_result(
+        job_id,
+        result,
+        document_markdown,
+        document_text,
+        quality_stage=quality_stage,
+        result_revision=result_revision,
+    )
+
+    if quality_stage == QualityStage.FAST:
+        snapshot.status = JobStatus.COMPLETED_FAST
+    elif not completed_pages and errors:
+        snapshot.status = JobStatus.FAILED
+    elif errors:
+        snapshot.status = JobStatus.COMPLETED_WITH_ERRORS
+    else:
+        snapshot.status = JobStatus.COMPLETED_FINAL
+    snapshot.result_revision = result_revision
     storage.set_status(job_id, snapshot)
     return result

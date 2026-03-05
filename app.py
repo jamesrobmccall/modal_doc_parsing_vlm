@@ -30,14 +30,20 @@ from modal_doc_parsing_vlm.config import (
     IDEMPOTENCY_DICT_NAME,
     JOB_STATUS_DICT_NAME,
     ORCHESTRATOR_TIMEOUT_SECONDS,
+    PADDLE_CACHE_VOLUME_NAME,
     RETENTION_DAYS,
     VLLM_CACHE_VOLUME_NAME,
     get_runtime_profile,
 )
 from modal_doc_parsing_vlm.engine import create_engine_cls
+from modal_doc_parsing_vlm.engine_ocr import create_ocr_engine_cls
 from modal_doc_parsing_vlm.mcp_server import build_fastapi_app
 from modal_doc_parsing_vlm.model_cache import ensure_model_cached
-from modal_doc_parsing_vlm.orchestrator import DocumentParseService, process_job
+from modal_doc_parsing_vlm.orchestrator import (
+    DocumentParseService,
+    process_job,
+    process_refinement_job,
+)
 from modal_doc_parsing_vlm.storage import FileSystemStorageBackend
 from modal_doc_parsing_vlm.types_api import (
     GetDocumentParseResultRequest,
@@ -60,6 +66,7 @@ cache_seed_image = modal.Image.debian_slim(
 
 hf_cache_volume = modal.Volume.from_name(HF_CACHE_VOLUME_NAME, create_if_missing=True)
 vllm_cache_volume = modal.Volume.from_name(VLLM_CACHE_VOLUME_NAME, create_if_missing=True)
+paddle_cache_volume = modal.Volume.from_name(PADDLE_CACHE_VOLUME_NAME, create_if_missing=True)
 artifacts_volume = modal.Volume.from_name(
     ARTIFACTS_VOLUME_NAME, create_if_missing=True, version=2
 )
@@ -68,7 +75,14 @@ idempotency_dict = modal.Dict.from_name(IDEMPOTENCY_DICT_NAME, create_if_missing
 
 ProdParserEngine = None
 DevParserEngine = None
-_ENGINE_CLASSES: dict[str, object] = {}
+OcrParserEngine = create_ocr_engine_cls(
+    app,
+    artifacts_volume=artifacts_volume,
+    hf_cache_volume=hf_cache_volume,
+    paddle_cache_volume=paddle_cache_volume,
+    export_module=__name__,
+)
+_FALLBACK_ENGINE_CLASSES: dict[str, object] = {}
 
 if "prod" in ENABLED_RUNTIME_PROFILES:
     ProdParserEngine = create_engine_cls(
@@ -79,7 +93,7 @@ if "prod" in ENABLED_RUNTIME_PROFILES:
         artifacts_volume=artifacts_volume,
         export_module=__name__,
     )
-    _ENGINE_CLASSES["prod"] = ProdParserEngine
+    _FALLBACK_ENGINE_CLASSES["prod"] = ProdParserEngine
 
 if "dev" in ENABLED_RUNTIME_PROFILES:
     DevParserEngine = create_engine_cls(
@@ -90,7 +104,7 @@ if "dev" in ENABLED_RUNTIME_PROFILES:
         artifacts_volume=artifacts_volume,
         export_module=__name__,
     )
-    _ENGINE_CLASSES["dev"] = DevParserEngine
+    _FALLBACK_ENGINE_CLASSES["dev"] = DevParserEngine
 
 
 def build_storage() -> FileSystemStorageBackend:
@@ -115,9 +129,9 @@ def build_service(runtime_profile_name: str | None = None) -> DocumentParseServi
     )
 
 
-def _engine_for_profile(runtime_profile_name: str):
+def _fallback_engine_for_profile(runtime_profile_name: str):
     try:
-        return _ENGINE_CLASSES[runtime_profile_name]()
+        return _FALLBACK_ENGINE_CLASSES[runtime_profile_name]()
     except KeyError as exc:
         raise RuntimeError(
             f"Runtime profile {runtime_profile_name!r} is not enabled. "
@@ -135,16 +149,47 @@ def run_orchestrator(job_id: str, runtime_profile_name: str) -> dict:
         f"[app] run_orchestrator job_id={job_id} runtime_profile={runtime_profile_name}"
     )
     storage = build_storage()
-    engine = _engine_for_profile(runtime_profile_name)
+    ocr_engine = OcrParserEngine()
+    fallback_engine = _fallback_engine_for_profile(runtime_profile_name)
 
-    def spawn_chunks(chunks):
-        payloads = [chunk.model_dump(mode="json") for chunk in chunks]
-        engine.parse_chunk.spawn_map(payloads)
+    def run_ocr_pages(payloads: list[dict]) -> list[dict]:
+        return list(ocr_engine.parse_page.map(payloads))
+
+    def run_fallback_pages(payloads: list[dict]) -> list[dict]:
+        return list(fallback_engine.parse_page.map(payloads))
+
+    def schedule_refinement(selected_job_id: str, selected_profile_name: str) -> None:
+        run_refinement.spawn(selected_job_id, selected_profile_name)
 
     snapshot = process_job(
         storage,
         job_id,
-        spawn_chunks=spawn_chunks,
+        run_ocr_pages=run_ocr_pages,
+        run_fallback_pages=run_fallback_pages,
+        schedule_refinement=schedule_refinement,
+    )
+    return snapshot.model_dump(mode="json")
+
+
+@app.function(
+    image=control_plane_image,
+    volumes={str(ARTIFACT_ROOT): artifacts_volume},
+    timeout=ORCHESTRATOR_TIMEOUT_SECONDS,
+)
+def run_refinement(job_id: str, runtime_profile_name: str) -> dict:
+    print(
+        f"[app] run_refinement job_id={job_id} runtime_profile={runtime_profile_name}"
+    )
+    storage = build_storage()
+    fallback_engine = _fallback_engine_for_profile(runtime_profile_name)
+
+    def run_fallback_pages(payloads: list[dict]) -> list[dict]:
+        return list(fallback_engine.parse_page.map(payloads))
+
+    snapshot = process_refinement_job(
+        storage,
+        job_id,
+        run_fallback_pages=run_fallback_pages,
     )
     return snapshot.model_dump(mode="json")
 
@@ -178,10 +223,12 @@ def get_parse_result_remote(
     format: str = "markdown",
     include_pages: bool = False,
     include_debug: bool = False,
+    result_level: str = "latest",
 ) -> dict:
     print(
         f"[app] get_parse_result job_id={job_id} format={format} "
-        f"include_pages={include_pages} include_debug={include_debug}"
+        f"include_pages={include_pages} include_debug={include_debug} "
+        f"result_level={result_level}"
     )
     service = build_service()
     response = service.get_document_parse_result(
@@ -190,6 +237,7 @@ def get_parse_result_remote(
             format=format,
             include_pages=include_pages,
             include_debug=include_debug,
+            result_level=result_level,
         )
     )
     return response.model_dump(mode="json")
@@ -313,9 +361,15 @@ def _modal_volume_paths(job_id: str) -> dict[str, str]:
         "volume_name": ARTIFACTS_VOLUME_NAME,
         "job_root": f"/jobs/{job_id}",
         "result_root": result_root,
-        "document_json": f"{result_root}/document_parse_result.json",
-        "document_markdown": f"{result_root}/document.md",
-        "document_text": f"{result_root}/document.txt",
+        "document_json_latest": f"{result_root}/document_parse_result.json",
+        "document_json_fast": f"{result_root}/document_parse_result.fast.json",
+        "document_json_final": f"{result_root}/document_parse_result.final.json",
+        "document_markdown_latest": f"{result_root}/document.md",
+        "document_markdown_fast": f"{result_root}/document.fast.md",
+        "document_markdown_final": f"{result_root}/document.final.md",
+        "document_text_latest": f"{result_root}/document.txt",
+        "document_text_fast": f"{result_root}/document.fast.txt",
+        "document_text_final": f"{result_root}/document.final.txt",
     }
 
 
@@ -325,6 +379,7 @@ def _write_local_result_bundle(
     output_dir: str,
     include_pages: bool = True,
     include_debug: bool = True,
+    result_level: str = "latest",
 ) -> Path:
     output_root = Path(output_dir).expanduser().resolve() / job_id
     output_root.mkdir(parents=True, exist_ok=True)
@@ -334,9 +389,18 @@ def _write_local_result_bundle(
         "json",
         include_pages=include_pages,
         include_debug=include_debug,
+        result_level=result_level,
     )
-    markdown_result = get_parse_result_remote.remote(job_id, "markdown")
-    text_result = get_parse_result_remote.remote(job_id, "text")
+    markdown_result = get_parse_result_remote.remote(
+        job_id,
+        "markdown",
+        result_level=result_level,
+    )
+    text_result = get_parse_result_remote.remote(
+        job_id,
+        "text",
+        result_level=result_level,
+    )
 
     (output_root / "document_parse_result.json").write_text(
         json.dumps(json_result["result"], indent=2, sort_keys=True),
@@ -362,9 +426,15 @@ def _print_artifact_locations(job_id: str, local_output_dir: Path | None = None)
         print(f"  local_output_dir={local_output_dir}")
     print(f"  modal_volume={volume_paths['volume_name']}")
     print(f"  modal_result_root={volume_paths['result_root']}")
-    print(f"  modal_document_json={volume_paths['document_json']}")
-    print(f"  modal_document_markdown={volume_paths['document_markdown']}")
-    print(f"  modal_document_text={volume_paths['document_text']}")
+    print(f"  modal_document_json_latest={volume_paths['document_json_latest']}")
+    print(f"  modal_document_json_fast={volume_paths['document_json_fast']}")
+    print(f"  modal_document_json_final={volume_paths['document_json_final']}")
+    print(f"  modal_document_markdown_latest={volume_paths['document_markdown_latest']}")
+    print(f"  modal_document_markdown_fast={volume_paths['document_markdown_fast']}")
+    print(f"  modal_document_markdown_final={volume_paths['document_markdown_final']}")
+    print(f"  modal_document_text_latest={volume_paths['document_text_latest']}")
+    print(f"  modal_document_text_fast={volume_paths['document_text_fast']}")
+    print(f"  modal_document_text_final={volume_paths['document_text_final']}")
 
 
 @app.local_entrypoint()
@@ -397,12 +467,14 @@ def download_result(
     output_dir: str = "./tmp/job-results",
     include_pages: bool = True,
     include_debug: bool = True,
+    result_level: str = "latest",
 ):
     local_output_dir = _write_local_result_bundle(
         job_id,
         output_dir=output_dir,
         include_pages=include_pages,
         include_debug=include_debug,
+        result_level=result_level,
     )
     _print_artifact_locations(job_id, local_output_dir)
 
@@ -411,10 +483,13 @@ def download_result(
 def smoke_test(
     sample_path: str | None = None,
     mode: str = "balanced",
+    latency_profile: str = "balanced",
+    language_hint: str | None = None,
     runtime_profile_name: str = "dev",
     save_raw_model_output: bool = True,
     save_prompt_text: bool = True,
     output_dir: str = "./tmp/job-results",
+    result_level: str = "latest",
 ):
     if sample_path is None:
         data, mime_type = _default_smoke_sample()
@@ -427,12 +502,15 @@ def smoke_test(
         "source": {"type": "bytes", "base64": base64.b64encode(data).decode("utf-8")},
         "mime_type": mime_type.value,
         "mode": mode,
+        "latency_profile": latency_profile,
+        "language_hint": language_hint,
         "output_formats": ["markdown", "text", "json"],
         "debug": {
             "persist_page_images": True,
             "save_raw_model_output": save_raw_model_output,
             "save_prompt_text": save_prompt_text,
         },
+        "result_level": result_level,
     }
     submission = submit_parse_request_remote.remote(request_payload, runtime_profile_name)
     job_id = submission["job_id"]
@@ -445,7 +523,13 @@ def smoke_test(
             f"completed={status['pages_completed']} "
             f"failed={status['pages_failed']}"
         )
-        if status["status"] in {"completed", "completed_with_errors", "failed"}:
+        if status["status"] in {
+            "completed_fast",
+            "completed_final",
+            "completed",
+            "completed_with_errors",
+            "failed",
+        }:
             break
         time.sleep(5)
 
@@ -455,6 +539,7 @@ def smoke_test(
         output_dir=output_dir,
         include_pages=True,
         include_debug=True,
+        result_level=result_level,
     )
     _print_artifact_locations(job_id, local_output_dir)
     result = get_parse_result_remote.remote(
@@ -462,9 +547,10 @@ def smoke_test(
         "json",
         include_pages=True,
         include_debug=True,
+        result_level=result_level,
     )
     _print_debug_info(result)
-    if status["status"] == "completed":
+    if status["status"] in {"completed_fast", "completed_final", "completed"}:
         print(Path(local_output_dir / "document.md").read_text(encoding="utf-8"))
         return
 

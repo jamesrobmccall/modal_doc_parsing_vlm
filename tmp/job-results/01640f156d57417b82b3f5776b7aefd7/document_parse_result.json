@@ -1,0 +1,141 @@
+{
+  "derived": {
+    "document_markdown": "Modal live smoke test run 3 page 1.\n\nGenerated at 2026-03-03T15:07:34.535371\n\n[{'text': 'Generated at 2026-03-03T15:07:34.535371', 'confidence': 0.9977719187736511, 'text_region': [[299.0, 413.0], [1262.0, 409.0], [1262.0, 460.0], [299.0, 464.0]]}]\n\n[{'text': 'Modal live smoke test run 3 page 1.', 'confidence': 0.9863556027412415, 'text_region': [[295.0, 234.0], [1454.0, 238.0], [1454.0, 311.0], [295.0, 307.0]]}]",
+    "document_text": "Modal live smoke test run 3 page 1.\n\nGenerated at 20260303T15:07:34.535371\n\n[{'text': 'Generated at 20260303T15:07:34.535371', 'confidence': 0.9977719187736511, 'textregion': [[299.0, 413.0], [1262.0, 409.0], [1262.0, 460.0], [299.0, 464.0]]}]\n\n[{'text': 'Modal live smoke test run 3 page 1.', 'confidence': 0.9863556027412415, 'textregion': [[295.0, 234.0], [1454.0, 238.0], [1454.0, 311.0], [295.0, 307.0]]}]",
+    "page_markdown": {
+      "0": "Modal live smoke test run 3 page 1.\n\nGenerated at 2026-03-03T15:07:34.535371\n\n[{'text': 'Generated at 2026-03-03T15:07:34.535371', 'confidence': 0.9977719187736511, 'text_region': [[299.0, 413.0], [1262.0, 409.0], [1262.0, 460.0], [299.0, 464.0]]}]\n\n[{'text': 'Modal live smoke test run 3 page 1.', 'confidence': 0.9863556027412415, 'text_region': [[295.0, 234.0], [1454.0, 238.0], [1454.0, 311.0], [295.0, 307.0]]}]"
+    }
+  },
+  "document": {
+    "elements": [
+      {
+        "attributes": {},
+        "bbox": {
+          "coord": [
+            295,
+            234,
+            1454,
+            311
+          ],
+          "page_id": 0
+        },
+        "confidence": 0.9863556027412415,
+        "content": "Modal live smoke test run 3 page 1.",
+        "id": "p0-e1",
+        "order": 1,
+        "page_id": 0,
+        "type": "text"
+      },
+      {
+        "attributes": {},
+        "bbox": {
+          "coord": [
+            299,
+            409,
+            1262,
+            464
+          ],
+          "page_id": 0
+        },
+        "confidence": 0.9977719187736511,
+        "content": "Generated at 2026-03-03T15:07:34.535371",
+        "id": "p0-e2",
+        "order": 2,
+        "page_id": 0,
+        "type": "text"
+      },
+      {
+        "attributes": {
+          "layout_type": "title"
+        },
+        "bbox": {
+          "coord": [
+            297,
+            413,
+            1255,
+            470
+          ],
+          "page_id": 0
+        },
+        "confidence": 0.6567246913909912,
+        "content": "[{'text': 'Generated at 2026-03-03T15:07:34.535371', 'confidence': 0.9977719187736511, 'text_region': [[299.0, 413.0], [1262.0, 409.0], [1262.0, 460.0], [299.0, 464.0]]}]",
+        "id": "p0-e3",
+        "order": 3,
+        "page_id": 0,
+        "type": "heading"
+      },
+      {
+        "attributes": {
+          "layout_type": "title"
+        },
+        "bbox": {
+          "coord": [
+            426,
+            232,
+            1335,
+            320
+          ],
+          "page_id": 0
+        },
+        "confidence": 0.6289016008377075,
+        "content": "[{'text': 'Modal live smoke test run 3 page 1.', 'confidence': 0.9863556027412415, 'text_region': [[295.0, 234.0], [1454.0, 238.0], [1454.0, 311.0], [295.0, 307.0]]}]",
+        "id": "p0-e4",
+        "order": 4,
+        "page_id": 0,
+        "type": "heading"
+      }
+    ],
+    "pages": [
+      {
+        "height": 3509,
+        "id": 0,
+        "image_uri": "jobs/01640f156d57417b82b3f5776b7aefd7/pages/0/page.png",
+        "page_hash": "0a08d0af0be6a2b93332b048c5669b1831f74592dc0e0e0d28c454be694925e0",
+        "rotation": 0,
+        "width": 2480
+      },
+      {
+        "height": 3509,
+        "id": 1,
+        "image_uri": "jobs/01640f156d57417b82b3f5776b7aefd7/pages/1/page.png",
+        "page_hash": "ef4019e7a26653f9eff68ef30a7204a0c268ad885435ae0b6c14af629bc04e2f",
+        "rotation": 0,
+        "width": 2480
+      }
+    ]
+  },
+  "error_status": [
+    {
+      "code": "ocr_failure",
+      "message": "could not execute a primitive",
+      "page_id": 1,
+      "retry_count": 0,
+      "stage": "ocr"
+    }
+  ],
+  "metadata": {
+    "file_metadata": {
+      "bytes": 2130,
+      "file_name": "inline.pdf",
+      "mime_type": "application/pdf",
+      "pages_total": 2
+    },
+    "job_id": "01640f156d57417b82b3f5776b7aefd7",
+    "models": {
+      "fallback_vlm": "Qwen/Qwen2.5-VL-7B-Instruct",
+      "fast_ocr": "PP-StructureV3",
+      "page_vlm": "Qwen/Qwen2.5-VL-7B-Instruct"
+    },
+    "pipeline_mode": "accurate",
+    "quality_stage": "fast",
+    "result_revision": 1,
+    "schema_version": "1.0",
+    "timings": {
+      "aggregate_ms": 0,
+      "elapsed_ms": 12458,
+      "refine_ms": 0,
+      "split_ms": 5012,
+      "submit_ms": 0
+    }
+  }
+}

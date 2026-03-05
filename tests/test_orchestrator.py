@@ -11,6 +11,7 @@ from modal_doc_parsing_vlm.types_result import (
     PageError,
     PageParseResult,
     PageResultStatus,
+    ParseEngine,
 )
 
 
@@ -23,50 +24,52 @@ def make_two_page_pdf() -> bytes:
     return document.tobytes()
 
 
-class FakeParser:
-    def __init__(self, storage, *, failing_pages: set[int] | None = None) -> None:
-        self.storage = storage
-        self.failing_pages = failing_pages or set()
-
-    def parse_chunk(self, chunk):
-        for task in chunk.pages:
-            if task.page_id in self.failing_pages:
-                self.storage.write_page_result(
-                    PageParseResult(
-                        job_id=chunk.job_id,
-                        chunk_id=chunk.chunk_id,
-                        page_id=task.page_id,
-                        status=PageResultStatus.FAILED,
-                        error=PageError(
-                            page_id=task.page_id,
-                            code="synthetic_failure",
-                            message="parser failed",
-                        ),
-                    )
-                )
-                continue
-
-            self.storage.write_page_result(
-                PageParseResult(
-                    job_id=chunk.job_id,
-                    chunk_id=chunk.chunk_id,
-                    page_id=task.page_id,
-                    status=PageResultStatus.COMPLETED,
-                    page_markdown=f"# Page {task.page_id + 1}",
-                    elements=[
-                        DocumentElement(
-                            id=f"p{task.page_id}-e1",
-                            page_id=task.page_id,
-                            type="heading",
-                            content=f"Page {task.page_id + 1}",
-                            bbox=BoundingBox(coord=[0, 0, 10, 10], page_id=task.page_id),
-                            order=1,
-                        )
-                    ],
-                    attempts=1,
-                    valid_on_first_pass=True,
-                )
+def _completed_result(task_payload: dict, *, engine: str = "paddle_ocr") -> dict:
+    task = task_payload
+    return PageParseResult(
+        job_id=task["job_id"],
+        chunk_id=task["chunk_id"],
+        page_id=task["page_id"],
+        status=PageResultStatus.COMPLETED,
+        page_markdown=f"# Page {task['page_id'] + 1}",
+        elements=[
+            DocumentElement(
+                id=f"p{task['page_id']}-e1",
+                page_id=task["page_id"],
+                type="heading",
+                content=f"Page {task['page_id'] + 1}",
+                bbox=BoundingBox(coord=[0, 0, 10, 10], page_id=task["page_id"]),
+                order=1,
+                confidence=0.95,
             )
+        ],
+        attempts=1,
+        valid_on_first_pass=True,
+        result_revision=task.get("result_revision", 1),
+        engine=engine,
+        confidence_summary={
+            "mean_ocr_confidence": 0.95,
+            "text_coverage_ratio": 0.95,
+            "table_confidence": 1.0,
+        },
+    ).model_dump(mode="json")
+
+
+def _failed_result(task_payload: dict) -> dict:
+    task = task_payload
+    return PageParseResult(
+        job_id=task["job_id"],
+        chunk_id=task["chunk_id"],
+        page_id=task["page_id"],
+        status=PageResultStatus.FAILED,
+        error=PageError(
+            page_id=task["page_id"],
+            code="synthetic_failure",
+            message="parser failed",
+        ),
+        result_revision=task.get("result_revision", 1),
+        engine=ParseEngine.PADDLE_OCR,
+    ).model_dump(mode="json")
 
 
 def build_service(tmp_path, scheduled_jobs: list[tuple[str, str]]):
@@ -84,7 +87,11 @@ def build_service(tmp_path, scheduled_jobs: list[tuple[str, str]]):
         runtime_profile=type(
             "RuntimeProfile",
             (),
-            {"name": "dev", "model_id": "Qwen/Qwen2.5-VL-7B-Instruct"},
+            {
+                "name": "dev",
+                "model_id": "Qwen/Qwen2.5-VL-7B-Instruct",
+                "fallback_model_id": "Qwen/Qwen2.5-VL-7B-Instruct",
+            },
         )(),
         schedule_job=schedule_job,
     )
@@ -112,7 +119,7 @@ def test_submit_is_idempotent(tmp_path):
     assert storage.read_job_manifest(first.job_id).runtime_profile == "dev"
 
 
-def test_process_job_supports_partial_completion(tmp_path):
+def test_process_job_emits_fast_and_final_results(tmp_path):
     scheduled_jobs: list[tuple[str, str]] = []
     storage, service = build_service(tmp_path, scheduled_jobs)
     payload = base64.b64encode(make_two_page_pdf()).decode("utf-8")
@@ -126,22 +133,33 @@ def test_process_job_supports_partial_completion(tmp_path):
     )
     submission = service.submit_document_parse(request)
 
+    def run_ocr_pages(payloads: list[dict]) -> list[dict]:
+        # Force OCR on page 1 to fail so fallback gets scheduled.
+        responses: list[dict] = []
+        for payload in payloads:
+            if payload["page_id"] == 1:
+                responses.append(_failed_result(payload))
+            else:
+                responses.append(_completed_result(payload))
+        return responses
+
     snapshot = process_job(
         storage,
         submission.job_id,
-        page_parser=FakeParser(storage, failing_pages={1}),
-        poll_interval_seconds=0.01,
+        run_ocr_pages=run_ocr_pages,
+        schedule_refinement=None,
+        run_fallback_pages=lambda payloads: [_completed_result(p, engine="vlm_fallback") for p in payloads],
     )
-
-    assert snapshot.status == "completed_with_errors"
-    assert snapshot.pages_completed == 1
-    assert snapshot.pages_failed == 1
+    assert snapshot.status == "completed_final"
+    assert snapshot.pages_completed == 2
+    assert snapshot.pages_failed == 0
+    assert snapshot.result_revision == 2
 
     result = service.get_document_parse_result(
         GetDocumentParseResultRequest(job_id=submission.job_id, format="json")
     )
-    assert result.status == "completed_with_errors"
-    assert result.result["error_status"][0]["page_id"] == 1
+    assert result.status == "completed_final"
+    assert result.metadata.result_revision == 2
 
 
 def test_result_request_rejects_non_terminal_job(tmp_path):

@@ -1,0 +1,354 @@
+{
+  "debug": {
+    "pages": {}
+  },
+  "format": "json",
+  "job_id": "21a31fc3d21e4c54ab59655d09f43778",
+  "metadata": {
+    "file_metadata": {
+      "bytes": 5098,
+      "file_name": "inline.pdf",
+      "mime_type": "application/pdf",
+      "pages_total": 5
+    },
+    "job_id": "21a31fc3d21e4c54ab59655d09f43778",
+    "models": {
+      "fallback_vlm": "Qwen/Qwen2.5-VL-7B-Instruct",
+      "fast_ocr": "PP-StructureV3",
+      "page_vlm": "Qwen/Qwen2.5-VL-7B-Instruct"
+    },
+    "pipeline_mode": "balanced",
+    "quality_stage": "fast",
+    "result_revision": 1,
+    "schema_version": "1.0",
+    "timings": {
+      "aggregate_ms": 0,
+      "elapsed_ms": 28615,
+      "refine_ms": 0,
+      "split_ms": 20461,
+      "submit_ms": 0
+    }
+  },
+  "pages": [
+    {
+      "attempts": 1,
+      "chunk_id": "page",
+      "confidence_summary": {
+        "mean_ocr_confidence": 0.9936473369598389,
+        "table_confidence": 1.0,
+        "text_coverage_ratio": 0.025114273942437437
+      },
+      "elements": [
+        {
+          "attributes": {},
+          "bbox": {
+            "coord": [
+              197,
+              156,
+              972,
+              207
+            ],
+            "page_id": 0
+          },
+          "confidence": 0.9944564700126648,
+          "content": "Modal live smoke test run 5 page 1",
+          "id": "p0-e1",
+          "order": 1,
+          "page_id": 0,
+          "type": "text"
+        },
+        {
+          "attributes": {},
+          "bbox": {
+            "coord": [
+              202,
+              278,
+              846,
+              312
+            ],
+            "page_id": 0
+          },
+          "confidence": 0.9977238774299622,
+          "content": "Generated at 2026-03-03T15:10:02.979030",
+          "id": "p0-e2",
+          "order": 2,
+          "page_id": 0,
+          "type": "text"
+        },
+        {
+          "attributes": {},
+          "bbox": {
+            "coord": [
+              199,
+              331,
+              1314,
+              363
+            ],
+            "page_id": 0
+          },
+          "confidence": 0.9887616634368896,
+          "content": "Used to validate remote Modal GPU execution after dependency closure fix",
+          "id": "p0-e3",
+          "order": 3,
+          "page_id": 0,
+          "type": "text"
+        }
+      ],
+      "engine": "paddle_ocr",
+      "error": null,
+      "fallback_triggered": false,
+      "inference_ms": 0,
+      "job_id": "21a31fc3d21e4c54ab59655d09f43778",
+      "page_id": 0,
+      "page_markdown": "Modal live smoke test run 5 page 1\n\nGenerated at 2026-03-03T15:10:02.979030\n\nUsed to validate remote Modal GPU execution after dependency closure fix",
+      "prompt_path": "/artifacts/jobs/21a31fc3d21e4c54ab59655d09f43778/pages/0/prompt.txt",
+      "raw_output_path": null,
+      "result_revision": 1,
+      "status": "completed",
+      "valid_on_first_pass": true,
+      "warnings": []
+    },
+    {
+      "attempts": 1,
+      "chunk_id": "page",
+      "confidence_summary": {
+        "mean_ocr_confidence": 0.0,
+        "table_confidence": 1.0,
+        "text_coverage_ratio": 0.0
+      },
+      "elements": [],
+      "engine": "paddle_ocr",
+      "error": null,
+      "fallback_triggered": false,
+      "inference_ms": 0,
+      "job_id": "21a31fc3d21e4c54ab59655d09f43778",
+      "page_id": 1,
+      "page_markdown": "",
+      "prompt_path": "/artifacts/jobs/21a31fc3d21e4c54ab59655d09f43778/pages/1/prompt.txt",
+      "raw_output_path": null,
+      "result_revision": 1,
+      "status": "completed",
+      "valid_on_first_pass": true,
+      "warnings": [
+        "text_ocr_failed: could not execute a primitive"
+      ]
+    },
+    {
+      "attempts": 1,
+      "chunk_id": "page",
+      "confidence_summary": {
+        "mean_ocr_confidence": 0.0,
+        "table_confidence": 1.0,
+        "text_coverage_ratio": 0.0
+      },
+      "elements": [],
+      "engine": "paddle_ocr",
+      "error": null,
+      "fallback_triggered": false,
+      "inference_ms": 0,
+      "job_id": "21a31fc3d21e4c54ab59655d09f43778",
+      "page_id": 2,
+      "page_markdown": "",
+      "prompt_path": "/artifacts/jobs/21a31fc3d21e4c54ab59655d09f43778/pages/2/prompt.txt",
+      "raw_output_path": null,
+      "result_revision": 1,
+      "status": "completed",
+      "valid_on_first_pass": true,
+      "warnings": [
+        "text_ocr_failed: could not execute a primitive"
+      ]
+    },
+    {
+      "attempts": 1,
+      "chunk_id": "page",
+      "confidence_summary": {
+        "mean_ocr_confidence": 0.0,
+        "table_confidence": 1.0,
+        "text_coverage_ratio": 0.0
+      },
+      "elements": [],
+      "engine": "paddle_ocr",
+      "error": null,
+      "fallback_triggered": false,
+      "inference_ms": 0,
+      "job_id": "21a31fc3d21e4c54ab59655d09f43778",
+      "page_id": 3,
+      "page_markdown": "",
+      "prompt_path": "/artifacts/jobs/21a31fc3d21e4c54ab59655d09f43778/pages/3/prompt.txt",
+      "raw_output_path": null,
+      "result_revision": 1,
+      "status": "completed",
+      "valid_on_first_pass": true,
+      "warnings": [
+        "text_ocr_failed: could not execute a primitive"
+      ]
+    },
+    {
+      "attempts": 1,
+      "chunk_id": "page",
+      "confidence_summary": {
+        "mean_ocr_confidence": 0.0,
+        "table_confidence": 1.0,
+        "text_coverage_ratio": 0.0
+      },
+      "elements": [],
+      "engine": "paddle_ocr",
+      "error": null,
+      "fallback_triggered": false,
+      "inference_ms": 0,
+      "job_id": "21a31fc3d21e4c54ab59655d09f43778",
+      "page_id": 4,
+      "page_markdown": "",
+      "prompt_path": "/artifacts/jobs/21a31fc3d21e4c54ab59655d09f43778/pages/4/prompt.txt",
+      "raw_output_path": null,
+      "result_revision": 1,
+      "status": "completed",
+      "valid_on_first_pass": true,
+      "warnings": [
+        "text_ocr_failed: could not execute a primitive"
+      ]
+    }
+  ],
+  "quality_stage": "fast",
+  "result": {
+    "derived": {
+      "document_markdown": "Modal live smoke test run 5 page 1\n\nGenerated at 2026-03-03T15:10:02.979030\n\nUsed to validate remote Modal GPU execution after dependency closure fix",
+      "document_text": "Modal live smoke test run 5 page 1\n\nGenerated at 20260303T15:10:02.979030\n\nUsed to validate remote Modal GPU execution after dependency closure fix",
+      "page_markdown": {
+        "0": "Modal live smoke test run 5 page 1\n\nGenerated at 2026-03-03T15:10:02.979030\n\nUsed to validate remote Modal GPU execution after dependency closure fix",
+        "1": "",
+        "2": "",
+        "3": "",
+        "4": ""
+      }
+    },
+    "document": {
+      "elements": [
+        {
+          "attributes": {},
+          "bbox": {
+            "coord": [
+              197,
+              156,
+              972,
+              207
+            ],
+            "page_id": 0
+          },
+          "confidence": 0.9944564700126648,
+          "content": "Modal live smoke test run 5 page 1",
+          "id": "p0-e1",
+          "order": 1,
+          "page_id": 0,
+          "type": "text"
+        },
+        {
+          "attributes": {},
+          "bbox": {
+            "coord": [
+              202,
+              278,
+              846,
+              312
+            ],
+            "page_id": 0
+          },
+          "confidence": 0.9977238774299622,
+          "content": "Generated at 2026-03-03T15:10:02.979030",
+          "id": "p0-e2",
+          "order": 2,
+          "page_id": 0,
+          "type": "text"
+        },
+        {
+          "attributes": {},
+          "bbox": {
+            "coord": [
+              199,
+              331,
+              1314,
+              363
+            ],
+            "page_id": 0
+          },
+          "confidence": 0.9887616634368896,
+          "content": "Used to validate remote Modal GPU execution after dependency closure fix",
+          "id": "p0-e3",
+          "order": 3,
+          "page_id": 0,
+          "type": "text"
+        }
+      ],
+      "pages": [
+        {
+          "height": 2339,
+          "id": 0,
+          "image_uri": "jobs/21a31fc3d21e4c54ab59655d09f43778/pages/0/page.png",
+          "page_hash": "340cb5f779f9b1a44ae5f8b5f3bf655a42b10937fc826b6989fc314b7bbf4b9e",
+          "rotation": 0,
+          "width": 1653
+        },
+        {
+          "height": 2339,
+          "id": 1,
+          "image_uri": "jobs/21a31fc3d21e4c54ab59655d09f43778/pages/1/page.png",
+          "page_hash": "28479e517dc9e8c0d835faff9975bce5144fd84048b352acd10dcfee9c9c3739",
+          "rotation": 0,
+          "width": 1653
+        },
+        {
+          "height": 2339,
+          "id": 2,
+          "image_uri": "jobs/21a31fc3d21e4c54ab59655d09f43778/pages/2/page.png",
+          "page_hash": "340cb5f779f9b1a44ae5f8b5f3bf655a42b10937fc826b6989fc314b7bbf4b9e",
+          "rotation": 0,
+          "width": 1653
+        },
+        {
+          "height": 2339,
+          "id": 3,
+          "image_uri": "jobs/21a31fc3d21e4c54ab59655d09f43778/pages/3/page.png",
+          "page_hash": "28479e517dc9e8c0d835faff9975bce5144fd84048b352acd10dcfee9c9c3739",
+          "rotation": 0,
+          "width": 1653
+        },
+        {
+          "height": 2339,
+          "id": 4,
+          "image_uri": "jobs/21a31fc3d21e4c54ab59655d09f43778/pages/4/page.png",
+          "page_hash": "340cb5f779f9b1a44ae5f8b5f3bf655a42b10937fc826b6989fc314b7bbf4b9e",
+          "rotation": 0,
+          "width": 1653
+        }
+      ]
+    },
+    "error_status": [],
+    "metadata": {
+      "file_metadata": {
+        "bytes": 5098,
+        "file_name": "inline.pdf",
+        "mime_type": "application/pdf",
+        "pages_total": 5
+      },
+      "job_id": "21a31fc3d21e4c54ab59655d09f43778",
+      "models": {
+        "fallback_vlm": "Qwen/Qwen2.5-VL-7B-Instruct",
+        "fast_ocr": "PP-StructureV3",
+        "page_vlm": "Qwen/Qwen2.5-VL-7B-Instruct"
+      },
+      "pipeline_mode": "balanced",
+      "quality_stage": "fast",
+      "result_revision": 1,
+      "schema_version": "1.0",
+      "timings": {
+        "aggregate_ms": 0,
+        "elapsed_ms": 28615,
+        "refine_ms": 0,
+        "split_ms": 20461,
+        "submit_ms": 0
+      }
+    }
+  },
+  "result_revision": 1,
+  "status": "completed_final"
+}

@@ -1,0 +1,9 @@
+Modal live smoke test run 4 page 1.
+
+Generated at 2026-03-03T15:08:58.654795
+
+[{'text': 'Used to validate remote Modal GPU execution after export-module fix', 'confidence': 0.9883909225463867, 'text_region': [[299.0, 501.0], [1845.0, 501.0], [1845.0, 548.0], [299.0, 548.0]]}]
+
+[{'text': 'Generated at 2026-03-03T15:08:58.654795', 'confidence': 0.9961000084877014, 'text_region': [[303.0, 417.0], [1266.0, 417.0], [1266.0, 464.0], [303.0, 464.0]]}]
+
+[{'text': 'Modal live smoke test run 4 page 1.', 'confidence': 0.9810903072357178, 'text_region': [[295.0, 234.0], [1454.0, 238.0], [1454.0, 311.0], [295.0, 307.0]]}]
