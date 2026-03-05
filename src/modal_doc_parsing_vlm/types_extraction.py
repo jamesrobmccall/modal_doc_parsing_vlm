@@ -21,6 +21,11 @@ class ExtractionMode(str, Enum):
     WHOLE_DOCUMENT = "whole_document"
 
 
+class ExtractionModelBackend(str, Enum):
+    QWEN_LOCAL = "qwen_local"
+    GLM_HOSTED = "glm_hosted"
+
+
 class ExtractionStatus(str, Enum):
     PENDING = "pending"
     SUGGESTING = "suggesting"
@@ -57,6 +62,7 @@ class EntityExtractionRequest(StrictModel):
     job_id: str
     entities: list[EntityDefinition]
     extraction_mode: ExtractionMode = ExtractionMode.PER_PAGE
+    model_backend: ExtractionModelBackend = ExtractionModelBackend.QWEN_LOCAL
 
 
 class ExtractedEntity(StrictModel):

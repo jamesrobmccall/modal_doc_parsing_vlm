@@ -126,7 +126,6 @@ def create_extraction_engine_cls(
     @modal.method()
     def extract_entity(self, payload: dict[str, Any]) -> dict[str, Any]:
         from vllm import SamplingParams
-        from vllm.sampling_params import GuidedDecodingRequest
 
         from modal_doc_parsing_vlm.prompts_extraction import build_entity_extraction_prompt
         from modal_doc_parsing_vlm.types_extraction import EntityDefinition
@@ -137,6 +136,16 @@ def create_extraction_engine_cls(
         json_schema = payload["json_schema"]
 
         messages = build_entity_extraction_prompt(entity, page_text)
+
+        # Build guided decoding params – handle both old and new vLLM APIs.
+        guided_kwargs: dict[str, Any] = {}
+        try:
+            from vllm.sampling_params import GuidedDecodingParams
+            guided_kwargs["guided_decoding"] = GuidedDecodingParams(json=json_schema)
+        except ImportError:
+            from vllm.sampling_params import GuidedDecodingRequest
+            guided_kwargs["guided_options_request"] = GuidedDecodingRequest(json=json_schema)
+
         started = time.perf_counter()
         outputs = self.llm.chat(
             [messages],
@@ -144,7 +153,7 @@ def create_extraction_engine_cls(
                 temperature=0.0,
                 max_tokens=EXTRACTION_SAMPLING_MAX_TOKENS,
             ),
-            guided_options_request=GuidedDecodingRequest(json=json_schema),
+            **guided_kwargs,
             use_tqdm=False,
         )
         raw_text = _extract_output_text(outputs[0])

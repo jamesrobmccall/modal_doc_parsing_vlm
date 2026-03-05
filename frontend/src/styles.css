@@ -806,6 +806,49 @@ body {
   margin-bottom: 0.3rem;
 }
 
+.entity-model-toggle {
+  margin-bottom: 0.6rem;
+}
+
+.model-toggle-group {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 0.25rem;
+}
+
+.model-toggle-btn {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.15rem;
+  padding: 0.5rem 0.75rem;
+  border: 1.5px solid var(--line-soft);
+  border-radius: 8px;
+  background: #fff;
+  cursor: pointer;
+  text-align: left;
+  transition: border-color 0.15s, background 0.15s;
+}
+
+.model-toggle-btn:hover {
+  border-color: var(--accent);
+}
+
+.model-toggle-btn.active {
+  border-color: var(--accent);
+  background: color-mix(in srgb, var(--accent) 10%, #fff);
+}
+
+.model-toggle-btn strong {
+  font-size: 0.85rem;
+}
+
+.model-toggle-btn small {
+  font-size: 0.7rem;
+  opacity: 0.7;
+}
+
 .entity-card {
   border: 1.5px solid var(--line-soft);
   border-radius: 12px;

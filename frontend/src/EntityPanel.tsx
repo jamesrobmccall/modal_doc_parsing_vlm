@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 
 type ExtractionMode = "per_page" | "whole_document";
 type ExtractionPhase = "idle" | "suggesting" | "editing" | "extracting" | "done";
+type ModelBackend = "qwen_local" | "glm_hosted";
 
 interface EntityFieldDefinition {
   name: string;
@@ -48,6 +49,7 @@ export default function EntityPanel({ jobId }: { jobId: string }) {
   const [entities, setEntities] = useState<EntityDefinition[]>([]);
   const [docSummary, setDocSummary] = useState("");
   const [extractionMode, setExtractionMode] = useState<ExtractionMode>("per_page");
+  const [modelBackend, setModelBackend] = useState<ModelBackend>("qwen_local");
   const [extractionResult, setExtractionResult] = useState<ExtractionResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -77,7 +79,7 @@ export default function EntityPanel({ jobId }: { jobId: string }) {
       const res = await fetch(`/api/jobs/${jobId}/entities/extract`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ job_id: jobId, entities, extraction_mode: extractionMode }),
+        body: JSON.stringify({ job_id: jobId, entities, extraction_mode: extractionMode, model_backend: modelBackend }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
@@ -240,6 +242,30 @@ export default function EntityPanel({ jobId }: { jobId: string }) {
                   <option value="per_page">Per Page (extract from each page independently)</option>
                   <option value="whole_document">Whole Document (single extraction pass)</option>
                 </select>
+              </label>
+            </div>
+
+            <div className="entity-model-toggle">
+              <label className="field">
+                <span>Model Backend</span>
+                <div className="model-toggle-group">
+                  <button
+                    type="button"
+                    className={`model-toggle-btn${modelBackend === "qwen_local" ? " active" : ""}`}
+                    onClick={() => setModelBackend("qwen_local")}
+                  >
+                    <strong>Qwen 2.5-3B</strong>
+                    <small>Private &middot; Open Source &middot; Guided JSON</small>
+                  </button>
+                  <button
+                    type="button"
+                    className={`model-toggle-btn${modelBackend === "glm_hosted" ? " active" : ""}`}
+                    onClick={() => setModelBackend("glm_hosted")}
+                  >
+                    <strong>GLM-5 (Modal-hosted)</strong>
+                    <small>Hosted endpoint &middot; Larger model</small>
+                  </button>
+                </div>
               </label>
             </div>
 
