@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import ReactMarkdown from "react-markdown";
 import remarkGfm from "remark-gfm";
+import EntityPanel from "./EntityPanel";
 
 type ParseMode = "balanced" | "accurate";
 type LatencyProfile = "fast" | "balanced" | "max_quality";
@@ -828,6 +829,10 @@ export default function App() {
           </div>
         </article>
       </section>
+
+      {jobId && statusPayload && RESULT_AVAILABLE_STATUSES.has(statusPayload.status) && (
+        <EntityPanel jobId={jobId} />
+      )}
     </div>
   );
 }

@@ -441,6 +441,44 @@ class FileSystemStorageBackend:
                 info["pages"][page_dir.name] = page_info
         return info
 
+    def extraction_dir(self, job_id: str) -> Path:
+        return self.job_dir(job_id) / "extraction"
+
+    def extraction_suggestion_path(self, job_id: str) -> Path:
+        return self.extraction_dir(job_id) / "suggestion.json"
+
+    def extraction_result_path(self, job_id: str) -> Path:
+        return self.extraction_dir(job_id) / "result.json"
+
+    def write_extraction_suggestion(self, job_id: str, suggestion) -> None:
+        self._write_model(self.extraction_suggestion_path(job_id), suggestion)
+
+    def read_extraction_suggestion(self, job_id: str):
+        from .types_extraction import EntitySuggestionResponse
+
+        return self._read_model(self.extraction_suggestion_path(job_id), EntitySuggestionResponse)
+
+    def write_extraction_result(self, job_id: str, result) -> None:
+        self._write_model(self.extraction_result_path(job_id), result)
+
+    def read_extraction_result(self, job_id: str):
+        from .types_extraction import EntityExtractionResult
+
+        return self._read_model(self.extraction_result_path(job_id), EntityExtractionResult)
+
+    def get_extraction_status(self, job_id: str):
+        from .types_extraction import EntityExtractionStatusPayload
+
+        raw = self.status_store.get(f"{job_id}:extraction")
+        if raw is None:
+            return None
+        if isinstance(raw, EntityExtractionStatusPayload):
+            return raw
+        return EntityExtractionStatusPayload.model_validate(raw)
+
+    def set_extraction_status(self, job_id: str, status_payload) -> None:
+        self.status_store.put(f"{job_id}:extraction", status_payload.model_dump(mode="json"))
+
     def iter_job_manifests(self) -> Iterator[JobManifest]:
         for job_id in self.list_job_ids():
             yield self.read_job_manifest(job_id)

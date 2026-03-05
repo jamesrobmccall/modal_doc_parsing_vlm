@@ -39,7 +39,14 @@ from modal_doc_parsing_vlm.config import (
     VLLM_CACHE_VOLUME_NAME,
     get_runtime_profile,
 )
+from modal_doc_parsing_vlm.config import (
+    EXTRACTION_MODEL_ID,
+)
+
+GLM_API_BASE = "https://api.us-west-2.modal.direct/v1/chat/completions"
+GLM_MODEL_ID = "zai-org/GLM-5-FP8"
 from modal_doc_parsing_vlm.engine import create_engine_cls
+from modal_doc_parsing_vlm.engine_extraction import create_extraction_engine_cls
 from modal_doc_parsing_vlm.engine_ocr import create_ocr_engine_cls
 from modal_doc_parsing_vlm.mcp_server import build_fastapi_app
 from modal_doc_parsing_vlm.model_cache import ensure_model_cached
@@ -123,6 +130,14 @@ if "dev" in ENABLED_RUNTIME_PROFILES:
     DevParserEngine = DevFallbackEngine
     _FALLBACK_ENGINE_CLASSES["dev"] = DevFallbackEngine
 
+ExtractionEngine = create_extraction_engine_cls(
+    app,
+    hf_cache_volume=hf_cache_volume,
+    vllm_cache_volume=vllm_cache_volume,
+    artifacts_volume=artifacts_volume,
+    export_module=__name__,
+)
+
 
 def build_storage() -> FileSystemStorageBackend:
     return FileSystemStorageBackend(
@@ -139,11 +154,20 @@ def build_service(runtime_profile_name: str | None = None) -> DocumentParseServi
     def schedule_job(job_id: str, selected_profile_name: str) -> None:
         run_orchestrator.spawn(job_id, selected_profile_name)
 
-    return DocumentParseService(
+    def _suggest_entities_fn(job_id: str) -> dict:
+        return suggest_entities_remote.remote(job_id)
+
+    def _schedule_entity_extraction(job_id: str, request_payload: dict) -> None:
+        run_entity_extraction.spawn(job_id, request_payload)
+
+    service = DocumentParseService(
         storage=build_storage(),
         runtime_profile=runtime_profile,
         schedule_job=schedule_job,
     )
+    service.suggest_entities_fn = _suggest_entities_fn  # type: ignore[attr-defined]
+    service.schedule_entity_extraction = _schedule_entity_extraction  # type: ignore[attr-defined]
+    return service
 
 
 def _fallback_engine_for_profile(runtime_profile_name: str):
@@ -269,6 +293,225 @@ def store_upload_remote(data: bytes, file_name: str, mime_type: str | None = Non
         f"mime_type={mime_type or 'unknown'} bytes={len(data)}"
     )
     return upload_id
+
+
+@app.function(image=control_plane_image, volumes={str(ARTIFACT_ROOT): artifacts_volume})
+def suggest_entities_remote(job_id: str) -> dict:
+    from modal_doc_parsing_vlm.types_extraction import (
+        EntityDefinition,
+        EntitySuggestionResponse,
+    )
+
+    print(f"[app] suggest_entities job_id={job_id}")
+    storage = build_storage()
+    result = storage.read_final_result(job_id)
+    markdown = result.derived.document_markdown
+    page_count = len(result.document.pages)
+
+    engine = ExtractionEngine()
+    raw = engine.suggest_entities.remote({
+        "document_markdown": markdown,
+        "page_count": page_count,
+    })
+
+    entities: list[EntityDefinition] = []
+    for raw_entity in raw.get("entities", []):
+        try:
+            entities.append(EntityDefinition.model_validate(raw_entity))
+        except Exception:
+            continue
+
+    suggestion = EntitySuggestionResponse(
+        job_id=job_id,
+        suggested_entities=entities,
+        document_summary=raw.get("document_summary", ""),
+    )
+    storage.write_extraction_suggestion(job_id, suggestion)
+    return suggestion.model_dump(mode="json")
+
+
+def _glm_chat_completion(messages: list[dict], json_schema: dict | None = None) -> dict:
+    """Call the Modal-hosted GLM-5 endpoint (OpenAI-compatible)."""
+    import httpx
+    import os
+
+    api_token = os.environ.get("modal_token", "")
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": f"Bearer {api_token}",
+    }
+    body: dict = {
+        "model": GLM_MODEL_ID,
+        "messages": messages,
+        "max_tokens": 4096,
+        "temperature": 0.0,
+    }
+    if json_schema is not None:
+        body["response_format"] = {
+            "type": "json_schema",
+            "json_schema": {"name": "extraction", "strict": True, "schema": json_schema},
+        }
+
+    started = time.perf_counter()
+    resp = httpx.post(GLM_API_BASE, json=body, headers=headers, timeout=300)
+    resp.raise_for_status()
+    elapsed_ms = int((time.perf_counter() - started) * 1000)
+
+    data = resp.json()
+    content = data["choices"][0]["message"]["content"]
+    return {"content": content, "inference_ms": elapsed_ms}
+
+
+def _glm_extract_entity(entity_def: dict, page_text: str, page_id: int | None, json_schema_str: str) -> dict:
+    """Extract a single entity using the GLM-5 hosted endpoint."""
+    from json_repair import repair_json
+
+    from modal_doc_parsing_vlm.prompts_extraction import build_entity_extraction_prompt
+    from modal_doc_parsing_vlm.types_extraction import EntityDefinition
+
+    entity = EntityDefinition.model_validate(entity_def)
+    messages = build_entity_extraction_prompt(entity, page_text)
+
+    json_schema = json.loads(json_schema_str)
+    result = _glm_chat_completion(messages, json_schema=json_schema)
+
+    repaired = repair_json(result["content"], return_objects=False)
+    data = json.loads(repaired)
+
+    return {
+        "entity_name": entity.entity_name,
+        "page_id": page_id,
+        "data": data,
+        "inference_ms": result["inference_ms"],
+    }
+
+
+@app.function(
+    image=control_plane_image,
+    volumes={str(ARTIFACT_ROOT): artifacts_volume},
+    timeout=ORCHESTRATOR_TIMEOUT_SECONDS,
+    secrets=[modal.Secret.from_name("model_token")],
+)
+def run_entity_extraction(job_id: str, request_payload: dict) -> dict:
+    import json as _json
+
+    from modal_doc_parsing_vlm.types_extraction import (
+        EntityDefinition,
+        EntityExtractionRequest,
+        EntityExtractionResult,
+        EntityExtractionStatusPayload,
+        ExtractedEntity,
+        ExtractionMode,
+        ExtractionModelBackend,
+        ExtractionStatus,
+        entity_definition_to_json_schema,
+    )
+
+    print(f"[app] run_entity_extraction job_id={job_id}")
+    storage = build_storage()
+    request = EntityExtractionRequest.model_validate(request_payload)
+    use_glm = request.model_backend == ExtractionModelBackend.GLM_HOSTED
+
+    result_doc = storage.read_final_result(job_id)
+    page_markdowns = result_doc.derived.page_markdown or {}
+    document_markdown = result_doc.derived.document_markdown
+    page_count = len(result_doc.document.pages)
+
+    storage.set_extraction_status(job_id, EntityExtractionStatusPayload(
+        job_id=job_id,
+        status=ExtractionStatus.EXTRACTING,
+        entities_requested=len(request.entities),
+        pages_total=page_count if request.extraction_mode == ExtractionMode.PER_PAGE else 1,
+    ))
+
+    engine = None if use_glm else ExtractionEngine()
+    all_extracted: list[ExtractedEntity] = []
+    total_inference_ms = 0
+    model_id = GLM_MODEL_ID if use_glm else EXTRACTION_MODEL_ID
+
+    for entity in request.entities:
+        json_schema = _json.dumps(entity_definition_to_json_schema(entity))
+
+        if request.extraction_mode == ExtractionMode.WHOLE_DOCUMENT:
+            if use_glm:
+                raw = _glm_extract_entity(
+                    entity.model_dump(mode="json"), document_markdown, None, json_schema,
+                )
+            else:
+                payload = {
+                    "entity_definition": entity.model_dump(mode="json"),
+                    "page_text": document_markdown,
+                    "page_id": None,
+                    "json_schema": json_schema,
+                }
+                raw = engine.extract_entity.remote(payload)
+            all_extracted.append(ExtractedEntity(
+                entity_name=entity.entity_name,
+                page_id=None,
+                data=raw.get("data", {}),
+            ))
+            total_inference_ms += raw.get("inference_ms", 0)
+        else:
+            page_tasks = []
+            for page in result_doc.document.pages:
+                page_md = page_markdowns.get(str(page.id), "")
+                if not page_md.strip():
+                    continue
+                page_tasks.append((page.id, page_md))
+
+            if use_glm:
+                for pg_id, pg_md in page_tasks:
+                    raw_result = _glm_extract_entity(
+                        entity.model_dump(mode="json"), pg_md, pg_id, json_schema,
+                    )
+                    all_extracted.append(ExtractedEntity(
+                        entity_name=entity.entity_name,
+                        page_id=raw_result.get("page_id"),
+                        data=raw_result.get("data", {}),
+                    ))
+                    total_inference_ms += raw_result.get("inference_ms", 0)
+            else:
+                payloads = [
+                    {
+                        "entity_definition": entity.model_dump(mode="json"),
+                        "page_text": pg_md,
+                        "page_id": pg_id,
+                        "json_schema": json_schema,
+                    }
+                    for pg_id, pg_md in page_tasks
+                ]
+                if payloads:
+                    results = list(engine.extract_entity.map(payloads))
+                    for raw_result in results:
+                        all_extracted.append(ExtractedEntity(
+                            entity_name=entity.entity_name,
+                            page_id=raw_result.get("page_id"),
+                            data=raw_result.get("data", {}),
+                        ))
+                        total_inference_ms += raw_result.get("inference_ms", 0)
+
+    extraction_result = EntityExtractionResult(
+        job_id=job_id,
+        entities=all_extracted,
+        schema_used=request.entities,
+        extraction_mode=request.extraction_mode,
+        model_id=model_id,
+        inference_ms=total_inference_ms,
+    )
+    storage.write_extraction_result(job_id, extraction_result)
+    storage.set_extraction_status(job_id, EntityExtractionStatusPayload(
+        job_id=job_id,
+        status=ExtractionStatus.COMPLETED,
+        entities_requested=len(request.entities),
+        pages_processed=page_count,
+        pages_total=page_count,
+    ))
+    print(
+        f"[app] run_entity_extraction complete job_id={job_id} "
+        f"backend={'glm_hosted' if use_glm else 'qwen_local'} "
+        f"entities_extracted={len(all_extracted)} inference_ms={total_inference_ms}"
+    )
+    return extraction_result.model_dump(mode="json")
 
 
 @app.function(image=control_plane_image, volumes={str(ARTIFACT_ROOT): artifacts_volume})
