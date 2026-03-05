@@ -380,7 +380,7 @@ def suggest_entities_remote(job_id: str, model_backend: str = "qwen_local") -> d
 
 
 def _glm_chat_completion(messages: list[dict], json_schema: dict | None = None) -> dict:
-    """Call the Modal-hosted GLM-5 endpoint (OpenAI-compatible)."""
+    """Call the Modal-hosted GLM-5 endpoint (OpenAI-compatible) with retry on gateway errors."""
     import httpx
     import os
 
@@ -401,11 +401,56 @@ def _glm_chat_completion(messages: list[dict], json_schema: dict | None = None) 
             "json_schema": {"name": "extraction", "strict": True, "schema": json_schema},
         }
 
-    started = time.perf_counter()
-    resp = httpx.post(GLM_API_BASE, json=body, headers=headers, timeout=300)
-    resp.raise_for_status()
-    elapsed_ms = int((time.perf_counter() - started) * 1000)
+    RETRYABLE = {502, 503, 504}
+    max_attempts = 4
+    delay = 4.0
 
+    started = time.perf_counter()
+    last_exc: Exception | None = None
+    for attempt in range(1, max_attempts + 1):
+        try:
+            resp = httpx.post(GLM_API_BASE, json=body, headers=headers, timeout=300)
+            if resp.status_code in RETRYABLE and attempt < max_attempts:
+                print(
+                    f"[glm] attempt {attempt}/{max_attempts} got {resp.status_code}, "
+                    f"retrying in {delay:.0f}s…"
+                )
+                time.sleep(delay)
+                delay *= 2
+                continue
+            resp.raise_for_status()
+            break
+        except httpx.HTTPStatusError as exc:
+            last_exc = exc
+            if exc.response.status_code in RETRYABLE and attempt < max_attempts:
+                print(
+                    f"[glm] attempt {attempt}/{max_attempts} got {exc.response.status_code}, "
+                    f"retrying in {delay:.0f}s…"
+                )
+                time.sleep(delay)
+                delay *= 2
+                continue
+            raise RuntimeError(
+                f"GLM-5 endpoint returned {exc.response.status_code}. "
+                "The hosted model may be temporarily unavailable — try Qwen 2.5 instead."
+            ) from exc
+        except httpx.RequestError as exc:
+            last_exc = exc
+            if attempt < max_attempts:
+                print(f"[glm] attempt {attempt}/{max_attempts} request error: {exc}, retrying in {delay:.0f}s…")
+                time.sleep(delay)
+                delay *= 2
+                continue
+            raise RuntimeError(
+                f"GLM-5 endpoint unreachable: {exc}. "
+                "Check that the GLM-5 Modal app is deployed and the endpoint URL is correct."
+            ) from exc
+    else:
+        raise RuntimeError(
+            f"GLM-5 endpoint failed after {max_attempts} attempts. Last error: {last_exc}"
+        )
+
+    elapsed_ms = int((time.perf_counter() - started) * 1000)
     data = resp.json()
     content = data["choices"][0]["message"]["content"]
     return {"content": content, "inference_ms": elapsed_ms}
