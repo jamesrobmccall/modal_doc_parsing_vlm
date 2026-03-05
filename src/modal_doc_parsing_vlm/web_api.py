@@ -12,6 +12,7 @@ from .types_api import (
     GetDocumentParseStatusRequest,
     SubmitDocumentParseRequest,
 )
+from .types_extraction import EntityExtractionRequest, ExtractionStatus
 from .types_result import LatencyProfile, MimeType, OutputFormat, ParseMode, ResultLevel
 
 
@@ -180,5 +181,79 @@ def build_web_api_router(
             media_type=manifest.file_metadata.mime_type.value,
             headers={"Content-Disposition": f'inline; filename="{file_name}"'},
         )
+
+    @router.post("/api/jobs/{job_id}/entities/suggest")
+    async def suggest_entities(job_id: str):
+        if hasattr(service.storage, "reload"):
+            service.storage.reload()
+        try:
+            service.storage.read_job_manifest(job_id)
+        except FileNotFoundError as exc:
+            raise _http_404(job_id) from exc
+
+        if not hasattr(service, "suggest_entities_fn") or service.suggest_entities_fn is None:
+            raise HTTPException(
+                status_code=status.HTTP_501_NOT_IMPLEMENTED,
+                detail="Entity extraction is not available.",
+            )
+
+        result = service.suggest_entities_fn(job_id)
+        return result
+
+    @router.post("/api/jobs/{job_id}/entities/extract")
+    async def extract_entities(job_id: str, body: EntityExtractionRequest):
+        if hasattr(service.storage, "reload"):
+            service.storage.reload()
+        try:
+            service.storage.read_job_manifest(job_id)
+        except FileNotFoundError as exc:
+            raise _http_404(job_id) from exc
+
+        if (
+            not hasattr(service, "schedule_entity_extraction")
+            or service.schedule_entity_extraction is None
+        ):
+            raise HTTPException(
+                status_code=status.HTTP_501_NOT_IMPLEMENTED,
+                detail="Entity extraction is not available.",
+            )
+
+        service.schedule_entity_extraction(job_id, body.model_dump(mode="json"))
+        return JSONResponse(
+            status_code=status.HTTP_202_ACCEPTED,
+            content={
+                "job_id": job_id,
+                "status": ExtractionStatus.EXTRACTING.value,
+                "entities_requested": len(body.entities),
+            },
+        )
+
+    @router.get("/api/jobs/{job_id}/entities/result")
+    def get_extraction_result(job_id: str):
+        if hasattr(service.storage, "reload"):
+            service.storage.reload()
+        try:
+            service.storage.read_job_manifest(job_id)
+        except FileNotFoundError as exc:
+            raise _http_404(job_id) from exc
+
+        extraction_status = service.storage.get_extraction_status(job_id)
+        if extraction_status is not None and extraction_status.status == ExtractionStatus.EXTRACTING:
+            return JSONResponse(
+                status_code=status.HTTP_409_CONFLICT,
+                content={
+                    "error": "extraction_in_progress",
+                    "message": "Entity extraction is still running.",
+                    "status": extraction_status.model_dump(mode="json"),
+                },
+            )
+
+        result = service.storage.read_extraction_result(job_id)
+        if result is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail=f"No extraction result found for job_id: {job_id}",
+            )
+        return result.model_dump(mode="json")
 
     return router

@@ -758,6 +758,228 @@ body {
   }
 }
 
+/* Entity extraction panel */
+
+.entity-panel {
+  min-width: 0;
+}
+
+.entity-body {
+  padding: 1rem 1.05rem;
+  display: grid;
+  gap: 0.8rem;
+}
+
+.entity-idle {
+  display: grid;
+  gap: 0.7rem;
+}
+
+.entity-idle p {
+  margin: 0;
+  color: var(--ink-soft);
+  line-height: 1.5;
+}
+
+.entity-loading {
+  display: grid;
+  gap: 0.6rem;
+}
+
+.entity-loading p {
+  margin: 0;
+  color: var(--ink-soft);
+}
+
+.entity-summary {
+  margin: 0;
+  padding: 0.55rem 0.66rem;
+  border: 1.5px solid var(--line-soft);
+  border-radius: 10px;
+  background: var(--paper-2);
+  font-size: 0.88rem;
+  color: var(--ink-soft);
+  line-height: 1.4;
+}
+
+.entity-mode-toggle {
+  margin-bottom: 0.3rem;
+}
+
+.entity-card {
+  border: 1.5px solid var(--line-soft);
+  border-radius: 12px;
+  background: linear-gradient(180deg, #fdfcf8, #f6f3eb);
+  padding: 0.8rem;
+  display: grid;
+  gap: 0.5rem;
+}
+
+.entity-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.entity-name-input {
+  flex: 1;
+  border: 1.5px solid var(--line-soft);
+  border-radius: 8px;
+  background: #fff;
+  padding: 0.48rem 0.58rem;
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 700;
+  color: var(--ink);
+}
+
+.entity-desc-input {
+  border: 1.5px solid var(--line-soft);
+  border-radius: 8px;
+  background: #fff;
+  padding: 0.4rem 0.58rem;
+  font: inherit;
+  font-size: 0.88rem;
+  color: var(--ink);
+  width: 100%;
+}
+
+.entity-remove-btn {
+  padding: 0.38rem 0.6rem !important;
+  font-size: 0.78rem !important;
+  color: var(--danger) !important;
+  border-color: color-mix(in oklab, var(--danger) 40%, var(--line-soft)) !important;
+}
+
+.entity-fields {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.entity-field-header {
+  display: grid;
+  grid-template-columns: 1fr 120px 1.5fr 36px 28px;
+  gap: 0.3rem;
+  padding: 0 0.1rem;
+}
+
+.entity-field-header span {
+  font-size: 0.66rem;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: #665c4f;
+  font-weight: 600;
+}
+
+.entity-field-row {
+  display: grid;
+  grid-template-columns: 1fr 120px 1.5fr 36px 28px;
+  gap: 0.3rem;
+  align-items: center;
+}
+
+.entity-field-row input[type="text"],
+.entity-field-row input:not([type]),
+.entity-field-row select {
+  border: 1.5px solid var(--line-soft);
+  border-radius: 8px;
+  background: #fff;
+  padding: 0.36rem 0.44rem;
+  font: inherit;
+  font-size: 0.82rem;
+  color: var(--ink);
+}
+
+.entity-field-row input[type="checkbox"] {
+  width: 18px;
+  height: 18px;
+  cursor: pointer;
+}
+
+.entity-field-remove {
+  padding: 0.2rem !important;
+  font-size: 0.78rem !important;
+  text-align: center;
+}
+
+.entity-add-field {
+  justify-self: start;
+  font-size: 0.8rem !important;
+}
+
+.entity-editor-actions {
+  display: flex;
+  gap: 0.56rem;
+  justify-content: flex-end;
+}
+
+.entity-editor-actions .submit-btn {
+  min-width: 160px;
+}
+
+.entity-results-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+  padding: 0.44rem 0;
+}
+
+.entity-results-meta span {
+  border: 1.5px solid var(--line-soft);
+  border-radius: 999px;
+  background: var(--paper-2);
+  padding: 0.22rem 0.55rem;
+  font-size: 0.73rem;
+  font-weight: 600;
+  color: var(--ink-soft);
+}
+
+.entity-result-table {
+  display: grid;
+  gap: 0.3rem;
+}
+
+.entity-result-table h3 {
+  margin: 0.4rem 0 0;
+  font-size: 0.95rem;
+}
+
+.table-scroll {
+  overflow-x: auto;
+}
+
+.entity-result-table table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.84rem;
+}
+
+.entity-result-table th,
+.entity-result-table td {
+  border: 1.5px solid var(--line-soft);
+  padding: 0.38rem 0.5rem;
+  text-align: left;
+}
+
+.entity-result-table th {
+  background: #efe8dc;
+  font-size: 0.78rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.null-value {
+  color: #a09585;
+}
+
+.entity-results-actions {
+  display: flex;
+  gap: 0.56rem;
+  justify-content: flex-end;
+  padding-top: 0.4rem;
+}
+
 @keyframes stripe-shift {
   from {
     background-position: 0 0;

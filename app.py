@@ -39,7 +39,11 @@ from modal_doc_parsing_vlm.config import (
     VLLM_CACHE_VOLUME_NAME,
     get_runtime_profile,
 )
+from modal_doc_parsing_vlm.config import (
+    EXTRACTION_MODEL_ID,
+)
 from modal_doc_parsing_vlm.engine import create_engine_cls
+from modal_doc_parsing_vlm.engine_extraction import create_extraction_engine_cls
 from modal_doc_parsing_vlm.engine_ocr import create_ocr_engine_cls
 from modal_doc_parsing_vlm.mcp_server import build_fastapi_app
 from modal_doc_parsing_vlm.model_cache import ensure_model_cached
@@ -123,6 +127,14 @@ if "dev" in ENABLED_RUNTIME_PROFILES:
     DevParserEngine = DevFallbackEngine
     _FALLBACK_ENGINE_CLASSES["dev"] = DevFallbackEngine
 
+ExtractionEngine = create_extraction_engine_cls(
+    app,
+    hf_cache_volume=hf_cache_volume,
+    vllm_cache_volume=vllm_cache_volume,
+    artifacts_volume=artifacts_volume,
+    export_module=__name__,
+)
+
 
 def build_storage() -> FileSystemStorageBackend:
     return FileSystemStorageBackend(
@@ -139,11 +151,20 @@ def build_service(runtime_profile_name: str | None = None) -> DocumentParseServi
     def schedule_job(job_id: str, selected_profile_name: str) -> None:
         run_orchestrator.spawn(job_id, selected_profile_name)
 
-    return DocumentParseService(
+    def _suggest_entities_fn(job_id: str) -> dict:
+        return suggest_entities_remote.remote(job_id)
+
+    def _schedule_entity_extraction(job_id: str, request_payload: dict) -> None:
+        run_entity_extraction.spawn(job_id, request_payload)
+
+    service = DocumentParseService(
         storage=build_storage(),
         runtime_profile=runtime_profile,
         schedule_job=schedule_job,
     )
+    service.suggest_entities_fn = _suggest_entities_fn  # type: ignore[attr-defined]
+    service.schedule_entity_extraction = _schedule_entity_extraction  # type: ignore[attr-defined]
+    return service
 
 
 def _fallback_engine_for_profile(runtime_profile_name: str):
@@ -269,6 +290,145 @@ def store_upload_remote(data: bytes, file_name: str, mime_type: str | None = Non
         f"mime_type={mime_type or 'unknown'} bytes={len(data)}"
     )
     return upload_id
+
+
+@app.function(image=control_plane_image, volumes={str(ARTIFACT_ROOT): artifacts_volume})
+def suggest_entities_remote(job_id: str) -> dict:
+    from modal_doc_parsing_vlm.types_extraction import (
+        EntityDefinition,
+        EntitySuggestionResponse,
+    )
+
+    print(f"[app] suggest_entities job_id={job_id}")
+    storage = build_storage()
+    result = storage.read_final_result(job_id)
+    markdown = result.derived.document_markdown
+    page_count = len(result.document.pages)
+
+    engine = ExtractionEngine()
+    raw = engine.suggest_entities.remote({
+        "document_markdown": markdown,
+        "page_count": page_count,
+    })
+
+    entities: list[EntityDefinition] = []
+    for raw_entity in raw.get("entities", []):
+        try:
+            entities.append(EntityDefinition.model_validate(raw_entity))
+        except Exception:
+            continue
+
+    suggestion = EntitySuggestionResponse(
+        job_id=job_id,
+        suggested_entities=entities,
+        document_summary=raw.get("document_summary", ""),
+    )
+    storage.write_extraction_suggestion(job_id, suggestion)
+    return suggestion.model_dump(mode="json")
+
+
+@app.function(
+    image=control_plane_image,
+    volumes={str(ARTIFACT_ROOT): artifacts_volume},
+    timeout=ORCHESTRATOR_TIMEOUT_SECONDS,
+)
+def run_entity_extraction(job_id: str, request_payload: dict) -> dict:
+    import json as _json
+
+    from modal_doc_parsing_vlm.types_extraction import (
+        EntityDefinition,
+        EntityExtractionRequest,
+        EntityExtractionResult,
+        EntityExtractionStatusPayload,
+        ExtractedEntity,
+        ExtractionMode,
+        ExtractionStatus,
+        entity_definition_to_json_schema,
+    )
+
+    print(f"[app] run_entity_extraction job_id={job_id}")
+    storage = build_storage()
+    request = EntityExtractionRequest.model_validate(request_payload)
+
+    result_doc = storage.read_final_result(job_id)
+    page_markdowns = result_doc.derived.page_markdown or {}
+    document_markdown = result_doc.derived.document_markdown
+    page_count = len(result_doc.document.pages)
+
+    storage.set_extraction_status(job_id, EntityExtractionStatusPayload(
+        job_id=job_id,
+        status=ExtractionStatus.EXTRACTING,
+        entities_requested=len(request.entities),
+        pages_total=page_count if request.extraction_mode == ExtractionMode.PER_PAGE else 1,
+    ))
+
+    engine = ExtractionEngine()
+    all_extracted: list[ExtractedEntity] = []
+    total_inference_ms = 0
+
+    for entity in request.entities:
+        json_schema = _json.dumps(entity_definition_to_json_schema(entity))
+
+        if request.extraction_mode == ExtractionMode.WHOLE_DOCUMENT:
+            payload = {
+                "entity_definition": entity.model_dump(mode="json"),
+                "page_text": document_markdown,
+                "page_id": None,
+                "json_schema": json_schema,
+            }
+            raw = engine.extract_entity.remote(payload)
+            all_extracted.append(ExtractedEntity(
+                entity_name=entity.entity_name,
+                page_id=None,
+                data=raw.get("data", {}),
+            ))
+            total_inference_ms += raw.get("inference_ms", 0)
+        else:
+            payloads = []
+            page_ids = []
+            for page in result_doc.document.pages:
+                page_md = page_markdowns.get(str(page.id), "")
+                if not page_md.strip():
+                    continue
+                payloads.append({
+                    "entity_definition": entity.model_dump(mode="json"),
+                    "page_text": page_md,
+                    "page_id": page.id,
+                    "json_schema": json_schema,
+                })
+                page_ids.append(page.id)
+
+            if payloads:
+                results = list(engine.extract_entity.map(payloads))
+                for raw_result in results:
+                    all_extracted.append(ExtractedEntity(
+                        entity_name=entity.entity_name,
+                        page_id=raw_result.get("page_id"),
+                        data=raw_result.get("data", {}),
+                    ))
+                    total_inference_ms += raw_result.get("inference_ms", 0)
+
+    extraction_result = EntityExtractionResult(
+        job_id=job_id,
+        entities=all_extracted,
+        schema_used=request.entities,
+        extraction_mode=request.extraction_mode,
+        model_id=EXTRACTION_MODEL_ID,
+        inference_ms=total_inference_ms,
+    )
+    storage.write_extraction_result(job_id, extraction_result)
+    storage.set_extraction_status(job_id, EntityExtractionStatusPayload(
+        job_id=job_id,
+        status=ExtractionStatus.COMPLETED,
+        entities_requested=len(request.entities),
+        pages_processed=page_count,
+        pages_total=page_count,
+    ))
+    print(
+        f"[app] run_entity_extraction complete job_id={job_id} "
+        f"entities_extracted={len(all_extracted)} inference_ms={total_inference_ms}"
+    )
+    return extraction_result.model_dump(mode="json")
 
 
 @app.function(image=control_plane_image, volumes={str(ARTIFACT_ROOT): artifacts_volume})
