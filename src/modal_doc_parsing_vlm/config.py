@@ -16,6 +16,12 @@ ENABLED_RUNTIME_PROFILES = tuple(
 )
 
 ARTIFACT_ROOT = Path("/artifacts")
+LOCAL_RESULT_OUTPUT_ROOT = Path(
+    os.environ.get(
+        "DOC_PARSE_LOCAL_OUTPUT_ROOT",
+        str(Path.home() / ".cache" / "modal-doc-parsing-vlm" / "job-results"),
+    )
+).expanduser()
 HF_CACHE_ROOT = Path("/root/.cache/huggingface")
 HF_HUB_CACHE_ROOT = HF_CACHE_ROOT / "hub"
 VLLM_CACHE_ROOT = Path("/root/.cache/vllm")
