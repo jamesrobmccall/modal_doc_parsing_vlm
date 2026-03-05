@@ -199,7 +199,7 @@ def build_web_api_router(
         return {"job_id": job_id}
 
     @router.post("/api/jobs/{job_id}/entities/suggest")
-    async def suggest_entities(job_id: str):
+    async def suggest_entities(job_id: str, body: dict | None = None):
         if hasattr(service.storage, "reload"):
             service.storage.reload()
         try:
@@ -213,7 +213,8 @@ def build_web_api_router(
                 detail="Entity extraction is not available.",
             )
 
-        result = service.suggest_entities_fn(job_id)
+        model_backend = (body or {}).get("model_backend", "qwen_local")
+        result = service.suggest_entities_fn(job_id, model_backend)
         return result
 
     @router.post("/api/jobs/{job_id}/entities/extract")

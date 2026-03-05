@@ -111,7 +111,11 @@ export default function EntityPanel({ jobId }: { jobId: string | null }) {
     setPhase("suggesting");
     setError(null);
     try {
-      const res = await fetch(`/api/jobs/${activeJobId}/entities/suggest`, { method: "POST" });
+      const res = await fetch(`/api/jobs/${activeJobId}/entities/suggest`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ model_backend: modelBackend }),
+      });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
         throw new Error((body as { detail?: string }).detail || `Suggest failed (${res.status})`);

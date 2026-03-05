@@ -154,8 +154,8 @@ def build_service(runtime_profile_name: str | None = None) -> DocumentParseServi
     def schedule_job(job_id: str, selected_profile_name: str) -> None:
         run_orchestrator.spawn(job_id, selected_profile_name)
 
-    def _suggest_entities_fn(job_id: str) -> dict:
-        return suggest_entities_remote.remote(job_id)
+    def _suggest_entities_fn(job_id: str, model_backend: str = "qwen_local") -> dict:
+        return suggest_entities_remote.remote(job_id, model_backend)
 
     def _schedule_entity_extraction(job_id: str, request_payload: dict) -> None:
         run_entity_extraction.spawn(job_id, request_payload)
@@ -295,30 +295,79 @@ def store_upload_remote(data: bytes, file_name: str, mime_type: str | None = Non
     return upload_id
 
 
-@app.function(image=control_plane_image, volumes={str(ARTIFACT_ROOT): artifacts_volume})
-def suggest_entities_remote(job_id: str) -> dict:
+def _glm_suggest_entities(markdown: str, page_count: int) -> dict:
+    """Run entity suggestion via the GLM-5 hosted endpoint."""
+    from json_repair import repair_json
+
+    from modal_doc_parsing_vlm.prompts_extraction import build_entity_suggestion_prompt
+
+    messages = build_entity_suggestion_prompt(
+        document_markdown=markdown,
+        page_count=page_count,
+    )
+    result = _glm_chat_completion(messages)
+    repaired = repair_json(result["content"], return_objects=False)
+    data = json.loads(repaired)
+    return {
+        "entities": data.get("entities", []),
+        "document_summary": data.get("document_summary", ""),
+        "inference_ms": result["inference_ms"],
+    }
+
+
+def _coerce_entity(raw_entity: dict) -> dict | None:
+    """Strip unknown fields so StrictModel validation doesn't reject LLM output."""
+    ENTITY_KEYS = {"entity_name", "description", "fields"}
+    FIELD_KEYS = {"name", "field_type", "description", "required", "examples"}
+    cleaned = {k: v for k, v in raw_entity.items() if k in ENTITY_KEYS}
+    if "fields" in cleaned and isinstance(cleaned["fields"], list):
+        cleaned["fields"] = [
+            {k: v for k, v in f.items() if k in FIELD_KEYS}
+            for f in cleaned["fields"]
+            if isinstance(f, dict)
+        ]
+    return cleaned if "entity_name" in cleaned and "fields" in cleaned else None
+
+
+@app.function(
+    image=control_plane_image,
+    volumes={str(ARTIFACT_ROOT): artifacts_volume},
+    secrets=[modal.Secret.from_name("model_token")],
+)
+def suggest_entities_remote(job_id: str, model_backend: str = "qwen_local") -> dict:
     from modal_doc_parsing_vlm.types_extraction import (
         EntityDefinition,
         EntitySuggestionResponse,
+        ExtractionModelBackend,
     )
 
-    print(f"[app] suggest_entities job_id={job_id}")
+    use_glm = model_backend == ExtractionModelBackend.GLM_HOSTED.value
+
+    print(f"[app] suggest_entities job_id={job_id} model_backend={model_backend}")
     storage = build_storage()
     result = storage.read_final_result(job_id)
     markdown = result.derived.document_markdown
-    page_count = len(result.document.pages)
+    page_count = max(len(result.document.pages), 1)
 
-    engine = ExtractionEngine()
-    raw = engine.suggest_entities.remote({
-        "document_markdown": markdown,
-        "page_count": page_count,
-    })
+    if use_glm:
+        raw = _glm_suggest_entities(markdown, page_count)
+    else:
+        engine = ExtractionEngine()
+        raw = engine.suggest_entities.remote({
+            "document_markdown": markdown,
+            "page_count": page_count,
+        })
 
     entities: list[EntityDefinition] = []
     for raw_entity in raw.get("entities", []):
+        cleaned = _coerce_entity(raw_entity) if isinstance(raw_entity, dict) else None
+        if cleaned is None:
+            print(f"[app] suggest: skipping malformed entity: {raw_entity!r}")
+            continue
         try:
-            entities.append(EntityDefinition.model_validate(raw_entity))
-        except Exception:
+            entities.append(EntityDefinition.model_validate(cleaned))
+        except Exception as exc:
+            print(f"[app] suggest: entity validation failed: {exc!r} raw={raw_entity!r}")
             continue
 
     suggestion = EntitySuggestionResponse(
