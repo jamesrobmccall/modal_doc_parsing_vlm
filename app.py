@@ -30,6 +30,7 @@ from modal_doc_parsing_vlm.config import (
     IDEMPOTENCY_DICT_NAME,
     JOB_STATUS_DICT_NAME,
     LOCAL_RESULT_OUTPUT_ROOT,
+    MAX_UPLOAD_BYTES,
     ORCHESTRATOR_TIMEOUT_SECONDS,
     PADDLE_CACHE_VOLUME_NAME,
     RETENTION_DAYS,
@@ -57,9 +58,17 @@ from modal_doc_parsing_vlm.types_result import MimeType
 
 app = modal.App(APP_NAME)
 
+FRONTEND_DIST_LOCAL = PROJECT_ROOT / "frontend" / "dist"
+FRONTEND_DIST_REMOTE = Path("/frontend/dist")
+
 control_plane_image = modal.Image.debian_slim(
     python_version=CONTROL_PLANE_PYTHON_VERSION
 ).uv_pip_install(*CONTROL_PLANE_DEPENDENCIES).add_local_python_source("modal_doc_parsing_vlm")
+if FRONTEND_DIST_LOCAL.exists():
+    control_plane_image = control_plane_image.add_local_dir(
+        str(FRONTEND_DIST_LOCAL),
+        remote_path=str(FRONTEND_DIST_REMOTE),
+    )
 cache_seed_image = modal.Image.debian_slim(
     python_version=CONTROL_PLANE_PYTHON_VERSION
 ).uv_pip_install(
@@ -76,6 +85,9 @@ artifacts_volume = modal.Volume.from_name(
 job_status_dict = modal.Dict.from_name(JOB_STATUS_DICT_NAME, create_if_missing=True)
 idempotency_dict = modal.Dict.from_name(IDEMPOTENCY_DICT_NAME, create_if_missing=True)
 
+ProdFallbackEngine = None
+DevFallbackEngine = None
+# Backward-compatible aliases kept for internal references.
 ProdParserEngine = None
 DevParserEngine = None
 OcrParserEngine = create_ocr_engine_cls(
@@ -88,7 +100,7 @@ OcrParserEngine = create_ocr_engine_cls(
 _FALLBACK_ENGINE_CLASSES: dict[str, object] = {}
 
 if "prod" in ENABLED_RUNTIME_PROFILES:
-    ProdParserEngine = create_engine_cls(
+    ProdFallbackEngine = create_engine_cls(
         app,
         runtime_profile=get_runtime_profile("prod"),
         hf_cache_volume=hf_cache_volume,
@@ -96,10 +108,11 @@ if "prod" in ENABLED_RUNTIME_PROFILES:
         artifacts_volume=artifacts_volume,
         export_module=__name__,
     )
-    _FALLBACK_ENGINE_CLASSES["prod"] = ProdParserEngine
+    ProdParserEngine = ProdFallbackEngine
+    _FALLBACK_ENGINE_CLASSES["prod"] = ProdFallbackEngine
 
 if "dev" in ENABLED_RUNTIME_PROFILES:
-    DevParserEngine = create_engine_cls(
+    DevFallbackEngine = create_engine_cls(
         app,
         runtime_profile=get_runtime_profile("dev"),
         hf_cache_volume=hf_cache_volume,
@@ -107,7 +120,8 @@ if "dev" in ENABLED_RUNTIME_PROFILES:
         artifacts_volume=artifacts_volume,
         export_module=__name__,
     )
-    _FALLBACK_ENGINE_CLASSES["dev"] = DevParserEngine
+    DevParserEngine = DevFallbackEngine
+    _FALLBACK_ENGINE_CLASSES["dev"] = DevFallbackEngine
 
 
 def build_storage() -> FileSystemStorageBackend:
@@ -324,7 +338,11 @@ def scheduled_stale_job_watchdog() -> list[str]:
 @modal.asgi_app()
 def web():
     service = build_service()
-    return build_fastapi_app(service)
+    return build_fastapi_app(
+        service,
+        frontend_dist=FRONTEND_DIST_REMOTE,
+        max_upload_bytes=MAX_UPLOAD_BYTES,
+    )
 
 
 def _infer_mime_type(path: str) -> MimeType:

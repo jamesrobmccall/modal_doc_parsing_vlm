@@ -71,6 +71,12 @@ Serve:
 PATH="$HOME/.local/bin:$PATH" modal serve app.py
 ```
 
+Build frontend bundle (required before deploy/serve if you want the web UI at `/`):
+
+```bash
+./scripts/build_frontend.sh
+```
+
 Seed HF cache volume:
 
 ```bash
@@ -99,6 +105,12 @@ Download result:
 
 ```bash
 PATH="$HOME/.local/bin:$PATH" modal run app.py::download_result --job-id <job_id> --result-level latest
+```
+
+Run frontend tests:
+
+```bash
+npm --prefix frontend test
 ```
 
 Local result bundle default path (outside repo): `~/.cache/modal-doc-parsing-vlm/job-results`.

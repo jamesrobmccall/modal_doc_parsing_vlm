@@ -312,6 +312,7 @@ def create_engine_cls(
             "stop": stop,
         },
     )
+    concurrent_cls = modal.concurrent(max_inputs=FALLBACK_ALLOW_CONCURRENT_INPUTS)(raw_cls)
     cls = app.cls(
         image=image,
         gpu=runtime_profile.gpu,
@@ -319,11 +320,10 @@ def create_engine_cls(
         min_containers=FALLBACK_MIN_CONTAINERS,
         buffer_containers=FALLBACK_BUFFER_CONTAINERS,
         scaledown_window=SCALEDOWN_WINDOW_SECONDS,
-        allow_concurrent_inputs=FALLBACK_ALLOW_CONCURRENT_INPUTS,
         volumes={
             str(HF_CACHE_ROOT): hf_cache_volume,
             str(VLLM_CACHE_ROOT): vllm_cache_volume,
             "/artifacts": artifacts_volume,
         },
-    )(raw_cls)
+    )(concurrent_cls)
     return cls

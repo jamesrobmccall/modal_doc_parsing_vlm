@@ -532,6 +532,7 @@ def create_ocr_engine_cls(
             "parse_page": parse_page,
         },
     )
+    concurrent_cls = modal.concurrent(max_inputs=OCR_ALLOW_CONCURRENT_INPUTS)(raw_cls)
     cls = app.cls(
         image=image,
         gpu=OCR_RUNTIME_PROFILE.gpu,
@@ -539,11 +540,10 @@ def create_ocr_engine_cls(
         min_containers=OCR_MIN_CONTAINERS,
         buffer_containers=OCR_BUFFER_CONTAINERS,
         scaledown_window=OCR_SCALEDOWN_WINDOW_SECONDS,
-        allow_concurrent_inputs=OCR_ALLOW_CONCURRENT_INPUTS,
         volumes={
             str(HF_CACHE_ROOT): hf_cache_volume,
             str(ARTIFACT_ROOT): artifacts_volume,
             str(PADDLE_CACHE_ROOT): paddle_cache_volume,
         },
-    )(raw_cls)
+    )(concurrent_cls)
     return cls

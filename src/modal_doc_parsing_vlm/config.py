@@ -55,6 +55,7 @@ ENABLE_DEEP_REFINE = os.environ.get("DOC_PARSE_ENABLE_DEEP_REFINE", "").lower() 
 }
 
 RETENTION_DAYS = 7
+MAX_UPLOAD_BYTES = int(os.environ.get("DOC_PARSE_MAX_UPLOAD_BYTES", str(40 * 1024 * 1024)))
 DEFAULT_POLL_AFTER_SECONDS = 2
 DEFAULT_STATUS_POLL_INTERVAL_SECONDS = 2.0
 ORCHESTRATOR_TIMEOUT_SECONDS = 60 * 60
@@ -104,6 +105,7 @@ CONTROL_PLANE_DEPENDENCIES = [
     "httpx==0.28.1",
     "json-repair==0.54.1",
     "pillow==12.0.0",
+    "python-multipart==0.0.20",
     "pydantic==2.12.4",
     "pymupdf==1.26.6",
 ]
