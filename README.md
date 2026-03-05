@@ -21,7 +21,11 @@ OCR-first document parsing on Modal with staged results:
 - OCR runtime profile:
   - engine: `PP-StructureV3` (PaddleOCR image path)
   - GPU: `A10G`
-  - Modal scaling: `min_containers=1`, `buffer_containers=1`, `allow_concurrent_inputs=4`
+  - Modal scaling defaults:
+    - `min_containers=0`
+    - `buffer_containers=0`
+    - `allow_concurrent_inputs=1`
+    - `scaledown_window=300s`
 - Fallback VLM runtime profiles (`prod`, `dev`):
   - model: `Qwen/Qwen2.5-VL-7B-Instruct`
   - GPU: `A10G`
@@ -71,13 +75,32 @@ PATH="$HOME/.local/bin:$PATH" modal run app.py::cache_model_weights --runtime-pr
 Smoke test (fast/final selectable):
 
 ```bash
-PATH="$HOME/.local/bin:$PATH" modal run app.py::smoke_test --runtime-profile-name dev --result-level latest
+PATH="$HOME/.local/bin:$PATH" modal run app.py::smoke_test --runtime-profile-name dev --latency-profile fast --result-level latest
+```
+
+Smoke test with automatic cleanup trap (recommended for ad-hoc testing):
+
+```bash
+./scripts/safe_modal_smoke.sh
 ```
 
 Download result:
 
 ```bash
 PATH="$HOME/.local/bin:$PATH" modal run app.py::download_result --job-id <job_id> --result-level latest
+```
+
+Mark stale jobs failed now (watchdog action):
+
+```bash
+PATH="$HOME/.local/bin:$PATH" modal run app.py::cleanup_stale_now
+```
+
+Hard-stop deployed app + active containers (manual emergency cleanup):
+
+```bash
+PATH="$HOME/.local/bin:$PATH" modal app list --json | jq -r '.[] | select(.State=="running" or .State=="deployed") | .["App ID"]' | xargs -r -n1 "$HOME/.local/bin/modal" app stop
+PATH="$HOME/.local/bin:$PATH" modal container list --json | jq -r '.[].container_id' | xargs -r -n1 "$HOME/.local/bin/modal" container stop
 ```
 
 ## Result Artifacts (Modal volume)
@@ -100,4 +123,17 @@ Live Modal tests:
 
 ```bash
 RUN_MODAL_TESTS=1 pytest tests/integration/test_modal_smoke.py
+```
+
+Cost-safe env defaults (override only if you explicitly want warm pools):
+
+```bash
+export DOC_PARSE_OCR_MIN_CONTAINERS=0
+export DOC_PARSE_OCR_BUFFER_CONTAINERS=0
+export DOC_PARSE_FALLBACK_MIN_CONTAINERS=0
+export DOC_PARSE_FALLBACK_BUFFER_CONTAINERS=0
+export DOC_PARSE_OCR_SCALEDOWN_WINDOW_SECONDS=300
+export DOC_PARSE_FALLBACK_SCALEDOWN_WINDOW_SECONDS=300
+export DOC_PARSE_STALE_JOB_TIMEOUT_SECONDS=1800
+export DOC_PARSE_STALE_JOB_SWEEP_SECONDS=600
 ```

@@ -16,7 +16,7 @@ SRC_ROOT = PROJECT_ROOT / "src"
 if str(SRC_ROOT) not in sys.path:
     sys.path.insert(0, str(SRC_ROOT))
 
-from modal_doc_parsing_vlm.cleanup import cleanup_expired_jobs
+from modal_doc_parsing_vlm.cleanup import cleanup_expired_jobs, fail_stale_jobs
 from modal_doc_parsing_vlm.config import (
     APP_NAME,
     ARTIFACT_ROOT,
@@ -32,6 +32,8 @@ from modal_doc_parsing_vlm.config import (
     ORCHESTRATOR_TIMEOUT_SECONDS,
     PADDLE_CACHE_VOLUME_NAME,
     RETENTION_DAYS,
+    STALE_JOB_SWEEP_SECONDS,
+    STALE_JOB_TIMEOUT_SECONDS,
     VLLM_CACHE_VOLUME_NAME,
     get_runtime_profile,
 )
@@ -261,6 +263,16 @@ def cleanup_jobs_remote() -> list[str]:
     return removed
 
 
+@app.function(image=control_plane_image, volumes={str(ARTIFACT_ROOT): artifacts_volume})
+def cleanup_stale_jobs_remote() -> list[str]:
+    marked = fail_stale_jobs(build_storage(), STALE_JOB_TIMEOUT_SECONDS)
+    print(
+        f"[app] cleanup_stale_jobs marked={len(marked)} "
+        f"stale_after_seconds={STALE_JOB_TIMEOUT_SECONDS}"
+    )
+    return marked
+
+
 @app.function(
     image=cache_seed_image,
     volumes={str(HF_CACHE_ROOT): hf_cache_volume},
@@ -296,6 +308,15 @@ def cache_model_weights_remote(
 )
 def scheduled_cleanup() -> list[str]:
     return cleanup_expired_jobs(build_storage(), RETENTION_DAYS)
+
+
+@app.function(
+    image=control_plane_image,
+    volumes={str(ARTIFACT_ROOT): artifacts_volume},
+    schedule=modal.Period(seconds=STALE_JOB_SWEEP_SECONDS),
+)
+def scheduled_stale_job_watchdog() -> list[str]:
+    return fail_stale_jobs(build_storage(), STALE_JOB_TIMEOUT_SECONDS)
 
 
 @app.function(image=control_plane_image, volumes={str(ARTIFACT_ROOT): artifacts_volume})
@@ -453,6 +474,12 @@ def stage_upload(path: str, mime_type: str | None = None):
 def cleanup_now():
     removed = cleanup_jobs_remote.remote()
     print("\n".join(removed))
+
+
+@app.local_entrypoint()
+def cleanup_stale_now():
+    marked = cleanup_stale_jobs_remote.remote()
+    print("\n".join(marked))
 
 
 @app.local_entrypoint()
