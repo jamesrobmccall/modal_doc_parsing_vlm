@@ -19,6 +19,7 @@ class MimeType(str, Enum):
     PDF = "application/pdf"
     PNG = "image/png"
     JPEG = "image/jpeg"
+    TEXT = "text/plain"
 
 
 class ParseMode(str, Enum):

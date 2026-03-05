@@ -182,6 +182,22 @@ def build_web_api_router(
             headers={"Content-Disposition": f'inline; filename="{file_name}"'},
         )
 
+    @router.post("/api/text-jobs", status_code=status.HTTP_201_CREATED)
+    async def create_text_job(body: dict):
+        text = (body.get("text") or "").strip()
+        if not text:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="text is required and must be non-empty.",
+            )
+        if not hasattr(service, "create_text_job"):
+            raise HTTPException(
+                status_code=status.HTTP_501_NOT_IMPLEMENTED,
+                detail="Text job creation is not available.",
+            )
+        job_id = service.create_text_job(text)
+        return {"job_id": job_id}
+
     @router.post("/api/jobs/{job_id}/entities/suggest")
     async def suggest_entities(job_id: str):
         if hasattr(service.storage, "reload"):
