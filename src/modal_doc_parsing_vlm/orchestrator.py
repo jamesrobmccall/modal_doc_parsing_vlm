@@ -159,6 +159,7 @@ def _build_page_tasks(manifest: JobManifest, rasterized_pages, decisions, debug)
             route_metrics={
                 "extractable_char_count": float(decision.extractable_char_count),
                 "printable_ratio": float(decision.printable_ratio),
+                "common_word_ratio": float(decision.common_word_ratio),
             },
             source_text=decision.extracted_text,
             route_engine=decision.engine,

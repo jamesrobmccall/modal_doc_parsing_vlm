@@ -11,6 +11,7 @@ OCR-first document parsing on Modal with staged results:
 2. Route each page:
    - digital-native text layer => `digital_text` engine
    - otherwise => `paddle_ocr` engine
+   - if extracted PDF text appears low-language-quality (e.g., encoded/garbled layer), force `paddle_ocr`
 3. Aggregate fast result (`result_revision=1`, `quality_stage=fast`).
 4. Detect hard pages via fallback policy.
 5. Refine only those pages with VLM fallback.
