@@ -38,3 +38,8 @@ def test_modal_smoke_test_cli():
 def test_modal_cleanup_cli():
     result = run_modal_command("run", "app.py::cleanup_now")
     assert result.returncode == 0, result.stderr
+
+
+def test_modal_entity_extraction_smoke_cli():
+    result = run_modal_command("run", "app.py::smoke_entity_extraction")
+    assert result.returncode == 0, result.stderr

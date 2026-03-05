@@ -57,8 +57,13 @@ class FakeService:
 
 def test_mcp_server_registers_exactly_three_tools():
     mcp = make_mcp_server(FakeService())
-    tools = asyncio.run(mcp.list_tools(run_middleware=False))
-    assert sorted(tool.name for tool in tools) == [
+    if hasattr(mcp, "list_tools"):
+        tools = asyncio.run(mcp.list_tools(run_middleware=False))
+        tool_names = sorted(tool.name for tool in tools)
+    else:
+        tools = asyncio.run(mcp.get_tools())
+        tool_names = sorted(tools)
+    assert tool_names == [
         "get_document_parse_result",
         "get_document_parse_status",
         "submit_document_parse",

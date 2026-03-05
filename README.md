@@ -28,13 +28,22 @@ OCR-first document parsing on Modal with staged results:
     - OCR/layout dedupe by bbox overlap
   - Modal scaling defaults:
     - `min_containers=0`
-    - `buffer_containers=0`
+    - `buffer_containers=1`
     - `allow_concurrent_inputs=1`
-    - `scaledown_window=300s`
+    - `scaledown_window=900s`
+- Extraction runtime:
+  - model: `Qwen/Qwen3-4B-Thinking-2507-FP8`
+  - serving: SGLang low-latency OpenAI-compatible endpoint on `H100:1`
+  - reasoning disabled per request for faster structured extraction
+  - Modal scaling defaults:
+    - `min_containers=1`
+    - `target_inputs=4`
+    - `scaledown_window=900s`
 - Fallback VLM runtime profiles (`prod`, `dev`):
   - model: `Qwen/Qwen2.5-VL-7B-Instruct`
   - GPU: `A10G`
   - async refinement only for triggered pages
+  - fast boot defaults to eager mode for lower cold-start latency
   - optional deep refine model ID retained in config (`Qwen/Qwen3.5-27B-FP8`)
 
 ## API Additions
@@ -77,10 +86,17 @@ Build frontend bundle (required before deploy/serve if you want the web UI at `/
 ./scripts/build_frontend.sh
 ```
 
-Seed HF cache volume:
+Seed runtime caches and warm OCR + extraction assets for all enabled profiles
+(or pass `--runtime-profile-name` to limit it):
 
 ```bash
-PATH="$HOME/.local/bin:$PATH" modal run app.py::cache_model_weights --runtime-profile-name dev
+PATH="$HOME/.local/bin:$PATH" modal run app.py::cache_model_weights
+```
+
+Smoke the dedicated extraction flow:
+
+```bash
+PATH="$HOME/.local/bin:$PATH" modal run app.py::smoke_entity_extraction
 ```
 
 Smoke test (fast/final selectable):
@@ -146,23 +162,25 @@ PATH="$HOME/.local/bin:$PATH" modal container list --json | jq -r '.[].container
 ## Testing
 
 ```bash
-pytest
+python3 -m pytest
 ```
 
 Live Modal tests:
 
 ```bash
-RUN_MODAL_TESTS=1 pytest tests/integration/test_modal_smoke.py
+RUN_MODAL_TESTS=1 python3 -m pytest tests/integration/test_modal_smoke.py
 ```
 
 Cost-safe env defaults (override only if you explicitly want warm pools):
 
 ```bash
 export DOC_PARSE_OCR_MIN_CONTAINERS=0
-export DOC_PARSE_OCR_BUFFER_CONTAINERS=0
+export DOC_PARSE_OCR_BUFFER_CONTAINERS=1
 export DOC_PARSE_FALLBACK_MIN_CONTAINERS=0
 export DOC_PARSE_FALLBACK_BUFFER_CONTAINERS=0
-export DOC_PARSE_OCR_SCALEDOWN_WINDOW_SECONDS=300
+export DOC_PARSE_EXTRACTION_MIN_CONTAINERS=1
+export DOC_PARSE_OCR_SCALEDOWN_WINDOW_SECONDS=900
+export DOC_PARSE_EXTRACTION_SCALEDOWN_WINDOW_SECONDS=900
 export DOC_PARSE_FALLBACK_SCALEDOWN_WINDOW_SECONDS=300
 export DOC_PARSE_STALE_JOB_TIMEOUT_SECONDS=1800
 export DOC_PARSE_STALE_JOB_SWEEP_SECONDS=600

@@ -16,16 +16,23 @@ from .types_extraction import EntityExtractionRequest, ExtractionStatus
 from .types_result import LatencyProfile, MimeType, OutputFormat, ParseMode, ResultLevel
 
 
+UPLOAD_MIME_TYPES = {
+    MimeType.PDF,
+    MimeType.PNG,
+    MimeType.JPEG,
+}
+
+
 def _resolve_upload_mime_type(upload: UploadFile) -> MimeType | None:
     declared = (upload.content_type or "").strip().lower()
-    for mime_type in MimeType:
+    for mime_type in UPLOAD_MIME_TYPES:
         if declared == mime_type.value:
             return mime_type
 
     guessed, _ = mimetypes.guess_type(upload.filename or "")
     if guessed is None:
         return None
-    for mime_type in MimeType:
+    for mime_type in UPLOAD_MIME_TYPES:
         if guessed == mime_type.value:
             return mime_type
     return None
@@ -55,6 +62,13 @@ def build_web_api_router(
     max_upload_bytes: int,
 ) -> APIRouter:
     router = APIRouter()
+
+    def _normalize_extraction_body(body: dict | None, *, job_id: str | None = None) -> dict:
+        normalized = dict(body or {})
+        normalized.pop("model_backend", None)
+        if job_id is not None:
+            normalized.setdefault("job_id", job_id)
+        return normalized
 
     @router.post("/api/jobs", status_code=status.HTTP_202_ACCEPTED)
     async def create_job(
@@ -213,12 +227,12 @@ def build_web_api_router(
                 detail="Entity extraction is not available.",
             )
 
-        model_backend = (body or {}).get("model_backend", "qwen_local")
-        result = service.suggest_entities_fn(job_id, model_backend)
+        _normalize_extraction_body(body, job_id=job_id)
+        result = service.suggest_entities_fn(job_id)
         return result
 
     @router.post("/api/jobs/{job_id}/entities/extract")
-    async def extract_entities(job_id: str, body: EntityExtractionRequest):
+    async def extract_entities(job_id: str, body: dict):
         if hasattr(service.storage, "reload"):
             service.storage.reload()
         try:
@@ -235,13 +249,16 @@ def build_web_api_router(
                 detail="Entity extraction is not available.",
             )
 
-        service.schedule_entity_extraction(job_id, body.model_dump(mode="json"))
+        request = EntityExtractionRequest.model_validate(
+            _normalize_extraction_body(body, job_id=job_id)
+        )
+        service.schedule_entity_extraction(job_id, request.model_dump(mode="json"))
         return JSONResponse(
             status_code=status.HTTP_202_ACCEPTED,
             content={
                 "job_id": job_id,
                 "status": ExtractionStatus.EXTRACTING.value,
-                "entities_requested": len(body.entities),
+                "entities_requested": len(request.entities),
             },
         )
 

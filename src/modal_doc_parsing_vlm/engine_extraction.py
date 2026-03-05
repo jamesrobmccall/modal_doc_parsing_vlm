@@ -1,206 +1,225 @@
 from __future__ import annotations
 
-import json
+import subprocess
 import time
 from typing import Any
 
 import modal
 
 from .config import (
-    COMMON_VLLM_DEPENDENCIES,
-    CUDA_IMAGE,
+    DEEPGEMM_CACHE_ROOT,
     EXTRACTION_ALLOW_CONCURRENT_INPUTS,
     EXTRACTION_BUFFER_CONTAINERS,
     EXTRACTION_ENGINE_TIMEOUT_SECONDS,
     EXTRACTION_GPU,
     EXTRACTION_MAX_MODEL_LEN,
+    EXTRACTION_MAX_RUNNING_REQUESTS,
+    EXTRACTION_MEM_FRACTION,
     EXTRACTION_MIN_CONTAINERS,
     EXTRACTION_MODEL_ID,
-    EXTRACTION_SAMPLING_MAX_TOKENS,
+    EXTRACTION_MODEL_REVISION,
+    EXTRACTION_REGION,
     EXTRACTION_SCALEDOWN_WINDOW_SECONDS,
+    EXTRACTION_SERVER_PORT,
+    EXTRACTION_TARGET_INPUTS,
+    EXTRACTION_WARMUP_REQUESTS,
     HF_CACHE_ROOT,
     HF_HUB_CACHE_ROOT,
-    TORCHINDUCTOR_CACHE_ROOT,
-    VLLM_CACHE_ROOT,
-    VLLM_NIGHTLY_EXTRA_INDEX_URL,
-    VLLM_UV_EXTRA_OPTIONS,
+    SGLANG_IMAGE,
 )
 
 
-def _build_extraction_image() -> modal.Image:
-    return (
-        modal.Image.from_registry(CUDA_IMAGE, add_python="3.12")
-        .entrypoint([])
-        .apt_install("git")
-        .uv_pip_install(*COMMON_VLLM_DEPENDENCIES)
-        .uv_pip_install(
-            "vllm",
-            extra_index_url=VLLM_NIGHTLY_EXTRA_INDEX_URL,
-            extra_options=VLLM_UV_EXTRA_OPTIONS,
+def _compile_deep_gemm() -> None:
+    completed = subprocess.run(
+        [
+            "python3",
+            "-m",
+            "sglang.compile_deep_gemm",
+            "--model-path",
+            EXTRACTION_MODEL_ID,
+            "--revision",
+            EXTRACTION_MODEL_REVISION,
+            "--tp",
+            "1",
+        ],
+        check=False,
+        text=True,
+        capture_output=True,
+    )
+    if completed.returncode != 0:
+        raise RuntimeError(
+            "DeepGEMM compilation failed: "
+            f"{(completed.stderr or completed.stdout).strip()[:400]}"
         )
+
+
+def _build_extraction_image(hf_cache_volume, deepgemm_cache_volume) -> modal.Image:
+    base = (
+        modal.Image.from_registry(SGLANG_IMAGE)
+        .entrypoint([])
+        .uv_pip_install("huggingface-hub==0.36.0", "requests==2.32.5")
         .env(
             {
                 "HF_HOME": str(HF_CACHE_ROOT),
                 "HF_HUB_CACHE": str(HF_HUB_CACHE_ROOT),
-                "TORCHINDUCTOR_CACHE_DIR": str(TORCHINDUCTOR_CACHE_ROOT),
                 "HF_XET_HIGH_PERFORMANCE": "1",
+                "SGLANG_ENABLE_JIT_DEEPGEMM": "1",
             }
         )
         .add_local_python_source("modal_doc_parsing_vlm")
     )
+    return base.run_function(
+        _compile_deep_gemm,
+        gpu=EXTRACTION_GPU,
+        volumes={
+            str(HF_CACHE_ROOT): hf_cache_volume,
+            str(DEEPGEMM_CACHE_ROOT): deepgemm_cache_volume,
+        },
+    )
 
 
-def _extract_output_text(output: Any) -> str:
-    if hasattr(output, "outputs") and output.outputs:
-        return output.outputs[0].text.strip()
-    if isinstance(output, str):
-        return output.strip()
-    raise TypeError(f"Unsupported vLLM output type: {type(output)!r}")
+def _check_running(process: subprocess.Popen[str]) -> None:
+    if (return_code := process.poll()) is not None:
+        raise subprocess.CalledProcessError(return_code, process.args)
+
+
+def _wait_ready(process: subprocess.Popen[str], *, timeout: int) -> None:
+    import requests
+
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        try:
+            _check_running(process)
+            response = requests.get(
+                f"http://127.0.0.1:{EXTRACTION_SERVER_PORT}/health",
+                timeout=5,
+            )
+            response.raise_for_status()
+            return
+        except (
+            subprocess.CalledProcessError,
+            requests.exceptions.ConnectionError,
+            requests.exceptions.HTTPError,
+            requests.exceptions.Timeout,
+        ):
+            time.sleep(1)
+    raise TimeoutError("Extraction server did not become healthy before the startup timeout.")
+
+
+def _warmup_payload() -> dict[str, Any]:
+    return {
+        "model": EXTRACTION_MODEL_ID,
+        "messages": [
+            {
+                "role": "system",
+                "content": "You return short JSON objects.",
+            },
+            {
+                "role": "user",
+                "content": "Return a JSON object with key ok set to true.",
+            },
+        ],
+        "max_tokens": 24,
+        "temperature": 0.0,
+        "chat_template_kwargs": {"enable_thinking": False},
+        "response_format": {"type": "json_object"},
+    }
+
+
+def _warmup_server() -> None:
+    import requests
+
+    for _ in range(EXTRACTION_WARMUP_REQUESTS):
+        response = requests.post(
+            f"http://127.0.0.1:{EXTRACTION_SERVER_PORT}/v1/chat/completions",
+            json=_warmup_payload(),
+            timeout=30,
+        )
+        response.raise_for_status()
 
 
 def create_extraction_engine_cls(
     app: modal.App,
     *,
     hf_cache_volume,
-    vllm_cache_volume,
-    artifacts_volume,
+    deepgemm_cache_volume,
     export_module: str,
 ):
-    image = _build_extraction_image()
+    image = _build_extraction_image(hf_cache_volume, deepgemm_cache_volume)
 
     @modal.enter()
-    def start(self) -> None:
-        from vllm import LLM
-
-        self.model_id = EXTRACTION_MODEL_ID
+    def startup(self) -> None:
+        cmd = [
+            "python",
+            "-m",
+            "sglang.launch_server",
+            "--model-path",
+            EXTRACTION_MODEL_ID,
+            "--revision",
+            EXTRACTION_MODEL_REVISION,
+            "--served-model-name",
+            EXTRACTION_MODEL_ID,
+            "--host",
+            "0.0.0.0",
+            "--port",
+            str(EXTRACTION_SERVER_PORT),
+            "--tp",
+            "1",
+            "--context-length",
+            str(EXTRACTION_MAX_MODEL_LEN),
+            "--max-running-requests",
+            str(EXTRACTION_MAX_RUNNING_REQUESTS),
+            "--cuda-graph-max-bs",
+            str(EXTRACTION_ALLOW_CONCURRENT_INPUTS),
+            "--grammar-backend",
+            "xgrammar",
+            "--enable-metrics",
+            "--mem-fraction",
+            str(EXTRACTION_MEM_FRACTION),
+        ]
         print(
-            f"[engine:extraction] loading model={self.model_id} "
-            f"gpu={EXTRACTION_GPU} max_model_len={EXTRACTION_MAX_MODEL_LEN}"
+            f"[engine:extraction] starting sglang model={EXTRACTION_MODEL_ID} "
+            f"revision={EXTRACTION_MODEL_REVISION} gpu={EXTRACTION_GPU}"
         )
-        self.llm = LLM(
-            model=self.model_id,
-            tensor_parallel_size=1,
-            max_model_len=EXTRACTION_MAX_MODEL_LEN,
-            enforce_eager=False,
-            download_dir=str(HF_HUB_CACHE_ROOT),
-        )
-        print(f"[engine:extraction] model loaded: {self.model_id}")
-
-    @modal.method()
-    def suggest_entities(self, payload: dict[str, Any]) -> dict[str, Any]:
-        from json_repair import repair_json
-        from vllm import SamplingParams
-
-        from modal_doc_parsing_vlm.prompts_extraction import build_entity_suggestion_prompt
-
-        messages = build_entity_suggestion_prompt(
-            document_markdown=payload["document_markdown"],
-            page_count=payload.get("page_count", 1),
-        )
-        started = time.perf_counter()
-        outputs = self.llm.chat(
-            [messages],
-            sampling_params=SamplingParams(
-                temperature=0.0,
-                max_tokens=EXTRACTION_SAMPLING_MAX_TOKENS,
-            ),
-            use_tqdm=False,
-        )
-        raw_text = _extract_output_text(outputs[0])
-        elapsed_ms = int((time.perf_counter() - started) * 1000)
-
-        repaired = repair_json(raw_text, return_objects=False)
-        data = json.loads(repaired)
-
-        print(
-            f"[engine:extraction] suggest_entities "
-            f"entities={len(data.get('entities', []))} "
-            f"elapsed_ms={elapsed_ms}"
-        )
-        return {
-            "entities": data.get("entities", []),
-            "document_summary": data.get("document_summary", ""),
-            "inference_ms": elapsed_ms,
-        }
-
-    @modal.method()
-    def extract_entity(self, payload: dict[str, Any]) -> dict[str, Any]:
-        from vllm import SamplingParams
-
-        from modal_doc_parsing_vlm.prompts_extraction import build_entity_extraction_prompt
-        from modal_doc_parsing_vlm.types_extraction import EntityDefinition
-
-        entity = EntityDefinition.model_validate(payload["entity_definition"])
-        page_text = payload["page_text"]
-        page_id = payload.get("page_id")
-        json_schema = payload["json_schema"]
-
-        messages = build_entity_extraction_prompt(entity, page_text)
-
-        # Build guided decoding params – handle both old and new vLLM APIs.
-        guided_kwargs: dict[str, Any] = {}
-        try:
-            from vllm.sampling_params import GuidedDecodingParams
-            guided_kwargs["guided_decoding"] = GuidedDecodingParams(json=json_schema)
-        except ImportError:
-            from vllm.sampling_params import GuidedDecodingRequest
-            guided_kwargs["guided_options_request"] = GuidedDecodingRequest(json=json_schema)
-
-        started = time.perf_counter()
-        outputs = self.llm.chat(
-            [messages],
-            sampling_params=SamplingParams(
-                temperature=0.0,
-                max_tokens=EXTRACTION_SAMPLING_MAX_TOKENS,
-            ),
-            **guided_kwargs,
-            use_tqdm=False,
-        )
-        raw_text = _extract_output_text(outputs[0])
-        elapsed_ms = int((time.perf_counter() - started) * 1000)
-
-        data = json.loads(raw_text)
-
-        print(
-            f"[engine:extraction] extract_entity "
-            f"entity={entity.entity_name} page_id={page_id} "
-            f"elapsed_ms={elapsed_ms}"
-        )
-        return {
-            "entity_name": entity.entity_name,
-            "page_id": page_id,
-            "data": data,
-            "inference_ms": elapsed_ms,
-        }
+        self.process = subprocess.Popen(cmd)
+        _wait_ready(self.process, timeout=EXTRACTION_ENGINE_TIMEOUT_SECONDS)
+        _warmup_server()
+        print("[engine:extraction] extraction server ready")
 
     @modal.exit()
     def stop(self) -> None:
-        del self.llm
+        self.process.terminate()
+        try:
+            self.process.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            self.process.kill()
+            self.process.wait(timeout=10)
 
     raw_cls = type(
         "ExtractionEngine",
         (),
         {
-            "__doc__": f"Entity extraction engine using {EXTRACTION_MODEL_ID}.",
+            "__doc__": f"SGLang extraction engine using {EXTRACTION_MODEL_ID}.",
             "__module__": export_module,
-            "start": start,
-            "suggest_entities": suggest_entities,
-            "extract_entity": extract_entity,
+            "startup": startup,
             "stop": stop,
         },
     )
-    concurrent_cls = modal.concurrent(max_inputs=EXTRACTION_ALLOW_CONCURRENT_INPUTS)(raw_cls)
-    cls = app.cls(
+    server = app._experimental_server(
         image=image,
         gpu=EXTRACTION_GPU,
-        timeout=EXTRACTION_ENGINE_TIMEOUT_SECONDS,
+        startup_timeout=EXTRACTION_ENGINE_TIMEOUT_SECONDS,
+        port=EXTRACTION_SERVER_PORT,
+        proxy_regions=[EXTRACTION_REGION],
+        exit_grace_period=15,
+        target_concurrency=EXTRACTION_TARGET_INPUTS,
+        region=EXTRACTION_REGION,
         min_containers=EXTRACTION_MIN_CONTAINERS,
         buffer_containers=EXTRACTION_BUFFER_CONTAINERS,
         scaledown_window=EXTRACTION_SCALEDOWN_WINDOW_SECONDS,
         volumes={
             str(HF_CACHE_ROOT): hf_cache_volume,
-            str(VLLM_CACHE_ROOT): vllm_cache_volume,
-            "/artifacts": artifacts_volume,
+            str(DEEPGEMM_CACHE_ROOT): deepgemm_cache_volume,
         },
-    )(concurrent_cls)
-    return cls
+    )(raw_cls)
+    return server

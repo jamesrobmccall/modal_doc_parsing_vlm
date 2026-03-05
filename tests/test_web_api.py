@@ -11,12 +11,24 @@ from modal_doc_parsing_vlm.types_api import (
     SubmitDocumentParseRequest,
     SubmitDocumentParseResponse,
 )
+from modal_doc_parsing_vlm.types_extraction import (
+    EntityExtractionResult,
+    EntitySuggestionResponse,
+)
 from modal_doc_parsing_vlm.types_result import JobStatus, MimeType
 
 
 class FakeStorage:
     def __init__(self):
         self._source_bytes = b"%PDF-1.7\n"
+        self._extraction_result = EntityExtractionResult(
+            job_id="job-1",
+            entities=[],
+            schema_used=[],
+            extraction_mode="whole_document",
+            model_id="Qwen/Qwen3-4B-Thinking-2507-FP8",
+            inference_ms=12,
+        )
 
     def read_job_manifest(self, job_id: str):
         if job_id != "job-1":
@@ -33,13 +45,30 @@ class FakeStorage:
             raise FileNotFoundError(job_id)
         return self._source_bytes
 
+    def reload(self):
+        return None
+
+    def get_extraction_status(self, job_id: str):
+        if job_id != "job-1":
+            raise FileNotFoundError(job_id)
+        return None
+
+    def read_extraction_result(self, job_id: str):
+        if job_id != "job-1":
+            raise FileNotFoundError(job_id)
+        return self._extraction_result
+
 
 class FakeService:
     def __init__(self):
         self.storage = FakeStorage()
         self.last_submit_request: SubmitDocumentParseRequest | None = None
+        self.last_suggest_job_id: str | None = None
+        self.last_extraction_payload: dict | None = None
         self.raise_not_ready = False
         self.raise_missing_result = False
+        self.suggest_entities_fn = self._suggest_entities
+        self.schedule_entity_extraction = self._schedule_entity_extraction
 
     def submit_document_parse(self, request: SubmitDocumentParseRequest):
         self.last_submit_request = request
@@ -99,6 +128,17 @@ class FakeService:
                 "result": "# ok" if request.format.value != "json" else {"ok": True},
             }
         )
+
+    def _suggest_entities(self, job_id: str):
+        self.last_suggest_job_id = job_id
+        return EntitySuggestionResponse(
+            job_id=job_id,
+            suggested_entities=[],
+            document_summary="summary",
+        ).model_dump(mode="json")
+
+    def _schedule_entity_extraction(self, job_id: str, request_payload: dict):
+        self.last_extraction_payload = {"job_id": job_id, **request_payload}
 
 
 def test_post_jobs_accepts_multipart_file_and_returns_202():
@@ -219,3 +259,60 @@ def test_get_job_source_streams_original_document():
     assert response.headers["content-type"].startswith("application/pdf")
     assert response.headers["content-disposition"].startswith("inline")
     assert response.content.startswith(b"%PDF")
+
+
+def test_suggest_entities_ignores_legacy_model_backend():
+    service = FakeService()
+    client = TestClient(
+        build_fastapi_app(
+            service,
+            store_upload=lambda *_args, **_kwargs: "upload-1",
+        )
+    )
+
+    response = client.post(
+        "/api/jobs/job-1/entities/suggest",
+        json={"model_backend": "glm_hosted"},
+    )
+
+    assert response.status_code == 200
+    assert response.json()["job_id"] == "job-1"
+    assert service.last_suggest_job_id == "job-1"
+
+
+def test_extract_entities_ignores_legacy_model_backend():
+    service = FakeService()
+    client = TestClient(
+        build_fastapi_app(
+            service,
+            store_upload=lambda *_args, **_kwargs: "upload-1",
+        )
+    )
+
+    response = client.post(
+        "/api/jobs/job-1/entities/extract",
+        json={
+            "job_id": "job-1",
+            "model_backend": "glm_hosted",
+            "extraction_mode": "whole_document",
+            "entities": [
+                {
+                    "entity_name": "Invoice",
+                    "description": "",
+                    "fields": [
+                        {
+                            "name": "invoice_number",
+                            "field_type": "string",
+                            "description": "",
+                            "required": True,
+                            "examples": [],
+                        }
+                    ],
+                }
+            ],
+        },
+    )
+
+    assert response.status_code == 202
+    assert service.last_extraction_payload is not None
+    assert "model_backend" not in service.last_extraction_payload
