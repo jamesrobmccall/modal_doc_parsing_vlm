@@ -86,6 +86,71 @@ Build frontend bundle (required before deploy/serve if you want the web UI at `/
 ./scripts/build_frontend.sh
 ```
 
+## Deploy to Modal
+
+This repo is a single Modal app named `modal-doc-parsing-vlm`. Running
+`modal deploy app.py` deploys all of the updated pieces together:
+
+- the FastAPI web app
+- the OCR worker
+- the fallback VLM worker(s)
+- the dedicated SGLang extraction server
+- the schedules / background cleanup functions
+
+If you use a non-default Modal environment, add `--env <name>` to every
+`modal deploy`, `modal run`, and `modal app ...` command below.
+
+One-time setup on a new machine:
+
+```bash
+python -m pip install --upgrade modal
+PATH="$HOME/.local/bin:$PATH" modal setup
+```
+
+Simple update flow after you change code:
+
+```bash
+./scripts/build_frontend.sh
+PATH="$HOME/.local/bin:$PATH" modal deploy app.py
+PATH="$HOME/.local/bin:$PATH" modal run app.py::cache_model_weights
+PATH="$HOME/.local/bin:$PATH" modal run app.py::smoke_entity_extraction
+```
+
+What each step does:
+
+- `./scripts/build_frontend.sh`
+  - rebuilds the static UI bundle that gets embedded into the deployed web app
+- `modal deploy app.py`
+  - publishes the latest code to Modal and updates the deployed app in place
+- `modal run app.py::cache_model_weights`
+  - warms the Hugging Face cache plus OCR/extraction startup paths
+- `modal run app.py::smoke_entity_extraction`
+  - quick sanity check that the deployed extraction stack is healthy
+
+Notes:
+
+- You do not need a separate deploy command for the extraction server. It is part of the same `app.py` deployment.
+- Volumes and Dicts are created automatically on first deploy because the code uses `modal.Volume.from_name(..., create_if_missing=True)` and `modal.Dict.from_name(..., create_if_missing=True)`.
+- If you skip `./scripts/build_frontend.sh`, the API still deploys, but the root `/` UI may serve the “Frontend bundle missing” placeholder.
+- Modal prints the deployed web URL during `modal deploy app.py`; you can also open it later with `modal app dashboard modal-doc-parsing-vlm`.
+
+Useful post-deploy commands:
+
+```bash
+PATH="$HOME/.local/bin:$PATH" modal app logs modal-doc-parsing-vlm --timestamps
+PATH="$HOME/.local/bin:$PATH" modal app dashboard modal-doc-parsing-vlm
+PATH="$HOME/.local/bin:$PATH" modal app history modal-doc-parsing-vlm
+```
+
+Rollback / stop:
+
+```bash
+PATH="$HOME/.local/bin:$PATH" modal app rollback modal-doc-parsing-vlm
+PATH="$HOME/.local/bin:$PATH" modal app stop modal-doc-parsing-vlm
+```
+
+`modal app rollback` requires a Modal plan that supports deployment rollbacks.
+
 Seed runtime caches and warm OCR + extraction assets for all enabled profiles
 (or pass `--runtime-profile-name` to limit it):
 
