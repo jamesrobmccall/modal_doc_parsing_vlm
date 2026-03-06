@@ -133,6 +133,7 @@ Notes:
 - Volumes and Dicts are created automatically on first deploy because the code uses `modal.Volume.from_name(..., create_if_missing=True)` and `modal.Dict.from_name(..., create_if_missing=True)`.
 - If you skip `./scripts/build_frontend.sh`, the API still deploys, but the root `/` UI may serve the “Frontend bundle missing” placeholder.
 - Modal prints the deployed web URL during `modal deploy app.py`; you can also open it later with `modal app dashboard modal-doc-parsing-vlm`.
+- The first `modal run app.py::cache_model_weights` can take a while. It may spend several minutes building the Paddle GPU image and then several more minutes doing the first SGLang/DeepGEMM cold start. That is expected on the first run; later runs are much faster because the image layers, model weights, and DeepGEMM cache are reused.
 
 Useful post-deploy commands:
 

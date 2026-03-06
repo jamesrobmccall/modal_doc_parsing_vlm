@@ -7,6 +7,7 @@ from typing import Any
 import modal
 
 from .config import (
+    CONTROL_PLANE_DEPENDENCIES,
     DEEPGEMM_CACHE_ROOT,
     EXTRACTION_ALLOW_CONCURRENT_INPUTS,
     EXTRACTION_BUFFER_CONTAINERS,
@@ -57,7 +58,11 @@ def _build_extraction_image(hf_cache_volume, deepgemm_cache_volume) -> modal.Ima
     base = (
         modal.Image.from_registry(SGLANG_IMAGE)
         .entrypoint([])
-        .uv_pip_install("huggingface-hub==0.36.0", "requests==2.32.5")
+        .uv_pip_install(
+            *CONTROL_PLANE_DEPENDENCIES,
+            "huggingface-hub==0.36.0",
+            "requests==2.32.5",
+        )
         .env(
             {
                 "HF_HOME": str(HF_CACHE_ROOT),
@@ -66,9 +71,8 @@ def _build_extraction_image(hf_cache_volume, deepgemm_cache_volume) -> modal.Ima
                 "SGLANG_ENABLE_JIT_DEEPGEMM": "1",
             }
         )
-        .add_local_python_source("modal_doc_parsing_vlm")
     )
-    return base.run_function(
+    compiled = base.run_function(
         _compile_deep_gemm,
         gpu=EXTRACTION_GPU,
         volumes={
@@ -76,6 +80,7 @@ def _build_extraction_image(hf_cache_volume, deepgemm_cache_volume) -> modal.Ima
             str(DEEPGEMM_CACHE_ROOT): deepgemm_cache_volume,
         },
     )
+    return compiled.add_local_python_source("modal_doc_parsing_vlm")
 
 
 def _check_running(process: subprocess.Popen[str]) -> None:

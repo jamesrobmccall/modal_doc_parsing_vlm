@@ -28,6 +28,7 @@ from modal_doc_parsing_vlm.config import (
     DEEPGEMM_CACHE_VOLUME_NAME,
     DEFAULT_RUNTIME_PROFILE,
     ENABLED_RUNTIME_PROFILES,
+    EXTRACTION_ENGINE_TIMEOUT_SECONDS,
     EXTRACTION_HTTP_TIMEOUT_SECONDS,
     HF_CACHE_ROOT,
     HF_CACHE_VOLUME_NAME,
@@ -370,11 +371,12 @@ def _call_extraction_chat_completion(
     payload: dict[str, object],
     *,
     session_id: str,
+    base_url: str | None = None,
 ) -> tuple[dict[str, object], int]:
     import httpx
 
     headers = build_extraction_headers(session_id)
-    base_url = _resolve_extraction_base_url()
+    base_url = base_url or _resolve_extraction_base_url()
     if base_url is None:
         raise RuntimeError(
             "Extraction server URL is unavailable. Set DOC_PARSE_EXTRACTION_BASE_URL "
@@ -404,7 +406,49 @@ def _call_extraction_chat_completion(
     raise RuntimeError(f"Extraction HTTP request failed after retries: {last_exc!r}")
 
 
+def _wait_for_extraction_server(
+    base_url: str,
+    *,
+    timeout_seconds: int,
+) -> None:
+    import httpx
+
+    deadline = time.monotonic() + timeout_seconds
+    last_exc: Exception | None = None
+    while time.monotonic() < deadline:
+        try:
+            response = httpx.get(
+                f"{base_url}/health",
+                timeout=min(EXTRACTION_HTTP_TIMEOUT_SECONDS, 10),
+            )
+            if response.status_code == 200:
+                return
+            if response.status_code not in {502, 503, 504}:
+                response.raise_for_status()
+        except (httpx.HTTPError, httpx.TimeoutException) as exc:
+            last_exc = exc
+        time.sleep(2)
+    raise RuntimeError(
+        "Extraction server did not become externally ready before timeout. "
+        f"last_error={last_exc!r}"
+    )
+
+
+def _ensure_extraction_server_ready(*, timeout_seconds: int) -> str:
+    base_url = _resolve_extraction_base_url()
+    if base_url is None:
+        raise RuntimeError(
+            "Extraction server URL is unavailable. Set DOC_PARSE_EXTRACTION_BASE_URL "
+            "or ensure the Modal extraction server is deployed."
+        )
+    _wait_for_extraction_server(base_url, timeout_seconds=timeout_seconds)
+    return base_url
+
+
 def _warm_extraction_server() -> dict[str, object]:
+    base_url = _ensure_extraction_server_ready(
+        timeout_seconds=EXTRACTION_ENGINE_TIMEOUT_SECONDS,
+    )
     payload = {
         "model": EXTRACTION_MODEL_ID,
         "messages": [
@@ -419,6 +463,7 @@ def _warm_extraction_server() -> dict[str, object]:
     _response, elapsed_ms = _call_extraction_chat_completion(
         payload,
         session_id=build_modal_session_id("warmup", scope="warm"),
+        base_url=base_url,
     )
     return {
         "status": "ok",
@@ -453,6 +498,9 @@ def suggest_entities_remote(job_id: str) -> dict:
         storage.write_extraction_suggestion(job_id, cached)
         return cached.model_dump(mode="json")
 
+    base_url = _ensure_extraction_server_ready(
+        timeout_seconds=EXTRACTION_ENGINE_TIMEOUT_SECONDS,
+    )
     payload = build_suggestion_chat_request(
         document_markdown=markdown,
         page_count=page_count,
@@ -462,6 +510,7 @@ def suggest_entities_remote(job_id: str) -> dict:
     raw_response, _elapsed_ms = _call_extraction_chat_completion(
         payload,
         session_id=build_modal_session_id(job_id, scope="suggest"),
+        base_url=base_url,
     )
     data = json.loads(extract_chat_completion_content(raw_response))
 
@@ -550,6 +599,9 @@ def run_entity_extraction(job_id: str, request_payload: dict) -> dict:
         ),
     )
 
+    base_url = _ensure_extraction_server_ready(
+        timeout_seconds=EXTRACTION_ENGINE_TIMEOUT_SECONDS,
+    )
     all_extracted: list[ExtractedEntity] = []
     total_inference_ms = 0
 
@@ -572,6 +624,7 @@ def run_entity_extraction(job_id: str, request_payload: dict) -> dict:
             raw_response, inference_ms = _call_extraction_chat_completion(
                 payload,
                 session_id=session_id,
+                base_url=base_url,
             )
             all_extracted.append(
                 ExtractedEntity(
@@ -594,6 +647,7 @@ def run_entity_extraction(job_id: str, request_payload: dict) -> dict:
                 response, inference_ms = _call_extraction_chat_completion(
                     payload,
                     session_id=session_id,
+                    base_url=base_url,
                 )
                 return page_id, response, inference_ms
 
