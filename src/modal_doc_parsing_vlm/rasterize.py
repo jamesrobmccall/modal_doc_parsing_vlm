@@ -20,6 +20,7 @@ class RasterizedPage:
     height: int
     rotation: int
     page_hash: str
+    extracted_text: str | None = None
 
 
 def parse_page_range(page_range: str | None, total_pages: int) -> list[int]:
@@ -93,6 +94,7 @@ def rasterize_document(
         rasterized: list[RasterizedPage] = []
         for page_id in selected_page_ids:
             page = document.load_page(page_id)
+            extracted_text = page.get_text("text") or ""
             pixmap = page.get_pixmap(matrix=fitz.Matrix(zoom, zoom), alpha=False)
             image = Image.open(io.BytesIO(pixmap.tobytes("png"))).convert("RGB")
             image_path = output_dir / str(page_id) / "page.png"
@@ -105,6 +107,7 @@ def rasterize_document(
                     height=image.height,
                     rotation=page.rotation,
                     page_hash=_hash_bytes(data),
+                    extracted_text=extracted_text,
                 )
             )
         return rasterized
@@ -120,5 +123,6 @@ def rasterize_document(
             height=image.height,
             rotation=0,
             page_hash=_hash_bytes(data),
+            extracted_text=None,
         )
     ]

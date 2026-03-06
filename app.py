@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import base64
+import concurrent.futures
 import json
 import mimetypes
+import os
 import sys
 import time
 import urllib.request
@@ -23,8 +25,11 @@ from modal_doc_parsing_vlm.config import (
     ARTIFACTS_VOLUME_NAME,
     CONTROL_PLANE_DEPENDENCIES,
     CONTROL_PLANE_PYTHON_VERSION,
+    DEEPGEMM_CACHE_VOLUME_NAME,
     DEFAULT_RUNTIME_PROFILE,
     ENABLED_RUNTIME_PROFILES,
+    EXTRACTION_ENGINE_TIMEOUT_SECONDS,
+    EXTRACTION_HTTP_TIMEOUT_SECONDS,
     HF_CACHE_ROOT,
     HF_CACHE_VOLUME_NAME,
     IDEMPOTENCY_DICT_NAME,
@@ -42,12 +47,18 @@ from modal_doc_parsing_vlm.config import (
 from modal_doc_parsing_vlm.config import (
     EXTRACTION_MODEL_ID,
 )
-
-GLM_API_BASE = "https://api.us-west-2.modal.direct/v1/chat/completions"
-GLM_MODEL_ID = "zai-org/GLM-5-FP8"
 from modal_doc_parsing_vlm.engine import create_engine_cls
 from modal_doc_parsing_vlm.engine_extraction import create_extraction_engine_cls
 from modal_doc_parsing_vlm.engine_ocr import create_ocr_engine_cls
+from modal_doc_parsing_vlm.extraction_client import (
+    build_entity_extraction_chat_request,
+    build_extraction_headers,
+    build_extraction_request_fingerprint,
+    build_modal_session_id,
+    build_suggestion_chat_request,
+    build_suggestion_request_fingerprint,
+    extract_chat_completion_content,
+)
 from modal_doc_parsing_vlm.mcp_server import build_fastapi_app
 from modal_doc_parsing_vlm.model_cache import ensure_model_cached
 from modal_doc_parsing_vlm.orchestrator import (
@@ -85,6 +96,7 @@ cache_seed_image = modal.Image.debian_slim(
 
 hf_cache_volume = modal.Volume.from_name(HF_CACHE_VOLUME_NAME, create_if_missing=True)
 vllm_cache_volume = modal.Volume.from_name(VLLM_CACHE_VOLUME_NAME, create_if_missing=True)
+deepgemm_cache_volume = modal.Volume.from_name(DEEPGEMM_CACHE_VOLUME_NAME, create_if_missing=True)
 paddle_cache_volume = modal.Volume.from_name(PADDLE_CACHE_VOLUME_NAME, create_if_missing=True)
 artifacts_volume = modal.Volume.from_name(
     ARTIFACTS_VOLUME_NAME, create_if_missing=True, version=2
@@ -133,10 +145,11 @@ if "dev" in ENABLED_RUNTIME_PROFILES:
 ExtractionEngine = create_extraction_engine_cls(
     app,
     hf_cache_volume=hf_cache_volume,
-    vllm_cache_volume=vllm_cache_volume,
-    artifacts_volume=artifacts_volume,
+    deepgemm_cache_volume=deepgemm_cache_volume,
     export_module=__name__,
 )
+
+_EXTRACTION_BASE_URL: str | None = None
 
 
 def build_storage() -> FileSystemStorageBackend:
@@ -154,8 +167,8 @@ def build_service(runtime_profile_name: str | None = None) -> DocumentParseServi
     def schedule_job(job_id: str, selected_profile_name: str) -> None:
         run_orchestrator.spawn(job_id, selected_profile_name)
 
-    def _suggest_entities_fn(job_id: str, model_backend: str = "qwen_local") -> dict:
-        return suggest_entities_remote.remote(job_id, model_backend)
+    def _suggest_entities_fn(job_id: str) -> dict:
+        return suggest_entities_remote.remote(job_id)
 
     def _schedule_entity_extraction(job_id: str, request_payload: dict) -> None:
         run_entity_extraction.spawn(job_id, request_payload)
@@ -295,24 +308,9 @@ def store_upload_remote(data: bytes, file_name: str, mime_type: str | None = Non
     return upload_id
 
 
-def _glm_suggest_entities(markdown: str, page_count: int) -> dict:
-    """Run entity suggestion via the GLM-5 hosted endpoint."""
-    from json_repair import repair_json
-
-    from modal_doc_parsing_vlm.prompts_extraction import build_entity_suggestion_prompt
-
-    messages = build_entity_suggestion_prompt(
-        document_markdown=markdown,
-        page_count=page_count,
-    )
-    result = _glm_chat_completion(messages)
-    repaired = repair_json(result["content"], return_objects=False)
-    data = json.loads(repaired)
-    return {
-        "entities": data.get("entities", []),
-        "document_summary": data.get("document_summary", ""),
-        "inference_ms": result["inference_ms"],
-    }
+@app.function(image=control_plane_image, volumes={str(ARTIFACT_ROOT): artifacts_volume})
+def create_text_job_remote(text: str) -> str:
+    return build_service().create_text_job(text)
 
 
 def _coerce_entity(raw_entity: dict) -> dict | None:
@@ -329,37 +327,195 @@ def _coerce_entity(raw_entity: dict) -> dict | None:
     return cleaned if "entity_name" in cleaned and "fields" in cleaned else None
 
 
+def _coerce_first_url(value: object) -> str | None:
+    if isinstance(value, str) and value.startswith("http"):
+        return value.rstrip("/")
+    if isinstance(value, (list, tuple)):
+        for item in value:
+            candidate = _coerce_first_url(item)
+            if candidate is not None:
+                return candidate
+    if isinstance(value, dict):
+        for item in value.values():
+            candidate = _coerce_first_url(item)
+            if candidate is not None:
+                return candidate
+    return None
+
+
+def _resolve_extraction_base_url() -> str | None:
+    global _EXTRACTION_BASE_URL
+
+    if _EXTRACTION_BASE_URL is not None:
+        return _EXTRACTION_BASE_URL
+
+    configured = os.environ.get("DOC_PARSE_EXTRACTION_BASE_URL", "").strip()
+    if configured:
+        _EXTRACTION_BASE_URL = configured.rstrip("/")
+        return _EXTRACTION_BASE_URL
+
+    try:
+        resolved = ExtractionEngine.get_urls()
+    except Exception as exc:  # noqa: BLE001
+        print(f"[app] failed to resolve extraction server url: {exc!r}")
+        return None
+
+    base_url = _coerce_first_url(resolved)
+    if base_url is not None:
+        _EXTRACTION_BASE_URL = base_url
+        return _EXTRACTION_BASE_URL
+    return None
+
+
+def _call_extraction_chat_completion(
+    payload: dict[str, object],
+    *,
+    session_id: str,
+    base_url: str | None = None,
+) -> tuple[dict[str, object], int]:
+    import httpx
+
+    headers = build_extraction_headers(session_id)
+    base_url = base_url or _resolve_extraction_base_url()
+    if base_url is None:
+        raise RuntimeError(
+            "Extraction server URL is unavailable. Set DOC_PARSE_EXTRACTION_BASE_URL "
+            "or ensure the Modal extraction server is deployed."
+        )
+
+    started = time.perf_counter()
+    last_exc: Exception | None = None
+    for attempt in range(1, 5):
+        try:
+            response = httpx.post(
+                f"{base_url}/v1/chat/completions",
+                json=payload,
+                headers=headers,
+                timeout=EXTRACTION_HTTP_TIMEOUT_SECONDS,
+            )
+            if response.status_code in {502, 503, 504} and attempt < 4:
+                time.sleep(float(attempt))
+                continue
+            response.raise_for_status()
+            return response.json(), int((time.perf_counter() - started) * 1000)
+        except (httpx.HTTPError, httpx.TimeoutException) as exc:
+            last_exc = exc
+            if attempt < 4:
+                time.sleep(float(attempt))
+                continue
+    raise RuntimeError(f"Extraction HTTP request failed after retries: {last_exc!r}")
+
+
+def _wait_for_extraction_server(
+    base_url: str,
+    *,
+    timeout_seconds: int,
+) -> None:
+    import httpx
+
+    deadline = time.monotonic() + timeout_seconds
+    last_exc: Exception | None = None
+    while time.monotonic() < deadline:
+        try:
+            response = httpx.get(
+                f"{base_url}/health",
+                timeout=min(EXTRACTION_HTTP_TIMEOUT_SECONDS, 10),
+            )
+            if response.status_code == 200:
+                return
+            if response.status_code not in {502, 503, 504}:
+                response.raise_for_status()
+        except (httpx.HTTPError, httpx.TimeoutException) as exc:
+            last_exc = exc
+        time.sleep(2)
+    raise RuntimeError(
+        "Extraction server did not become externally ready before timeout. "
+        f"last_error={last_exc!r}"
+    )
+
+
+def _ensure_extraction_server_ready(*, timeout_seconds: int) -> str:
+    base_url = _resolve_extraction_base_url()
+    if base_url is None:
+        raise RuntimeError(
+            "Extraction server URL is unavailable. Set DOC_PARSE_EXTRACTION_BASE_URL "
+            "or ensure the Modal extraction server is deployed."
+        )
+    _wait_for_extraction_server(base_url, timeout_seconds=timeout_seconds)
+    return base_url
+
+
+def _warm_extraction_server() -> dict[str, object]:
+    base_url = _ensure_extraction_server_ready(
+        timeout_seconds=EXTRACTION_ENGINE_TIMEOUT_SECONDS,
+    )
+    payload = {
+        "model": EXTRACTION_MODEL_ID,
+        "messages": [
+            {"role": "system", "content": "Return JSON only."},
+            {"role": "user", "content": "Return {\"ok\": true}."},
+        ],
+        "temperature": 0.0,
+        "max_tokens": 24,
+        "chat_template_kwargs": {"enable_thinking": False},
+        "response_format": {"type": "json_object"},
+    }
+    _response, elapsed_ms = _call_extraction_chat_completion(
+        payload,
+        session_id=build_modal_session_id("warmup", scope="warm"),
+        base_url=base_url,
+    )
+    return {
+        "status": "ok",
+        "model_id": EXTRACTION_MODEL_ID,
+        "elapsed_ms": elapsed_ms,
+    }
+
+
 @app.function(
     image=control_plane_image,
     volumes={str(ARTIFACT_ROOT): artifacts_volume},
-    secrets=[modal.Secret.from_name("model_token")],
 )
-def suggest_entities_remote(job_id: str, model_backend: str = "qwen_local") -> dict:
+def suggest_entities_remote(job_id: str) -> dict:
     from modal_doc_parsing_vlm.types_extraction import (
         EntityDefinition,
         EntitySuggestionResponse,
-        ExtractionModelBackend,
     )
 
-    use_glm = model_backend == ExtractionModelBackend.GLM_HOSTED.value
-
-    print(f"[app] suggest_entities job_id={job_id} model_backend={model_backend}")
+    print(f"[app] suggest_entities job_id={job_id}")
     storage = build_storage()
+    storage.reload()
     result = storage.read_final_result(job_id)
     markdown = result.derived.document_markdown
     page_count = max(len(result.document.pages), 1)
+    fingerprint = build_suggestion_request_fingerprint(
+        job_id=job_id,
+        result_revision=result.metadata.result_revision,
+        model_id=EXTRACTION_MODEL_ID,
+    )
+    cached = storage.read_cached_extraction_suggestion(job_id, fingerprint)
+    if cached is not None:
+        storage.write_extraction_suggestion(job_id, cached)
+        return cached.model_dump(mode="json")
 
-    if use_glm:
-        raw = _glm_suggest_entities(markdown, page_count)
-    else:
-        engine = ExtractionEngine()
-        raw = engine.suggest_entities.remote({
-            "document_markdown": markdown,
-            "page_count": page_count,
-        })
+    base_url = _ensure_extraction_server_ready(
+        timeout_seconds=EXTRACTION_ENGINE_TIMEOUT_SECONDS,
+    )
+    payload = build_suggestion_chat_request(
+        document_markdown=markdown,
+        page_count=page_count,
+        model_id=EXTRACTION_MODEL_ID,
+        max_tokens=4096,
+    )
+    raw_response, _elapsed_ms = _call_extraction_chat_completion(
+        payload,
+        session_id=build_modal_session_id(job_id, scope="suggest"),
+        base_url=base_url,
+    )
+    data = json.loads(extract_chat_completion_content(raw_response))
 
     entities: list[EntityDefinition] = []
-    for raw_entity in raw.get("entities", []):
+    for raw_entity in data.get("entities", []):
         cleaned = _coerce_entity(raw_entity) if isinstance(raw_entity, dict) else None
         if cleaned is None:
             print(f"[app] suggest: skipping malformed entity: {raw_entity!r}")
@@ -373,236 +529,165 @@ def suggest_entities_remote(job_id: str, model_backend: str = "qwen_local") -> d
     suggestion = EntitySuggestionResponse(
         job_id=job_id,
         suggested_entities=entities,
-        document_summary=raw.get("document_summary", ""),
+        document_summary=data.get("document_summary", ""),
     )
-    storage.write_extraction_suggestion(job_id, suggestion)
+    with storage.batch():
+        storage.write_extraction_suggestion(job_id, suggestion)
+        storage.write_cached_extraction_suggestion(job_id, fingerprint, suggestion)
     return suggestion.model_dump(mode="json")
-
-
-def _glm_chat_completion(messages: list[dict], json_schema: dict | None = None) -> dict:
-    """Call the Modal-hosted GLM-5 endpoint (OpenAI-compatible) with retry on gateway errors."""
-    import httpx
-    import os
-
-    api_token = os.environ.get("modal_token", "")
-    headers = {
-        "Content-Type": "application/json",
-        "Authorization": f"Bearer {api_token}",
-    }
-    body: dict = {
-        "model": GLM_MODEL_ID,
-        "messages": messages,
-        "max_tokens": 4096,
-        "temperature": 0.0,
-    }
-    if json_schema is not None:
-        body["response_format"] = {
-            "type": "json_schema",
-            "json_schema": {"name": "extraction", "strict": True, "schema": json_schema},
-        }
-
-    RETRYABLE = {502, 503, 504}
-    max_attempts = 4
-    delay = 4.0
-
-    started = time.perf_counter()
-    last_exc: Exception | None = None
-    for attempt in range(1, max_attempts + 1):
-        try:
-            resp = httpx.post(GLM_API_BASE, json=body, headers=headers, timeout=300)
-            if resp.status_code in RETRYABLE and attempt < max_attempts:
-                print(
-                    f"[glm] attempt {attempt}/{max_attempts} got {resp.status_code}, "
-                    f"retrying in {delay:.0f}s…"
-                )
-                time.sleep(delay)
-                delay *= 2
-                continue
-            resp.raise_for_status()
-            break
-        except httpx.HTTPStatusError as exc:
-            last_exc = exc
-            if exc.response.status_code in RETRYABLE and attempt < max_attempts:
-                print(
-                    f"[glm] attempt {attempt}/{max_attempts} got {exc.response.status_code}, "
-                    f"retrying in {delay:.0f}s…"
-                )
-                time.sleep(delay)
-                delay *= 2
-                continue
-            raise RuntimeError(
-                f"GLM-5 endpoint returned {exc.response.status_code}. "
-                "The hosted model may be temporarily unavailable — try Qwen 2.5 instead."
-            ) from exc
-        except httpx.RequestError as exc:
-            last_exc = exc
-            if attempt < max_attempts:
-                print(f"[glm] attempt {attempt}/{max_attempts} request error: {exc}, retrying in {delay:.0f}s…")
-                time.sleep(delay)
-                delay *= 2
-                continue
-            raise RuntimeError(
-                f"GLM-5 endpoint unreachable: {exc}. "
-                "Check that the GLM-5 Modal app is deployed and the endpoint URL is correct."
-            ) from exc
-    else:
-        raise RuntimeError(
-            f"GLM-5 endpoint failed after {max_attempts} attempts. Last error: {last_exc}"
-        )
-
-    elapsed_ms = int((time.perf_counter() - started) * 1000)
-    data = resp.json()
-    content = data["choices"][0]["message"]["content"]
-    return {"content": content, "inference_ms": elapsed_ms}
-
-
-def _glm_extract_entity(entity_def: dict, page_text: str, page_id: int | None, json_schema_str: str) -> dict:
-    """Extract a single entity using the GLM-5 hosted endpoint."""
-    from json_repair import repair_json
-
-    from modal_doc_parsing_vlm.prompts_extraction import build_entity_extraction_prompt
-    from modal_doc_parsing_vlm.types_extraction import EntityDefinition
-
-    entity = EntityDefinition.model_validate(entity_def)
-    messages = build_entity_extraction_prompt(entity, page_text)
-
-    json_schema = json.loads(json_schema_str)
-    result = _glm_chat_completion(messages, json_schema=json_schema)
-
-    repaired = repair_json(result["content"], return_objects=False)
-    data = json.loads(repaired)
-
-    return {
-        "entity_name": entity.entity_name,
-        "page_id": page_id,
-        "data": data,
-        "inference_ms": result["inference_ms"],
-    }
 
 
 @app.function(
     image=control_plane_image,
     volumes={str(ARTIFACT_ROOT): artifacts_volume},
     timeout=ORCHESTRATOR_TIMEOUT_SECONDS,
-    secrets=[modal.Secret.from_name("model_token")],
 )
 def run_entity_extraction(job_id: str, request_payload: dict) -> dict:
-    import json as _json
-
     from modal_doc_parsing_vlm.types_extraction import (
-        EntityDefinition,
         EntityExtractionRequest,
         EntityExtractionResult,
         EntityExtractionStatusPayload,
         ExtractedEntity,
         ExtractionMode,
-        ExtractionModelBackend,
         ExtractionStatus,
         entity_definition_to_json_schema,
     )
 
     print(f"[app] run_entity_extraction job_id={job_id}")
     storage = build_storage()
+    storage.reload()
     request = EntityExtractionRequest.model_validate(request_payload)
-    use_glm = request.model_backend == ExtractionModelBackend.GLM_HOSTED
 
     result_doc = storage.read_final_result(job_id)
     page_markdowns = result_doc.derived.page_markdown or {}
     document_markdown = result_doc.derived.document_markdown
-    page_count = len(result_doc.document.pages)
-
-    storage.set_extraction_status(job_id, EntityExtractionStatusPayload(
+    page_tasks = [
+        (page.id, page_markdowns.get(str(page.id), ""))
+        for page in result_doc.document.pages
+        if page_markdowns.get(str(page.id), "").strip()
+    ]
+    pages_total = len(page_tasks) if request.extraction_mode == ExtractionMode.PER_PAGE else 1
+    fingerprint = build_extraction_request_fingerprint(
         job_id=job_id,
-        status=ExtractionStatus.EXTRACTING,
-        entities_requested=len(request.entities),
-        pages_total=page_count if request.extraction_mode == ExtractionMode.PER_PAGE else 1,
-    ))
+        result_revision=result_doc.metadata.result_revision,
+        request_payload=request.model_dump(mode="json"),
+        model_id=EXTRACTION_MODEL_ID,
+    )
+    cached_result = storage.read_cached_extraction_result(job_id, fingerprint)
+    if cached_result is not None:
+        with storage.batch():
+            storage.write_extraction_result(job_id, cached_result)
+            storage.set_extraction_status(
+                job_id,
+                EntityExtractionStatusPayload(
+                    job_id=job_id,
+                    status=ExtractionStatus.COMPLETED,
+                    entities_requested=len(request.entities),
+                    pages_processed=pages_total,
+                    pages_total=pages_total,
+                ),
+            )
+        return cached_result.model_dump(mode="json")
 
-    engine = None if use_glm else ExtractionEngine()
+    storage.set_extraction_status(
+        job_id,
+        EntityExtractionStatusPayload(
+            job_id=job_id,
+            status=ExtractionStatus.EXTRACTING,
+            entities_requested=len(request.entities),
+            pages_total=pages_total,
+        ),
+    )
+
+    base_url = _ensure_extraction_server_ready(
+        timeout_seconds=EXTRACTION_ENGINE_TIMEOUT_SECONDS,
+    )
     all_extracted: list[ExtractedEntity] = []
     total_inference_ms = 0
-    model_id = GLM_MODEL_ID if use_glm else EXTRACTION_MODEL_ID
 
     for entity in request.entities:
-        json_schema = _json.dumps(entity_definition_to_json_schema(entity))
+        json_schema = entity_definition_to_json_schema(entity)
+        session_id = build_modal_session_id(
+            job_id,
+            scope="extract",
+            entity_name=entity.entity_name,
+        )
 
         if request.extraction_mode == ExtractionMode.WHOLE_DOCUMENT:
-            if use_glm:
-                raw = _glm_extract_entity(
-                    entity.model_dump(mode="json"), document_markdown, None, json_schema,
+            payload = build_entity_extraction_chat_request(
+                entity=entity,
+                page_text=document_markdown,
+                model_id=EXTRACTION_MODEL_ID,
+                json_schema=json_schema,
+                max_tokens=4096,
+            )
+            raw_response, inference_ms = _call_extraction_chat_completion(
+                payload,
+                session_id=session_id,
+                base_url=base_url,
+            )
+            all_extracted.append(
+                ExtractedEntity(
+                    entity_name=entity.entity_name,
+                    page_id=None,
+                    data=json.loads(extract_chat_completion_content(raw_response)),
                 )
-            else:
-                payload = {
-                    "entity_definition": entity.model_dump(mode="json"),
-                    "page_text": document_markdown,
-                    "page_id": None,
-                    "json_schema": json_schema,
-                }
-                raw = engine.extract_entity.remote(payload)
-            all_extracted.append(ExtractedEntity(
-                entity_name=entity.entity_name,
-                page_id=None,
-                data=raw.get("data", {}),
-            ))
-            total_inference_ms += raw.get("inference_ms", 0)
+            )
+            total_inference_ms += inference_ms
         else:
-            page_tasks = []
-            for page in result_doc.document.pages:
-                page_md = page_markdowns.get(str(page.id), "")
-                if not page_md.strip():
-                    continue
-                page_tasks.append((page.id, page_md))
+            def _extract_page(page_task: tuple[int, str]) -> tuple[int, dict[str, object], int]:
+                page_id, page_markdown = page_task
+                payload = build_entity_extraction_chat_request(
+                    entity=entity,
+                    page_text=page_markdown,
+                    model_id=EXTRACTION_MODEL_ID,
+                    json_schema=json_schema,
+                    max_tokens=4096,
+                )
+                response, inference_ms = _call_extraction_chat_completion(
+                    payload,
+                    session_id=session_id,
+                    base_url=base_url,
+                )
+                return page_id, response, inference_ms
 
-            if use_glm:
-                for pg_id, pg_md in page_tasks:
-                    raw_result = _glm_extract_entity(
-                        entity.model_dump(mode="json"), pg_md, pg_id, json_schema,
-                    )
-                    all_extracted.append(ExtractedEntity(
-                        entity_name=entity.entity_name,
-                        page_id=raw_result.get("page_id"),
-                        data=raw_result.get("data", {}),
-                    ))
-                    total_inference_ms += raw_result.get("inference_ms", 0)
-            else:
-                payloads = [
-                    {
-                        "entity_definition": entity.model_dump(mode="json"),
-                        "page_text": pg_md,
-                        "page_id": pg_id,
-                        "json_schema": json_schema,
-                    }
-                    for pg_id, pg_md in page_tasks
-                ]
-                if payloads:
-                    results = list(engine.extract_entity.map(payloads))
-                    for raw_result in results:
-                        all_extracted.append(ExtractedEntity(
+            if page_tasks:
+                max_workers = max(1, min(len(page_tasks), 4))
+                with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+                    results = list(executor.map(_extract_page, page_tasks))
+                for page_id, raw_response, inference_ms in results:
+                    all_extracted.append(
+                        ExtractedEntity(
                             entity_name=entity.entity_name,
-                            page_id=raw_result.get("page_id"),
-                            data=raw_result.get("data", {}),
-                        ))
-                        total_inference_ms += raw_result.get("inference_ms", 0)
+                            page_id=page_id,
+                            data=json.loads(extract_chat_completion_content(raw_response)),
+                        )
+                    )
+                    total_inference_ms += inference_ms
 
     extraction_result = EntityExtractionResult(
         job_id=job_id,
         entities=all_extracted,
         schema_used=request.entities,
         extraction_mode=request.extraction_mode,
-        model_id=model_id,
+        model_id=EXTRACTION_MODEL_ID,
         inference_ms=total_inference_ms,
     )
-    storage.write_extraction_result(job_id, extraction_result)
-    storage.set_extraction_status(job_id, EntityExtractionStatusPayload(
-        job_id=job_id,
-        status=ExtractionStatus.COMPLETED,
-        entities_requested=len(request.entities),
-        pages_processed=page_count,
-        pages_total=page_count,
-    ))
+    with storage.batch():
+        storage.write_extraction_result(job_id, extraction_result)
+        storage.write_cached_extraction_result(job_id, fingerprint, extraction_result)
+        storage.set_extraction_status(
+            job_id,
+            EntityExtractionStatusPayload(
+                job_id=job_id,
+                status=ExtractionStatus.COMPLETED,
+                entities_requested=len(request.entities),
+                pages_processed=pages_total,
+                pages_total=pages_total,
+            ),
+        )
     print(
         f"[app] run_entity_extraction complete job_id={job_id} "
-        f"backend={'glm_hosted' if use_glm else 'qwen_local'} "
         f"entities_extracted={len(all_extracted)} inference_ms={total_inference_ms}"
     )
     return extraction_result.model_dump(mode="json")
@@ -625,6 +710,22 @@ def cleanup_stale_jobs_remote() -> list[str]:
     return marked
 
 
+def _cache_model_ids(runtime_profile_name: str | None = None) -> list[str]:
+    selected_profiles = (
+        [get_runtime_profile(runtime_profile_name or DEFAULT_RUNTIME_PROFILE)]
+        if runtime_profile_name is not None
+        else [get_runtime_profile(profile_name) for profile_name in ENABLED_RUNTIME_PROFILES]
+    )
+    model_ids = {EXTRACTION_MODEL_ID}
+    for profile in selected_profiles:
+        model_ids.add(profile.model_id)
+        if profile.fallback_model_id:
+            model_ids.add(profile.fallback_model_id)
+        if profile.deep_refine_model_id:
+            model_ids.add(profile.deep_refine_model_id)
+    return sorted(model_ids)
+
+
 @app.function(
     image=cache_seed_image,
     volumes={str(HF_CACHE_ROOT): hf_cache_volume},
@@ -633,22 +734,31 @@ def cleanup_stale_jobs_remote() -> list[str]:
 def cache_model_weights_remote(
     runtime_profile_name: str | None = None,
 ) -> dict[str, object]:
-    runtime_profile = get_runtime_profile(runtime_profile_name or DEFAULT_RUNTIME_PROFILE)
-    status = ensure_model_cached(runtime_profile.model_id)
+    model_statuses = []
+    for model_id in _cache_model_ids(runtime_profile_name):
+        status = ensure_model_cached(model_id)
+        model_statuses.append(
+            {
+                "model_id": model_id,
+                "cache_root": str(HF_CACHE_ROOT),
+                "model_root": str(status.model_root),
+                "snapshot_count": status.snapshot_count,
+                "blob_count": status.blob_count,
+                "cache_populated": status.is_populated,
+            }
+        )
     hf_cache_volume.commit()
+    extraction_warmup = _warm_extraction_server()
+    ocr_warmup = OcrParserEngine().warmup.remote()
     result = {
-        "runtime_profile": runtime_profile.name,
-        "model_id": runtime_profile.model_id,
-        "cache_root": str(HF_CACHE_ROOT),
-        "model_root": str(status.model_root),
-        "snapshot_count": status.snapshot_count,
-        "blob_count": status.blob_count,
-        "cache_populated": status.is_populated,
+        "runtime_profile": runtime_profile_name or "all_enabled_profiles",
+        "models": model_statuses,
+        "extraction_warmup": extraction_warmup,
+        "ocr_warmup": ocr_warmup,
     }
     print(
-        f"[app] cache_model_weights runtime_profile={runtime_profile.name} "
-        f"model_id={runtime_profile.model_id} snapshots={status.snapshot_count} "
-        f"blobs={status.blob_count}"
+        f"[app] cache_model_weights runtime_profile={runtime_profile_name or 'all'} "
+        f"models={','.join(item['model_id'] for item in model_statuses)}"
     )
     return result
 
@@ -839,9 +949,53 @@ def cleanup_stale_now():
 
 
 @app.local_entrypoint()
-def cache_model_weights(runtime_profile_name: str = DEFAULT_RUNTIME_PROFILE):
-    result = cache_model_weights_remote.remote(runtime_profile_name)
+def cache_model_weights(runtime_profile_name: str = ""):
+    selected_runtime_profile = runtime_profile_name or None
+    result = cache_model_weights_remote.remote(selected_runtime_profile)
     print(json.dumps(result, indent=2, sort_keys=True))
+
+
+@app.local_entrypoint()
+def smoke_entity_extraction(
+    text: str = "Invoice Number: INV-001\nInvoice Date: 2026-03-05\nTotal Amount: 42.50",
+    extraction_mode: str = "whole_document",
+):
+    job_id = create_text_job_remote.remote(text)
+    print(f"job_id={job_id}")
+    suggestion = suggest_entities_remote.remote(job_id)
+    suggested_entities = suggestion.get("suggested_entities") or []
+    if not suggested_entities:
+        suggested_entities = [
+            {
+                "entity_name": "Invoice",
+                "description": "Invoice header fields",
+                "fields": [
+                    {
+                        "name": "invoice_number",
+                        "field_type": "string",
+                        "description": "Invoice identifier",
+                        "required": True,
+                        "examples": [],
+                    },
+                    {
+                        "name": "total_amount",
+                        "field_type": "number",
+                        "description": "Total amount due",
+                        "required": False,
+                        "examples": [],
+                    },
+                ],
+            }
+        ]
+    result = run_entity_extraction.remote(
+        job_id,
+        {
+            "job_id": job_id,
+            "entities": suggested_entities,
+            "extraction_mode": extraction_mode,
+        },
+    )
+    print(json.dumps({"suggestion": suggestion, "result": result}, indent=2, sort_keys=True))
 
 
 @app.local_entrypoint()

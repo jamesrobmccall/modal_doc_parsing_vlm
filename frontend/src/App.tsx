@@ -553,12 +553,12 @@ export default function App() {
         <h1>Parse documents. Extract entities.</h1>
         <p className="hero-copy">
           Upload a PDF or image for GPU-accelerated OCR to Markdown, or paste raw text directly
-          to run structured entity extraction — with GLM-5 or Qwen 2.5.
+          to run structured entity extraction with a dedicated Qwen endpoint.
         </p>
         <div className="hero-badges">
           <span>GPU workers</span>
           <span>Live stage telemetry</span>
-          <span>GLM-5 &amp; Qwen entity extraction</span>
+          <span>Qwen entity extraction</span>
         </div>
       </header>
 

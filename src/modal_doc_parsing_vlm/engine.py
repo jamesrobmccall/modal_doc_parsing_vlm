@@ -12,6 +12,7 @@ from .config import (
     ENGINE_TIMEOUT_SECONDS,
     FALLBACK_ALLOW_CONCURRENT_INPUTS,
     FALLBACK_BUFFER_CONTAINERS,
+    FALLBACK_FAST_BOOT,
     FALLBACK_MIN_CONTAINERS,
     HF_CACHE_ROOT,
     HF_HUB_CACHE_ROOT,
@@ -121,14 +122,16 @@ def create_engine_cls(
         from vllm import LLM
 
         self._volume_lock = threading.Lock()
+        self._loaded_artifacts_job_id: str | None = None
         self.runtime_profile_name = runtime_profile.name
         self.model_id = runtime_profile.model_id
         self.disable_thinking = runtime_profile.disable_thinking
+        self.fast_boot = FALLBACK_FAST_BOOT or runtime_profile.enforce_eager
         cache_status = describe_model_cache(self.model_id)
         print(
             f"[engine:fallback:{self.runtime_profile_name}] loading model={self.model_id} "
             f"gpu={runtime_profile.gpu} disable_thinking={self.disable_thinking} "
-            f"enforce_eager={runtime_profile.enforce_eager} "
+            f"enforce_eager={self.fast_boot} "
             f"cache_populated={cache_status.is_populated} "
             f"snapshots={cache_status.snapshot_count} blobs={cache_status.blob_count}"
         )
@@ -136,7 +139,7 @@ def create_engine_cls(
             "model": runtime_profile.model_id,
             "tensor_parallel_size": runtime_profile.tensor_parallel_size,
             "max_model_len": runtime_profile.max_model_len,
-            "enforce_eager": runtime_profile.enforce_eager,
+            "enforce_eager": self.fast_boot,
             "download_dir": str(HF_HUB_CACHE_ROOT),
         }
         if runtime_profile.trust_remote_code:
@@ -187,6 +190,12 @@ def create_engine_cls(
             max_tokens=SAMPLING_MAX_TOKENS[mode.value],
         )
 
+    def _ensure_artifacts_loaded(self, task: PageTask) -> None:
+        with self._volume_lock:
+            if self._loaded_artifacts_job_id != task.job_id:
+                artifacts_volume.reload()
+                self._loaded_artifacts_job_id = task.job_id
+
     @modal.method()
     def parse_page(self, task_payload: dict[str, Any]) -> dict[str, Any]:
         from PIL import Image
@@ -197,8 +206,8 @@ def create_engine_cls(
             page_id=task.page_id,
             strict_json=False,
         )
+        self._ensure_artifacts_loaded(task)
         with self._volume_lock:
-            artifacts_volume.reload()
             with Image.open(task.image_path) as source_image:
                 image = source_image.convert("RGB")
         started = time.perf_counter()
@@ -244,7 +253,8 @@ def create_engine_cls(
                 Path(task.prompt_path).write_text(prompt, encoding="utf-8")
             if task.raw_output_path:
                 Path(task.raw_output_path).write_text(text, encoding="utf-8")
-            artifacts_volume.commit()
+            if task.prompt_path or task.raw_output_path:
+                artifacts_volume.commit()
             return result.model_dump(mode="json")
         except Exception as exc:  # noqa: BLE001
             print(
@@ -307,6 +317,7 @@ def create_engine_cls(
             "__module__": export_module,
             "start": start,
             "_sampling_params_for_mode": _sampling_params_for_mode,
+            "_ensure_artifacts_loaded": _ensure_artifacts_loaded,
             "parse_page": parse_page,
             "parse_chunk": parse_chunk,
             "stop": stop,

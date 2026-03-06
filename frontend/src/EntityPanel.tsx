@@ -2,7 +2,6 @@ import { useEffect, useState } from "react";
 
 type ExtractionMode = "per_page" | "whole_document";
 type ExtractionPhase = "idle" | "suggesting" | "editing" | "extracting" | "done";
-type ModelBackend = "qwen_local" | "glm_hosted";
 type InputMode = "document" | "text";
 
 interface EntityFieldDefinition {
@@ -55,7 +54,6 @@ export default function EntityPanel({ jobId }: { jobId: string | null }) {
   const [entities, setEntities] = useState<EntityDefinition[]>([]);
   const [docSummary, setDocSummary] = useState("");
   const [extractionMode, setExtractionMode] = useState<ExtractionMode>("whole_document");
-  const [modelBackend, setModelBackend] = useState<ModelBackend>("qwen_local");
   const [extractionResult, setExtractionResult] = useState<ExtractionResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -114,7 +112,7 @@ export default function EntityPanel({ jobId }: { jobId: string | null }) {
       const res = await fetch(`/api/jobs/${activeJobId}/entities/suggest`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ model_backend: modelBackend }),
+        body: JSON.stringify({}),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
@@ -138,7 +136,7 @@ export default function EntityPanel({ jobId }: { jobId: string | null }) {
       const res = await fetch(`/api/jobs/${activeJobId}/entities/extract`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ job_id: activeJobId, entities, extraction_mode: extractionMode, model_backend: modelBackend }),
+        body: JSON.stringify({ job_id: activeJobId, entities, extraction_mode: extractionMode }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
@@ -288,33 +286,6 @@ export default function EntityPanel({ jobId }: { jobId: string | null }) {
           </button>
         </div>
 
-        {/* Model backend toggle — always visible */}
-        {phase !== "done" && (
-          <div className="entity-model-toggle">
-            <label className="field">
-              <span>Model Backend</span>
-              <div className="model-toggle-group">
-                <button
-                  type="button"
-                  className={`model-toggle-btn${modelBackend === "qwen_local" ? " active" : ""}`}
-                  onClick={() => setModelBackend("qwen_local")}
-                >
-                  <strong>Qwen 2.5-3B</strong>
-                  <small>Private &middot; Open Source &middot; Guided JSON</small>
-                </button>
-                <button
-                  type="button"
-                  className={`model-toggle-btn${modelBackend === "glm_hosted" ? " active" : ""}`}
-                  onClick={() => setModelBackend("glm_hosted")}
-                >
-                  <strong>GLM-5 (Modal-hosted)</strong>
-                  <small>Hosted endpoint &middot; Larger model</small>
-                </button>
-              </div>
-            </label>
-          </div>
-        )}
-
         {/* Text input mode — show textarea until job is created */}
         {inputMode === "text" && !activeJobId && phase === "idle" && (
           <div className="text-input-mode">
@@ -362,8 +333,8 @@ export default function EntityPanel({ jobId }: { jobId: string | null }) {
           <div className="entity-idle">
             <p>
               {inputMode === "text"
-                ? "Text loaded. Use a small LLM to suggest structured entities, then review and run extraction."
-                : "Use a small LLM to suggest structured entities from your parsed document, then review and run extraction."}
+                ? "Text loaded. Use the extraction model to suggest structured entities, then review and run extraction."
+                : "Use the extraction model to suggest structured entities from your parsed document, then review and run extraction."}
             </p>
             <div className="entity-idle-actions">
               <button className="submit-btn" type="button" onClick={suggestEntities}>

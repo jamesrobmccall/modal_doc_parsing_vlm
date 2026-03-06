@@ -1,4 +1,5 @@
 from modal_doc_parsing_vlm.storage import FileSystemStorageBackend, InMemoryKVStore
+from modal_doc_parsing_vlm.types_extraction import EntitySuggestionResponse
 from modal_doc_parsing_vlm.types_result import (
     DebugOptions,
     DocumentBody,
@@ -15,6 +16,18 @@ from modal_doc_parsing_vlm.types_result import (
     ParseMode,
     ResultMetadata,
 )
+
+
+class FakeVolume:
+    def __init__(self) -> None:
+        self.commits = 0
+        self.reloads = 0
+
+    def commit(self) -> None:
+        self.commits += 1
+
+    def reload(self) -> None:
+        self.reloads += 1
 
 
 def make_manifest(job_id: str = "job-storage") -> JobManifest:
@@ -119,3 +132,19 @@ def test_list_page_results_skips_transient_invalid_json(tmp_path):
     (page_dir / "result.json").write_text("\x00\x00\x00\x00", encoding="utf-8")
 
     assert storage.list_page_results(manifest.job_id) == []
+
+
+def test_storage_batch_commits_once_for_multiple_writes(tmp_path):
+    volume = FakeVolume()
+    storage = FileSystemStorageBackend(tmp_path, volume=volume)
+    manifest = make_manifest()
+
+    with storage.batch():
+        storage.create_job_manifest(manifest)
+        storage.write_source_bytes(manifest.job_id, b"data")
+        storage.write_extraction_suggestion(
+            manifest.job_id,
+            EntitySuggestionResponse(job_id=manifest.job_id, suggested_entities=[]),
+        )
+
+    assert volume.commits == 1

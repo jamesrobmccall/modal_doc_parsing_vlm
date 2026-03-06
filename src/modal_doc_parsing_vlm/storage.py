@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 import shutil
+from contextlib import contextmanager
 from collections.abc import Iterator
 from pathlib import Path
 from typing import Any, Protocol, TypeVar
@@ -78,6 +79,8 @@ class FileSystemStorageBackend:
         self.status_store = status_store or InMemoryKVStore()
         self.idempotency_store = idempotency_store or InMemoryKVStore()
         self.volume = volume
+        self._batch_depth = 0
+        self._batch_dirty = False
 
     def commit(self) -> None:
         if self.volume is not None:
@@ -87,12 +90,29 @@ class FileSystemStorageBackend:
         if self.volume is not None:
             self.volume.reload()
 
+    def _commit_if_needed(self) -> None:
+        if self._batch_depth > 0:
+            self._batch_dirty = True
+            return
+        self.commit()
+
+    @contextmanager
+    def batch(self) -> Iterator[None]:
+        self._batch_depth += 1
+        try:
+            yield
+        finally:
+            self._batch_depth -= 1
+            if self._batch_depth == 0 and self._batch_dirty:
+                self._batch_dirty = False
+                self.commit()
+
     def _write_json(self, path: Path, value: dict[str, Any]) -> None:
         path.parent.mkdir(parents=True, exist_ok=True)
         temp_path = path.parent / f".{path.name}.{uuid4().hex}.tmp"
         temp_path.write_text(json.dumps(value, indent=2, sort_keys=True), encoding="utf-8")
         temp_path.replace(path)
-        self.commit()
+        self._commit_if_needed()
 
     def _read_model(self, path: Path, model_type: type[T]) -> T | None:
         if not path.exists():
@@ -172,7 +192,7 @@ class FileSystemStorageBackend:
         path = self.source_path(job_id)
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_bytes(data)
-        self.commit()
+        self._commit_if_needed()
 
     def read_source_bytes(self, job_id: str) -> bytes:
         return self.source_path(job_id).read_bytes()
@@ -194,7 +214,7 @@ class FileSystemStorageBackend:
         (upload_dir / "metadata.json").write_text(
             json.dumps(metadata, indent=2, sort_keys=True), encoding="utf-8"
         )
-        self.commit()
+        self._commit_if_needed()
 
     def read_upload(self, upload_id: str) -> dict[str, Any] | None:
         metadata_path = self.upload_dir(upload_id) / "metadata.json"
@@ -311,24 +331,25 @@ class FileSystemStorageBackend:
         quality_stage: QualityStage = QualityStage.FINAL,
         result_revision: int = 1,
     ) -> None:
-        self._write_model(
-            self.final_stage_revision_json_path(job_id, quality_stage, result_revision),
-            result,
-        )
-        self._write_model(self.final_stage_json_path(job_id, quality_stage), result)
-        self._write_model(self.final_json_path(job_id), result)
-        self.final_markdown_path(job_id).parent.mkdir(parents=True, exist_ok=True)
-        self.final_stage_markdown_path(job_id, quality_stage).write_text(
-            markdown,
-            encoding="utf-8",
-        )
-        self.final_stage_text_path(job_id, quality_stage).write_text(
-            text,
-            encoding="utf-8",
-        )
-        self.final_markdown_path(job_id).write_text(markdown, encoding="utf-8")
-        self.final_text_path(job_id).write_text(text, encoding="utf-8")
-        self.commit()
+        with self.batch():
+            self._write_model(
+                self.final_stage_revision_json_path(job_id, quality_stage, result_revision),
+                result,
+            )
+            self._write_model(self.final_stage_json_path(job_id, quality_stage), result)
+            self._write_model(self.final_json_path(job_id), result)
+            self.final_markdown_path(job_id).parent.mkdir(parents=True, exist_ok=True)
+            self.final_stage_markdown_path(job_id, quality_stage).write_text(
+                markdown,
+                encoding="utf-8",
+            )
+            self.final_stage_text_path(job_id, quality_stage).write_text(
+                text,
+                encoding="utf-8",
+            )
+            self.final_markdown_path(job_id).write_text(markdown, encoding="utf-8")
+            self.final_text_path(job_id).write_text(text, encoding="utf-8")
+            self._commit_if_needed()
 
     def read_final_result(
         self,
@@ -423,7 +444,7 @@ class FileSystemStorageBackend:
 
     def remove_job(self, job_id: str) -> None:
         shutil.rmtree(self.job_dir(job_id), ignore_errors=True)
-        self.commit()
+        self._commit_if_needed()
 
     def collect_debug_info(self, job_id: str) -> dict[str, Any]:
         info: dict[str, Any] = {"pages": {}}
@@ -450,6 +471,15 @@ class FileSystemStorageBackend:
     def extraction_result_path(self, job_id: str) -> Path:
         return self.extraction_dir(job_id) / "result.json"
 
+    def extraction_cache_dir(self, job_id: str) -> Path:
+        return self.extraction_dir(job_id) / "cache"
+
+    def extraction_suggestion_cache_path(self, job_id: str, fingerprint: str) -> Path:
+        return self.extraction_cache_dir(job_id) / f"suggestion.{fingerprint}.json"
+
+    def extraction_result_cache_path(self, job_id: str, fingerprint: str) -> Path:
+        return self.extraction_cache_dir(job_id) / f"result.{fingerprint}.json"
+
     def write_extraction_suggestion(self, job_id: str, suggestion) -> None:
         self._write_model(self.extraction_suggestion_path(job_id), suggestion)
 
@@ -458,6 +488,17 @@ class FileSystemStorageBackend:
 
         return self._read_model(self.extraction_suggestion_path(job_id), EntitySuggestionResponse)
 
+    def write_cached_extraction_suggestion(self, job_id: str, fingerprint: str, suggestion) -> None:
+        self._write_model(self.extraction_suggestion_cache_path(job_id, fingerprint), suggestion)
+
+    def read_cached_extraction_suggestion(self, job_id: str, fingerprint: str):
+        from .types_extraction import EntitySuggestionResponse
+
+        return self._read_model(
+            self.extraction_suggestion_cache_path(job_id, fingerprint),
+            EntitySuggestionResponse,
+        )
+
     def write_extraction_result(self, job_id: str, result) -> None:
         self._write_model(self.extraction_result_path(job_id), result)
 
@@ -465,6 +506,17 @@ class FileSystemStorageBackend:
         from .types_extraction import EntityExtractionResult
 
         return self._read_model(self.extraction_result_path(job_id), EntityExtractionResult)
+
+    def write_cached_extraction_result(self, job_id: str, fingerprint: str, result) -> None:
+        self._write_model(self.extraction_result_cache_path(job_id, fingerprint), result)
+
+    def read_cached_extraction_result(self, job_id: str, fingerprint: str):
+        from .types_extraction import EntityExtractionResult
+
+        return self._read_model(
+            self.extraction_result_cache_path(job_id, fingerprint),
+            EntityExtractionResult,
+        )
 
     def get_extraction_status(self, job_id: str):
         from .types_extraction import EntityExtractionStatusPayload

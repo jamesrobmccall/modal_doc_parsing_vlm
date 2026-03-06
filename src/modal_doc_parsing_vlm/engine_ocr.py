@@ -17,7 +17,10 @@ from .config import (
     OCR_MIN_CONTAINERS,
     OCR_RUNTIME_PROFILE,
     OCR_SCALEDOWN_WINDOW_SECONDS,
+    OCR_STARTUP_WARMUP_ENABLED,
     PADDLE_CACHE_ROOT,
+    PADDLE_GPU_INDEX_URL,
+    PADDLE_GPU_PACKAGE,
 )
 from .json_output import page_error
 from .types_result import (
@@ -43,6 +46,9 @@ def build_ocr_image() -> modal.Image:
         modal.Image.debian_slim(python_version=OCR_PYTHON_VERSION)
         .apt_install("libgl1", "libglib2.0-0")
         .uv_pip_install(*OCR_DEPENDENCIES)
+        .run_commands(
+            f"python -m pip install {PADDLE_GPU_PACKAGE} -i {PADDLE_GPU_INDEX_URL}",
+        )
         .env(
             {
                 "HF_HOME": str(HF_CACHE_ROOT),
@@ -412,13 +418,45 @@ def create_ocr_engine_cls(
 
     @modal.enter()
     def start(self) -> None:
+        import numpy as np
+        import paddle
         import threading
         from paddleocr import PPStructure, PaddleOCR
 
         self._volume_lock = threading.Lock()
+        self._loaded_artifacts_job_id: str | None = None
+        if not paddle.is_compiled_with_cuda():
+            raise RuntimeError(
+                "PaddleOCR container started without CUDA support. "
+                "Install a CUDA-enabled paddlepaddle-gpu wheel."
+            )
         self.ocr = PaddleOCR(use_angle_cls=False, lang="en", show_log=False)
         self.layout = PPStructure(show_log=False, lang="en")
-        print("[engine:ocr] initialized paddle OCR + structure engines")
+        device = paddle.device.get_device()
+        if not device.startswith("gpu"):
+            raise RuntimeError(
+                f"PaddleOCR is not using a GPU device (reported {device!r})."
+            )
+        if OCR_STARTUP_WARMUP_ENABLED:
+            blank = np.full((128, 128, 3), 255, dtype=np.uint8)
+            self.ocr.ocr(blank, cls=False)
+            self.layout(blank)
+        print(f"[engine:ocr] initialized paddle OCR + structure engines device={device}")
+
+    def _ensure_artifacts_loaded(self, task: PageTask) -> None:
+        with self._volume_lock:
+            if self._loaded_artifacts_job_id != task.job_id:
+                artifacts_volume.reload()
+                self._loaded_artifacts_job_id = task.job_id
+
+    @modal.method()
+    def warmup(self) -> dict[str, object]:
+        import numpy as np
+
+        blank = np.full((128, 128, 3), 255, dtype=np.uint8)
+        self.ocr.ocr(blank, cls=False)
+        self.layout(blank)
+        return {"status": "ok", "engine": OCR_RUNTIME_PROFILE.engine_name}
 
     @modal.method()
     def parse_page(self, task_payload: dict[str, Any]) -> dict[str, Any]:
@@ -427,8 +465,8 @@ def create_ocr_engine_cls(
 
         task = PageTask.model_validate(task_payload)
         try:
+            self._ensure_artifacts_loaded(task)
             with self._volume_lock:
-                artifacts_volume.reload()
                 with Image.open(task.image_path) as source_image:
                     image = source_image.convert("RGB")
             image_array = np.array(image)
@@ -529,6 +567,8 @@ def create_ocr_engine_cls(
             "__doc__": "Fast OCR parser engine using PaddleOCR PP-Structure.",
             "__module__": export_module,
             "start": start,
+            "_ensure_artifacts_loaded": _ensure_artifacts_loaded,
+            "warmup": warmup,
             "parse_page": parse_page,
         },
     )

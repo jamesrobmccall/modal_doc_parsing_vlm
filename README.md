@@ -28,13 +28,22 @@ OCR-first document parsing on Modal with staged results:
     - OCR/layout dedupe by bbox overlap
   - Modal scaling defaults:
     - `min_containers=0`
-    - `buffer_containers=0`
+    - `buffer_containers=1`
     - `allow_concurrent_inputs=1`
-    - `scaledown_window=300s`
+    - `scaledown_window=900s`
+- Extraction runtime:
+  - model: `Qwen/Qwen3-4B-Thinking-2507-FP8`
+  - serving: SGLang low-latency OpenAI-compatible endpoint on `H100:1`
+  - reasoning disabled per request for faster structured extraction
+  - Modal scaling defaults:
+    - `min_containers=1`
+    - `target_inputs=4`
+    - `scaledown_window=900s`
 - Fallback VLM runtime profiles (`prod`, `dev`):
   - model: `Qwen/Qwen2.5-VL-7B-Instruct`
   - GPU: `A10G`
   - async refinement only for triggered pages
+  - fast boot defaults to eager mode for lower cold-start latency
   - optional deep refine model ID retained in config (`Qwen/Qwen3.5-27B-FP8`)
 
 ## API Additions
@@ -77,10 +86,83 @@ Build frontend bundle (required before deploy/serve if you want the web UI at `/
 ./scripts/build_frontend.sh
 ```
 
-Seed HF cache volume:
+## Deploy to Modal
+
+This repo is a single Modal app named `modal-doc-parsing-vlm`. Running
+`modal deploy app.py` deploys all of the updated pieces together:
+
+- the FastAPI web app
+- the OCR worker
+- the fallback VLM worker(s)
+- the dedicated SGLang extraction server
+- the schedules / background cleanup functions
+
+If you use a non-default Modal environment, add `--env <name>` to every
+`modal deploy`, `modal run`, and `modal app ...` command below.
+
+One-time setup on a new machine:
 
 ```bash
-PATH="$HOME/.local/bin:$PATH" modal run app.py::cache_model_weights --runtime-profile-name dev
+python -m pip install --upgrade modal
+PATH="$HOME/.local/bin:$PATH" modal setup
+```
+
+Simple update flow after you change code:
+
+```bash
+./scripts/build_frontend.sh
+PATH="$HOME/.local/bin:$PATH" modal deploy app.py
+PATH="$HOME/.local/bin:$PATH" modal run app.py::cache_model_weights
+PATH="$HOME/.local/bin:$PATH" modal run app.py::smoke_entity_extraction
+```
+
+What each step does:
+
+- `./scripts/build_frontend.sh`
+  - rebuilds the static UI bundle that gets embedded into the deployed web app
+- `modal deploy app.py`
+  - publishes the latest code to Modal and updates the deployed app in place
+- `modal run app.py::cache_model_weights`
+  - warms the Hugging Face cache plus OCR/extraction startup paths
+- `modal run app.py::smoke_entity_extraction`
+  - quick sanity check that the deployed extraction stack is healthy
+
+Notes:
+
+- You do not need a separate deploy command for the extraction server. It is part of the same `app.py` deployment.
+- Volumes and Dicts are created automatically on first deploy because the code uses `modal.Volume.from_name(..., create_if_missing=True)` and `modal.Dict.from_name(..., create_if_missing=True)`.
+- If you skip `./scripts/build_frontend.sh`, the API still deploys, but the root `/` UI may serve the “Frontend bundle missing” placeholder.
+- Modal prints the deployed web URL during `modal deploy app.py`; you can also open it later with `modal app dashboard modal-doc-parsing-vlm`.
+- The first `modal run app.py::cache_model_weights` can take a while. It may spend several minutes building the Paddle GPU image and then several more minutes doing the first SGLang/DeepGEMM cold start. That is expected on the first run; later runs are much faster because the image layers, model weights, and DeepGEMM cache are reused.
+
+Useful post-deploy commands:
+
+```bash
+PATH="$HOME/.local/bin:$PATH" modal app logs modal-doc-parsing-vlm --timestamps
+PATH="$HOME/.local/bin:$PATH" modal app dashboard modal-doc-parsing-vlm
+PATH="$HOME/.local/bin:$PATH" modal app history modal-doc-parsing-vlm
+```
+
+Rollback / stop:
+
+```bash
+PATH="$HOME/.local/bin:$PATH" modal app rollback modal-doc-parsing-vlm
+PATH="$HOME/.local/bin:$PATH" modal app stop modal-doc-parsing-vlm
+```
+
+`modal app rollback` requires a Modal plan that supports deployment rollbacks.
+
+Seed runtime caches and warm OCR + extraction assets for all enabled profiles
+(or pass `--runtime-profile-name` to limit it):
+
+```bash
+PATH="$HOME/.local/bin:$PATH" modal run app.py::cache_model_weights
+```
+
+Smoke the dedicated extraction flow:
+
+```bash
+PATH="$HOME/.local/bin:$PATH" modal run app.py::smoke_entity_extraction
 ```
 
 Smoke test (fast/final selectable):
@@ -146,23 +228,25 @@ PATH="$HOME/.local/bin:$PATH" modal container list --json | jq -r '.[].container
 ## Testing
 
 ```bash
-pytest
+python3 -m pytest
 ```
 
 Live Modal tests:
 
 ```bash
-RUN_MODAL_TESTS=1 pytest tests/integration/test_modal_smoke.py
+RUN_MODAL_TESTS=1 python3 -m pytest tests/integration/test_modal_smoke.py
 ```
 
 Cost-safe env defaults (override only if you explicitly want warm pools):
 
 ```bash
 export DOC_PARSE_OCR_MIN_CONTAINERS=0
-export DOC_PARSE_OCR_BUFFER_CONTAINERS=0
+export DOC_PARSE_OCR_BUFFER_CONTAINERS=1
 export DOC_PARSE_FALLBACK_MIN_CONTAINERS=0
 export DOC_PARSE_FALLBACK_BUFFER_CONTAINERS=0
-export DOC_PARSE_OCR_SCALEDOWN_WINDOW_SECONDS=300
+export DOC_PARSE_EXTRACTION_MIN_CONTAINERS=1
+export DOC_PARSE_OCR_SCALEDOWN_WINDOW_SECONDS=900
+export DOC_PARSE_EXTRACTION_SCALEDOWN_WINDOW_SECONDS=900
 export DOC_PARSE_FALLBACK_SCALEDOWN_WINDOW_SECONDS=300
 export DOC_PARSE_STALE_JOB_TIMEOUT_SECONDS=1800
 export DOC_PARSE_STALE_JOB_SWEEP_SECONDS=600

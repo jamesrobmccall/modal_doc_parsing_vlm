@@ -16,7 +16,7 @@ from .config import (
     TERMINAL_STATUSES,
 )
 from .fallback_policy import fallback_reasons
-from .page_router import route_pages
+from .page_router import classify_page
 from .rasterize import rasterize_document
 from .source_ingest import compute_request_fingerprint, resolve_source_bytes
 from .types_api import (
@@ -292,10 +292,11 @@ def process_refinement_job(
         storage.set_status(job_id, snapshot)
         return snapshot
 
-    for result in fallback_results:
-        storage.write_page_result(
-            result.model_copy(update={"result_revision": next_revision, "fallback_triggered": True})
-        )
+    with storage.batch():
+        for result in fallback_results:
+            storage.write_page_result(
+                result.model_copy(update={"result_revision": next_revision, "fallback_triggered": True})
+            )
 
     aggregate_started = time.perf_counter()
     aggregate_job(
@@ -373,16 +374,19 @@ def process_job(
     ]
     manifest.file_metadata.pages_total = len(manifest.pages)
 
-    decisions = route_pages(
-        source_bytes=source_bytes,
-        mime_type=manifest.file_metadata.mime_type,
-        page_ids=[page.page_id for page in rasterized_pages],
-    )
+    decisions = {
+        page.page_id: classify_page(
+            page_id=page.page_id,
+            extracted_text=page.extracted_text,
+        )
+        for page in rasterized_pages
+    }
     page_tasks = _build_page_tasks(manifest, rasterized_pages, decisions, manifest.debug)
     manifest.chunk_ids = [f"page-{task.page_id:04d}" for task in page_tasks]
-    storage.write_job_manifest(manifest)
-    for task in page_tasks:
-        storage.write_page_task(task)
+    with storage.batch():
+        storage.write_job_manifest(manifest)
+        for task in page_tasks:
+            storage.write_page_task(task)
     print(
         f"[orchestrator] split complete job_id={job_id} pages={len(manifest.pages)} "
         f"tasks={len(page_tasks)}"
@@ -402,14 +406,16 @@ def process_job(
 
     submit_started = time.perf_counter()
     ocr_tasks: list[PageTask] = []
+    ocr_results: list[PageParseResult] = []
     for task in page_tasks:
         if task.route_engine == ParseEngine.DIGITAL_TEXT:
-            storage.write_page_result(_digital_page_result(task, result_revision=1))
+            ocr_results.append(_digital_page_result(task, result_revision=1))
         else:
             ocr_tasks.append(task.model_copy(update={"result_revision": 1}))
-    ocr_results = _run_page_map(run_ocr_pages, ocr_tasks)
-    for result in ocr_results:
-        storage.write_page_result(result.model_copy(update={"result_revision": 1}))
+    ocr_results.extend(_run_page_map(run_ocr_pages, ocr_tasks))
+    with storage.batch():
+        for result in ocr_results:
+            storage.write_page_result(result.model_copy(update={"result_revision": 1}))
     submit_ms = _elapsed_ms(submit_started)
 
     aggregate_started = time.perf_counter()

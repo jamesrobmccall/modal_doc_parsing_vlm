@@ -26,10 +26,12 @@ HF_CACHE_ROOT = Path("/root/.cache/huggingface")
 HF_HUB_CACHE_ROOT = HF_CACHE_ROOT / "hub"
 VLLM_CACHE_ROOT = Path("/root/.cache/vllm")
 TORCHINDUCTOR_CACHE_ROOT = VLLM_CACHE_ROOT / "torchinductor"
+DEEPGEMM_CACHE_ROOT = Path("/root/.cache/deepgemm")
 PADDLE_CACHE_ROOT = Path("/root/.paddleocr")
 
 HF_CACHE_VOLUME_NAME = "doc-parse-hf-cache"
 VLLM_CACHE_VOLUME_NAME = "doc-parse-vllm-cache"
+DEEPGEMM_CACHE_VOLUME_NAME = "doc-parse-deepgemm-cache"
 ARTIFACTS_VOLUME_NAME = "doc-parse-artifacts"
 PADDLE_CACHE_VOLUME_NAME = "doc-parse-paddle-cache"
 JOB_STATUS_DICT_NAME = "doc-parse-job-status"
@@ -64,10 +66,10 @@ SCALEDOWN_WINDOW_SECONDS = int(
     os.environ.get("DOC_PARSE_FALLBACK_SCALEDOWN_WINDOW_SECONDS", str(60 * 5))
 )
 OCR_SCALEDOWN_WINDOW_SECONDS = int(
-    os.environ.get("DOC_PARSE_OCR_SCALEDOWN_WINDOW_SECONDS", str(60 * 5))
+    os.environ.get("DOC_PARSE_OCR_SCALEDOWN_WINDOW_SECONDS", str(60 * 15))
 )
 OCR_MIN_CONTAINERS = int(os.environ.get("DOC_PARSE_OCR_MIN_CONTAINERS", "0"))
-OCR_BUFFER_CONTAINERS = int(os.environ.get("DOC_PARSE_OCR_BUFFER_CONTAINERS", "0"))
+OCR_BUFFER_CONTAINERS = int(os.environ.get("DOC_PARSE_OCR_BUFFER_CONTAINERS", "1"))
 OCR_ALLOW_CONCURRENT_INPUTS = int(
     os.environ.get("DOC_PARSE_OCR_ALLOW_CONCURRENT_INPUTS", "1")
 )
@@ -94,10 +96,26 @@ VLLM_UV_EXTRA_OPTIONS = (
     "--index-strategy unsafe-best-match "
     "--prerelease=allow"
 )
+SGLANG_IMAGE = "lmsysorg/sglang:v0.5.6.post2-cu129-amd64-runtime"
+PADDLE_GPU_PACKAGE = os.environ.get("DOC_PARSE_PADDLE_GPU_PACKAGE", "paddlepaddle-gpu==3.0.0")
+PADDLE_GPU_INDEX_URL = os.environ.get(
+    "DOC_PARSE_PADDLE_GPU_INDEX_URL",
+    "https://www.paddlepaddle.org.cn/packages/stable/cu126/",
+)
 
 QWEN35_VLLM_PACKAGE = "vllm"
 PADDLE_OCR_ENGINE_NAME = "PP-StructureV3"
 PADDLE_OCR_GPU = os.environ.get("DOC_PARSE_OCR_GPU", "A10G")
+FALLBACK_FAST_BOOT = os.environ.get("DOC_PARSE_FALLBACK_FAST_BOOT", "1").lower() in {
+    "1",
+    "true",
+    "yes",
+}
+OCR_STARTUP_WARMUP_ENABLED = os.environ.get("DOC_PARSE_OCR_STARTUP_WARMUP", "1").lower() in {
+    "1",
+    "true",
+    "yes",
+}
 
 CONTROL_PLANE_DEPENDENCIES = [
     "fastapi==0.121.1",
@@ -119,7 +137,6 @@ COMMON_VLLM_DEPENDENCIES = [
 OCR_DEPENDENCIES = [
     *CONTROL_PLANE_DEPENDENCIES,
     "numpy==2.2.6",
-    "paddlepaddle==3.0.0",
     "paddleocr==2.10.0",
     "opencv-python-headless==4.12.0.88",
 ]
@@ -188,20 +205,28 @@ FALLBACK_TABLE_CONFIDENCE_THRESHOLD = float(
 FALLBACK_MIN_ELEMENT_COUNT = int(os.environ.get("DOC_PARSE_FALLBACK_MIN_ELEMENT_COUNT", "3"))
 
 EXTRACTION_MODEL_ID = os.environ.get(
-    "DOC_PARSE_EXTRACTION_MODEL_ID", "Qwen/Qwen2.5-3B-Instruct"
+    "DOC_PARSE_EXTRACTION_MODEL_ID", "Qwen/Qwen3-4B-Thinking-2507-FP8"
 )
-EXTRACTION_GPU = os.environ.get("DOC_PARSE_EXTRACTION_GPU", "A10G")
+EXTRACTION_MODEL_REVISION = os.environ.get(
+    "DOC_PARSE_EXTRACTION_MODEL_REVISION",
+    "953532f942706930ec4bb870569932ef63038fdf",
+)
+EXTRACTION_GPU = os.environ.get("DOC_PARSE_EXTRACTION_GPU", "H100:1")
+EXTRACTION_REGION = os.environ.get("DOC_PARSE_EXTRACTION_REGION", "us-east")
 EXTRACTION_MAX_MODEL_LEN = int(os.environ.get("DOC_PARSE_EXTRACTION_MAX_MODEL_LEN", "16384"))
 EXTRACTION_SAMPLING_MAX_TOKENS = int(
     os.environ.get("DOC_PARSE_EXTRACTION_SAMPLING_MAX_TOKENS", "4096")
 )
-EXTRACTION_MIN_CONTAINERS = int(os.environ.get("DOC_PARSE_EXTRACTION_MIN_CONTAINERS", "0"))
+EXTRACTION_MIN_CONTAINERS = int(os.environ.get("DOC_PARSE_EXTRACTION_MIN_CONTAINERS", "1"))
 EXTRACTION_BUFFER_CONTAINERS = int(os.environ.get("DOC_PARSE_EXTRACTION_BUFFER_CONTAINERS", "0"))
+EXTRACTION_TARGET_INPUTS = int(
+    os.environ.get("DOC_PARSE_EXTRACTION_TARGET_INPUTS", "4")
+)
 EXTRACTION_ALLOW_CONCURRENT_INPUTS = int(
-    os.environ.get("DOC_PARSE_EXTRACTION_ALLOW_CONCURRENT_INPUTS", "4")
+    os.environ.get("DOC_PARSE_EXTRACTION_ALLOW_CONCURRENT_INPUTS", "8")
 )
 EXTRACTION_SCALEDOWN_WINDOW_SECONDS = int(
-    os.environ.get("DOC_PARSE_EXTRACTION_SCALEDOWN_WINDOW_SECONDS", str(60 * 5))
+    os.environ.get("DOC_PARSE_EXTRACTION_SCALEDOWN_WINDOW_SECONDS", str(60 * 15))
 )
 EXTRACTION_ENGINE_TIMEOUT_SECONDS = int(
     os.environ.get("DOC_PARSE_EXTRACTION_ENGINE_TIMEOUT_SECONDS", "600")
@@ -209,6 +234,15 @@ EXTRACTION_ENGINE_TIMEOUT_SECONDS = int(
 EXTRACTION_SUGGESTION_MAX_CHARS = int(
     os.environ.get("DOC_PARSE_EXTRACTION_SUGGESTION_MAX_CHARS", "8000")
 )
+EXTRACTION_SERVER_PORT = int(os.environ.get("DOC_PARSE_EXTRACTION_SERVER_PORT", "8000"))
+EXTRACTION_HTTP_TIMEOUT_SECONDS = int(
+    os.environ.get("DOC_PARSE_EXTRACTION_HTTP_TIMEOUT_SECONDS", "180")
+)
+EXTRACTION_WARMUP_REQUESTS = int(os.environ.get("DOC_PARSE_EXTRACTION_WARMUP_REQUESTS", "2"))
+EXTRACTION_MAX_RUNNING_REQUESTS = int(
+    os.environ.get("DOC_PARSE_EXTRACTION_MAX_RUNNING_REQUESTS", "8")
+)
+EXTRACTION_MEM_FRACTION = float(os.environ.get("DOC_PARSE_EXTRACTION_MEM_FRACTION", "0.8"))
 
 
 @dataclass(frozen=True)
