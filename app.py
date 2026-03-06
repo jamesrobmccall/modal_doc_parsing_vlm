@@ -25,7 +25,6 @@ from modal_doc_parsing_vlm.config import (
     ARTIFACTS_VOLUME_NAME,
     CONTROL_PLANE_DEPENDENCIES,
     CONTROL_PLANE_PYTHON_VERSION,
-    DEEPGEMM_CACHE_VOLUME_NAME,
     DEFAULT_RUNTIME_PROFILE,
     ENABLED_RUNTIME_PROFILES,
     EXTRACTION_ENGINE_TIMEOUT_SECONDS,
@@ -96,7 +95,6 @@ cache_seed_image = modal.Image.debian_slim(
 
 hf_cache_volume = modal.Volume.from_name(HF_CACHE_VOLUME_NAME, create_if_missing=True)
 vllm_cache_volume = modal.Volume.from_name(VLLM_CACHE_VOLUME_NAME, create_if_missing=True)
-deepgemm_cache_volume = modal.Volume.from_name(DEEPGEMM_CACHE_VOLUME_NAME, create_if_missing=True)
 paddle_cache_volume = modal.Volume.from_name(PADDLE_CACHE_VOLUME_NAME, create_if_missing=True)
 artifacts_volume = modal.Volume.from_name(
     ARTIFACTS_VOLUME_NAME, create_if_missing=True, version=2
@@ -145,7 +143,6 @@ if "dev" in ENABLED_RUNTIME_PROFILES:
 ExtractionEngine = create_extraction_engine_cls(
     app,
     hf_cache_volume=hf_cache_volume,
-    deepgemm_cache_volume=deepgemm_cache_volume,
     export_module=__name__,
 )
 

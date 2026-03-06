@@ -8,7 +8,6 @@ import modal
 
 from .config import (
     CONTROL_PLANE_DEPENDENCIES,
-    DEEPGEMM_CACHE_ROOT,
     EXTRACTION_ALLOW_CONCURRENT_INPUTS,
     EXTRACTION_BUFFER_CONTAINERS,
     EXTRACTION_ENGINE_TIMEOUT_SECONDS,
@@ -30,31 +29,7 @@ from .config import (
 )
 
 
-def _compile_deep_gemm() -> None:
-    completed = subprocess.run(
-        [
-            "python3",
-            "-m",
-            "sglang.compile_deep_gemm",
-            "--model-path",
-            EXTRACTION_MODEL_ID,
-            "--revision",
-            EXTRACTION_MODEL_REVISION,
-            "--tp",
-            "1",
-        ],
-        check=False,
-        text=True,
-        capture_output=True,
-    )
-    if completed.returncode != 0:
-        raise RuntimeError(
-            "DeepGEMM compilation failed: "
-            f"{(completed.stderr or completed.stdout).strip()[:400]}"
-        )
-
-
-def _build_extraction_image(hf_cache_volume, deepgemm_cache_volume) -> modal.Image:
+def _build_extraction_image(hf_cache_volume) -> modal.Image:
     base = (
         modal.Image.from_registry(SGLANG_IMAGE)
         .entrypoint([])
@@ -68,19 +43,10 @@ def _build_extraction_image(hf_cache_volume, deepgemm_cache_volume) -> modal.Ima
                 "HF_HOME": str(HF_CACHE_ROOT),
                 "HF_HUB_CACHE": str(HF_HUB_CACHE_ROOT),
                 "HF_XET_HIGH_PERFORMANCE": "1",
-                "SGLANG_ENABLE_JIT_DEEPGEMM": "1",
             }
         )
     )
-    compiled = base.run_function(
-        _compile_deep_gemm,
-        gpu=EXTRACTION_GPU,
-        volumes={
-            str(HF_CACHE_ROOT): hf_cache_volume,
-            str(DEEPGEMM_CACHE_ROOT): deepgemm_cache_volume,
-        },
-    )
-    return compiled.add_local_python_source("modal_doc_parsing_vlm")
+    return base.add_local_python_source("modal_doc_parsing_vlm")
 
 
 def _check_running(process: subprocess.Popen[str]) -> None:
@@ -147,10 +113,9 @@ def create_extraction_engine_cls(
     app: modal.App,
     *,
     hf_cache_volume,
-    deepgemm_cache_volume,
     export_module: str,
 ):
-    image = _build_extraction_image(hf_cache_volume, deepgemm_cache_volume)
+    image = _build_extraction_image(hf_cache_volume)
 
     @modal.enter()
     def startup(self) -> None:
@@ -181,6 +146,11 @@ def create_extraction_engine_cls(
             "--enable-metrics",
             "--mem-fraction",
             str(EXTRACTION_MEM_FRACTION),
+            "--enable-torch-compile",
+            "--chunked-prefill-size",
+            "2048",
+            "--schedule-policy",
+            "fcfs",
         ]
         print(
             f"[engine:extraction] starting sglang model={EXTRACTION_MODEL_ID} "
@@ -224,7 +194,6 @@ def create_extraction_engine_cls(
         scaledown_window=EXTRACTION_SCALEDOWN_WINDOW_SECONDS,
         volumes={
             str(HF_CACHE_ROOT): hf_cache_volume,
-            str(DEEPGEMM_CACHE_ROOT): deepgemm_cache_volume,
         },
     )(raw_cls)
     return server
