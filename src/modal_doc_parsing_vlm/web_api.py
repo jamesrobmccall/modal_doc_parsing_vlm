@@ -281,6 +281,16 @@ def build_web_api_router(
                     "status": extraction_status.model_dump(mode="json"),
                 },
             )
+        if extraction_status is not None and extraction_status.status == ExtractionStatus.FAILED:
+            return JSONResponse(
+                status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+                content={
+                    "error": "extraction_failed",
+                    "message": extraction_status.error_message
+                    or "Entity extraction failed.",
+                    "status": extraction_status.model_dump(mode="json"),
+                },
+            )
 
         result = service.storage.read_extraction_result(job_id)
         if result is None:
