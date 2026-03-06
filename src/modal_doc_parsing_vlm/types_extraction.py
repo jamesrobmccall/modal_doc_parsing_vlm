@@ -81,6 +81,7 @@ class EntityExtractionStatusPayload(StrictModel):
     entities_requested: int = 0
     pages_processed: int = 0
     pages_total: int = 0
+    error_message: str | None = None
 
 
 _FIELD_TYPE_TO_JSON_SCHEMA: dict[ExtractionFieldType, dict[str, Any]] = {

@@ -13,7 +13,9 @@ from modal_doc_parsing_vlm.types_api import (
 )
 from modal_doc_parsing_vlm.types_extraction import (
     EntityExtractionResult,
+    EntityExtractionStatusPayload,
     EntitySuggestionResponse,
+    ExtractionStatus,
 )
 from modal_doc_parsing_vlm.types_result import JobStatus, MimeType
 
@@ -21,6 +23,7 @@ from modal_doc_parsing_vlm.types_result import JobStatus, MimeType
 class FakeStorage:
     def __init__(self):
         self._source_bytes = b"%PDF-1.7\n"
+        self._extraction_status = None
         self._extraction_result = EntityExtractionResult(
             job_id="job-1",
             entities=[],
@@ -51,7 +54,7 @@ class FakeStorage:
     def get_extraction_status(self, job_id: str):
         if job_id != "job-1":
             raise FileNotFoundError(job_id)
-        return None
+        return self._extraction_status
 
     def read_extraction_result(self, job_id: str):
         if job_id != "job-1":
@@ -316,3 +319,27 @@ def test_extract_entities_ignores_legacy_model_backend():
     assert response.status_code == 202
     assert service.last_extraction_payload is not None
     assert "model_backend" not in service.last_extraction_payload
+
+
+def test_get_extraction_result_returns_failed_status_message():
+    service = FakeService()
+    service.storage._extraction_status = EntityExtractionStatusPayload(
+        job_id="job-1",
+        status=ExtractionStatus.FAILED,
+        entities_requested=1,
+        pages_total=1,
+        error_message="Whole-document extraction is too large. Use per-page extraction.",
+    )
+    client = TestClient(
+        build_fastapi_app(
+            service,
+            store_upload=lambda *_args, **_kwargs: "upload-1",
+        )
+    )
+
+    response = client.get("/api/jobs/job-1/entities/result")
+
+    assert response.status_code == 422
+    payload = response.json()
+    assert payload["error"] == "extraction_failed"
+    assert "Use per-page extraction" in payload["message"]

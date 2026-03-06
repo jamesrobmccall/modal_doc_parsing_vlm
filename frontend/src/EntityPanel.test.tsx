@@ -61,4 +61,53 @@ describe("EntityPanel", () => {
       );
     });
   });
+
+  it("defaults parsed-document extraction to per_page", async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValueOnce(
+        jsonResponse({
+          job_id: "job-1",
+          suggested_entities: [
+            {
+              entity_name: "Invoice",
+              description: "Invoice header",
+              fields: [
+                {
+                  name: "invoice_number",
+                  field_type: "string",
+                  description: "",
+                  required: true,
+                  examples: []
+                }
+              ]
+            }
+          ],
+          document_summary: "summary"
+        })
+      )
+      .mockResolvedValueOnce(jsonResponse({ job_id: "job-1", status: "extracting" }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    render(<EntityPanel jobId="job-1" />);
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "Suggest Entities" }));
+
+    const modeSelect = await screen.findByDisplayValue(
+      "Per Page (extract from each page independently)"
+    );
+    expect(modeSelect).toHaveValue("per_page");
+
+    await user.click(screen.getByRole("button", { name: "Run Extraction" }));
+
+    await waitFor(() => {
+      expect(fetchMock).toHaveBeenCalledWith(
+        "/api/jobs/job-1/entities/extract",
+        expect.objectContaining({ method: "POST" })
+      );
+    });
+    const request = fetchMock.mock.calls[1]?.[1] as RequestInit;
+    expect(request.body).toContain('"extraction_mode":"per_page"');
+  });
 });

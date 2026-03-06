@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import inspect
 import concurrent.futures
 import json
 import mimetypes
@@ -42,6 +43,7 @@ from modal_doc_parsing_vlm.config import (
     STALE_JOB_SWEEP_SECONDS,
     STALE_JOB_TIMEOUT_SECONDS,
     VLLM_CACHE_VOLUME_NAME,
+    EXTRACTION_WHOLE_DOCUMENT_MAX_CHARS,
     get_runtime_profile,
 )
 from modal_doc_parsing_vlm.config import (
@@ -356,6 +358,10 @@ def _resolve_extraction_base_url() -> str | None:
 
     try:
         resolved = ExtractionEngine.get_urls()
+        if inspect.isawaitable(resolved):
+            import asyncio
+
+            resolved = asyncio.run(resolved)
     except Exception as exc:  # noqa: BLE001
         print(f"[app] failed to resolve extraction server url: {exc!r}")
         return None
@@ -396,14 +402,36 @@ def _call_extraction_chat_completion(
             if response.status_code in {502, 503, 504} and attempt < 4:
                 time.sleep(float(attempt))
                 continue
+            if 400 <= response.status_code < 500:
+                raise RuntimeError(
+                    "Extraction server rejected the request: "
+                    f"status={response.status_code} "
+                    f"body={_format_error_message(response.text, limit=1200)}"
+                )
             response.raise_for_status()
             return response.json(), int((time.perf_counter() - started) * 1000)
-        except (httpx.HTTPError, httpx.TimeoutException) as exc:
+        except RuntimeError:
+            raise
+        except (httpx.HTTPStatusError, httpx.TimeoutException, httpx.TransportError) as exc:
             last_exc = exc
             if attempt < 4:
                 time.sleep(float(attempt))
                 continue
     raise RuntimeError(f"Extraction HTTP request failed after retries: {last_exc!r}")
+
+
+def _validate_whole_document_extraction_size(document_markdown: str) -> None:
+    char_count = len(document_markdown)
+    if char_count <= EXTRACTION_WHOLE_DOCUMENT_MAX_CHARS:
+        return
+    approx_input_tokens = max(1, char_count // 3)
+    raise ValueError(
+        "Whole-document extraction is too large for the extraction model context window. "
+        f"document_chars={char_count} "
+        f"safe_limit_chars={EXTRACTION_WHOLE_DOCUMENT_MAX_CHARS} "
+        f"approx_input_tokens={approx_input_tokens}. "
+        "Use per-page extraction for parsed documents."
+    )
 
 
 def _wait_for_extraction_server(
@@ -599,98 +627,124 @@ def run_entity_extraction(job_id: str, request_payload: dict) -> dict:
         ),
     )
 
-    base_url = _ensure_extraction_server_ready(
-        timeout_seconds=EXTRACTION_ENGINE_TIMEOUT_SECONDS,
-    )
-    all_extracted: list[ExtractedEntity] = []
-    total_inference_ms = 0
-
-    for entity in request.entities:
-        json_schema = entity_definition_to_json_schema(entity)
-        session_id = build_modal_session_id(
-            job_id,
-            scope="extract",
-            entity_name=entity.entity_name,
+    try:
+        if request.extraction_mode == ExtractionMode.WHOLE_DOCUMENT:
+            _validate_whole_document_extraction_size(document_markdown)
+        base_url = _ensure_extraction_server_ready(
+            timeout_seconds=EXTRACTION_ENGINE_TIMEOUT_SECONDS,
         )
 
-        if request.extraction_mode == ExtractionMode.WHOLE_DOCUMENT:
-            payload = build_entity_extraction_chat_request(
-                entity=entity,
-                page_text=document_markdown,
-                model_id=EXTRACTION_MODEL_ID,
-                json_schema=json_schema,
-                max_tokens=4096,
+        all_extracted: list[ExtractedEntity] = []
+        total_inference_ms = 0
+
+        for entity in request.entities:
+            json_schema = entity_definition_to_json_schema(entity)
+            session_id = build_modal_session_id(
+                job_id,
+                scope="extract",
+                entity_name=entity.entity_name,
             )
-            raw_response, inference_ms = _call_extraction_chat_completion(
-                payload,
-                session_id=session_id,
-                base_url=base_url,
-            )
-            all_extracted.append(
-                ExtractedEntity(
-                    entity_name=entity.entity_name,
-                    page_id=None,
-                    data=json.loads(extract_chat_completion_content(raw_response)),
-                )
-            )
-            total_inference_ms += inference_ms
-        else:
-            def _extract_page(page_task: tuple[int, str]) -> tuple[int, dict[str, object], int]:
-                page_id, page_markdown = page_task
+
+            if request.extraction_mode == ExtractionMode.WHOLE_DOCUMENT:
                 payload = build_entity_extraction_chat_request(
                     entity=entity,
-                    page_text=page_markdown,
+                    page_text=document_markdown,
                     model_id=EXTRACTION_MODEL_ID,
                     json_schema=json_schema,
                     max_tokens=4096,
                 )
-                response, inference_ms = _call_extraction_chat_completion(
+                raw_response, inference_ms = _call_extraction_chat_completion(
                     payload,
                     session_id=session_id,
                     base_url=base_url,
                 )
-                return page_id, response, inference_ms
-
-            if page_tasks:
-                max_workers = max(1, min(len(page_tasks), 4))
-                with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-                    results = list(executor.map(_extract_page, page_tasks))
-                for page_id, raw_response, inference_ms in results:
-                    all_extracted.append(
-                        ExtractedEntity(
-                            entity_name=entity.entity_name,
-                            page_id=page_id,
-                            data=json.loads(extract_chat_completion_content(raw_response)),
-                        )
+                all_extracted.append(
+                    ExtractedEntity(
+                        entity_name=entity.entity_name,
+                        page_id=None,
+                        data=json.loads(extract_chat_completion_content(raw_response)),
                     )
-                    total_inference_ms += inference_ms
+                )
+                total_inference_ms += inference_ms
+            else:
+                def _extract_page(page_task: tuple[int, str]) -> tuple[int, dict[str, object], int]:
+                    page_id, page_markdown = page_task
+                    payload = build_entity_extraction_chat_request(
+                        entity=entity,
+                        page_text=page_markdown,
+                        model_id=EXTRACTION_MODEL_ID,
+                        json_schema=json_schema,
+                        max_tokens=4096,
+                    )
+                    response, inference_ms = _call_extraction_chat_completion(
+                        payload,
+                        session_id=session_id,
+                        base_url=base_url,
+                    )
+                    return page_id, response, inference_ms
 
-    extraction_result = EntityExtractionResult(
-        job_id=job_id,
-        entities=all_extracted,
-        schema_used=request.entities,
-        extraction_mode=request.extraction_mode,
-        model_id=EXTRACTION_MODEL_ID,
-        inference_ms=total_inference_ms,
-    )
-    with storage.batch():
-        storage.write_extraction_result(job_id, extraction_result)
-        storage.write_cached_extraction_result(job_id, fingerprint, extraction_result)
+                if page_tasks:
+                    max_workers = max(1, min(len(page_tasks), 4))
+                    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
+                        results = list(executor.map(_extract_page, page_tasks))
+                    for page_id, raw_response, inference_ms in results:
+                        all_extracted.append(
+                            ExtractedEntity(
+                                entity_name=entity.entity_name,
+                                page_id=page_id,
+                                data=json.loads(extract_chat_completion_content(raw_response)),
+                            )
+                        )
+                        total_inference_ms += inference_ms
+
+        extraction_result = EntityExtractionResult(
+            job_id=job_id,
+            entities=all_extracted,
+            schema_used=request.entities,
+            extraction_mode=request.extraction_mode,
+            model_id=EXTRACTION_MODEL_ID,
+            inference_ms=total_inference_ms,
+        )
+        with storage.batch():
+            storage.write_extraction_result(job_id, extraction_result)
+            storage.write_cached_extraction_result(job_id, fingerprint, extraction_result)
+            storage.set_extraction_status(
+                job_id,
+                EntityExtractionStatusPayload(
+                    job_id=job_id,
+                    status=ExtractionStatus.COMPLETED,
+                    entities_requested=len(request.entities),
+                    pages_processed=pages_total,
+                    pages_total=pages_total,
+                ),
+            )
+        print(
+            f"[app] run_entity_extraction complete job_id={job_id} "
+            f"entities_extracted={len(all_extracted)} inference_ms={total_inference_ms}"
+        )
+        return extraction_result.model_dump(mode="json")
+    except Exception as exc:  # noqa: BLE001
+        error_message = _format_error_message(str(exc), limit=1200)
         storage.set_extraction_status(
             job_id,
             EntityExtractionStatusPayload(
                 job_id=job_id,
-                status=ExtractionStatus.COMPLETED,
+                status=ExtractionStatus.FAILED,
                 entities_requested=len(request.entities),
-                pages_processed=pages_total,
+                pages_processed=0,
                 pages_total=pages_total,
+                error_message=error_message,
             ),
         )
-    print(
-        f"[app] run_entity_extraction complete job_id={job_id} "
-        f"entities_extracted={len(all_extracted)} inference_ms={total_inference_ms}"
-    )
-    return extraction_result.model_dump(mode="json")
+        print(
+            f"[app] run_entity_extraction failed job_id={job_id} "
+            f"error={error_message}"
+        )
+        return {
+            "job_id": job_id,
+            "status": ExtractionStatus.FAILED.value,
+            "error_message": error_message,
+        }
 
 
 @app.function(image=control_plane_image, volumes={str(ARTIFACT_ROOT): artifacts_volume})

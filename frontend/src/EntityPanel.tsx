@@ -53,7 +53,9 @@ export default function EntityPanel({ jobId }: { jobId: string | null }) {
   const [phase, setPhase] = useState<ExtractionPhase>("idle");
   const [entities, setEntities] = useState<EntityDefinition[]>([]);
   const [docSummary, setDocSummary] = useState("");
-  const [extractionMode, setExtractionMode] = useState<ExtractionMode>("whole_document");
+  const [extractionMode, setExtractionMode] = useState<ExtractionMode>(
+    jobId ? "per_page" : "whole_document"
+  );
   const [extractionResult, setExtractionResult] = useState<ExtractionResult | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -61,6 +63,7 @@ export default function EntityPanel({ jobId }: { jobId: string | null }) {
   useEffect(() => {
     if (inputMode === "document") {
       setActiveJobId(jobId);
+      setExtractionMode("per_page");
     }
   }, [jobId, inputMode]);
 
@@ -165,7 +168,14 @@ export default function EntityPanel({ jobId }: { jobId: string | null }) {
           if (!cancelled) timeoutId = window.setTimeout(poll, 3000);
           return;
         }
-        if (!res.ok) throw new Error(`Result fetch failed (${res.status})`);
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          throw new Error(
+            (body as { message?: string; detail?: string }).message ||
+              (body as { message?: string; detail?: string }).detail ||
+              `Result fetch failed (${res.status})`
+          );
+        }
         const data = (await res.json()) as ExtractionResult;
         if (!cancelled) {
           setExtractionResult(data);
