@@ -7,16 +7,16 @@
 1. FastAPI web app exposed through `web()`
 2. Control-plane functions for submission, orchestration, result reads, extraction, and cleanup
 3. `OcrParserEngine` for OCR/layout parsing on `A10G`
-4. `DevFallbackEngine` and `ProdFallbackEngine` for fallback VLM parsing on `A10G`
-5. `ExtractionEngine`, an on-demand online SGLang server on `H100:1`
-6. `ExtractionBatchEngine`, an optional batched per-page extraction worker on `H100:1`
+4. `DevFallbackEngine` and `ProdFallbackEngine` for fallback VLM parsing on `L4`
+5. `ExtractionEngine`, an on-demand online SGLang server on `L4`
+6. `ExtractionBatchEngine`, an optional batched per-page extraction worker on `L4`
 
 Persistent state is split across Modal Volumes and Dicts:
 
 - `doc-parse-artifacts`: source files, page images, page results, and final result bundles
 - `doc-parse-hf-cache`: Hugging Face snapshots
 - `doc-parse-vllm-cache`: vLLM and TorchInductor caches
-- `doc-parse-deepgemm-cache`: SGLang DeepGEMM compilation cache
+- `doc-parse-deepgemm-cache`: SGLang DeepGEMM compilation cache when enabled
 - `doc-parse-paddle-cache`: PaddleOCR assets
 - `doc-parse-job-status`: job status snapshots
 - `doc-parse-idempotency`: request fingerprint dedupe records
@@ -67,7 +67,7 @@ The fallback policy inspects the fast-stage results and marks only hard pages fo
 
 Each fallback worker:
 
-- loads a pinned `Qwen/Qwen2.5-VL-7B-Instruct` revision
+- loads a pinned `Qwen/Qwen3-VL-8B-Instruct-FP8` revision
 - builds multimodal prompts for every page in the chunk
 - runs one batched `LLM.chat(...)` call for the chunk
 - maps outputs back to the original page order
@@ -81,7 +81,7 @@ The fallback stack supports `prod` and `dev` runtime profiles. Both pin the same
 - `dev`: `enforce_eager=True` for easier iteration and more predictable debug behavior
 - `prod`: `enforce_eager=False` for better warm-throughput behavior
 
-Both currently use one `A10G` and no tensor parallelism.
+Both currently use one `L4`, no tensor parallelism, `trust_remote_code=True`, and `gpu_memory_utilization=0.70`.
 
 ## Extraction Architecture
 
@@ -98,8 +98,9 @@ It uses sticky `Modal-Session-ID` routing and is tuned around:
 
 - `min_containers=0`
 - `max_containers=1`
-- `target_concurrency=8`
-- `max_running_requests=8`
+- `target_concurrency=4`
+- `max_running_requests=4`
+- `mem_fraction=0.70`
 
 Token budgets:
 
@@ -108,7 +109,7 @@ Token budgets:
 
 ### Batched Per-Page Path
 
-By default, per-page extraction stays on the online extraction server so the system does not need a second H100 just for batch work.
+By default, per-page extraction stays on the online extraction server so the system does not need a second L4 just for batch work.
 
 If `DOC_PARSE_USE_DEDICATED_EXTRACTION_BATCH_ENGINE=1` is set, `run_entity_extraction` flattens per-page extraction into `(entity, page)` work items and sends them to `ExtractionBatchEngine.extract_pages`.
 
@@ -116,9 +117,11 @@ When enabled, `ExtractionBatchEngine`:
 
 - starts its own local SGLang server in `@modal.enter`
 - accepts a list of work items
-- is wrapped in `@modal.batched(max_batch_size=8, wait_ms=20)`
+- is wrapped in `@modal.batched(max_batch_size=4, wait_ms=20)`
 - is capped to one container by default
 - returns list-aligned results so the control plane can reconstruct final output
+
+The extraction image now enables DeepGEMM only when the selected extraction GPU is Hopper or Blackwell-class, or when `DOC_PARSE_EXTRACTION_ENABLE_DEEPGEMM=true` is set explicitly. The default `L4` profile skips DeepGEMM compilation and uses the standard SGLang runtime path.
 
 Per-page token budget:
 
@@ -152,13 +155,66 @@ There are two valid ways to benchmark this project, and they measure different t
 - first-run SGLang compilation
 - model warmup
 
-Cost note: ephemeral `modal run` apps are separate from the deployed app. If you keep warm pools enabled, each app can reserve its own GPUs. The cost-safe defaults in this repo now set warm H100 pools to zero and cap worker container counts to avoid that duplication in dev/perf environments.
+Cost note: ephemeral `modal run` apps are separate from the deployed app. If you keep warm pools enabled, each app can reserve its own GPUs. The cost-safe defaults in this repo cap worker container counts and keep warm pools at zero to avoid duplicated spend in dev and perf environments.
 
 ### Deployed-App Benchmarks
 
 For steadier numbers, benchmark a deployed environment by calling the deployed functions or HTTP endpoints directly. This reuses the long-lived deployed topology and is a better fit for throughput measurements once the service is warm.
 
 Because submission is idempotent, benchmark reruns need unique input bytes or a changed payload to avoid accidentally reusing an existing `job_id`.
+
+## Result Lifecycle
+
+Job status values:
+
+- **Active**: `queued`, `splitting`, `submitting`, `running`, `aggregating`
+- **Staged complete**: `completed_fast` (OCR result ready), `completed_final` (VLM refinement done)
+- **Terminal errors**: `completed_with_errors`, `failed`
+
+Parse status also reports `result_revision` and `pending_refinement_pages`.
+
+Extraction status also reports `requests_total` and `requests_completed`.
+
+## Smoke Tests And Warmup
+
+Warm caches and startup paths:
+
+```bash
+./.venv/bin/modal run app.py::cache_model_weights
+```
+
+Smoke the extraction stack:
+
+```bash
+./.venv/bin/modal run app.py::smoke_entity_extraction
+```
+
+Smoke the document parser:
+
+```bash
+./.venv/bin/modal run app.py::smoke_test --runtime-profile-name dev --latency-profile fast --result-level latest
+./.venv/bin/modal run app.py::smoke_test --runtime-profile-name dev --latency-profile balanced --result-level latest
+```
+
+Environment-scoped smoke helper:
+
+```bash
+MODAL_ENVIRONMENT=codex-doc-parse-perf ./scripts/safe_modal_smoke.sh
+```
+
+## Benchmarks
+
+Built-in CLI entrypoints:
+
+```bash
+./.venv/bin/modal run app.py::benchmark_ocr_fast --sample-path tmp/benchmark-5pages.pdf
+./.venv/bin/modal run app.py::benchmark_fallback_refinement --sample-path tmp/benchmark-5pages.pdf
+./.venv/bin/modal run app.py::benchmark_per_page_extraction --sample-path tmp/benchmark-5pages.pdf
+```
+
+These run against real Modal infra using ephemeral `modal run` apps, so wall time may include cold starts, asset downloads, and first-run compilation. For steadier numbers, benchmark against a deployed environment directly.
+
+Because submission is idempotent, benchmark reruns need unique input bytes or a changed payload to avoid reusing an existing `job_id`.
 
 ## Testing And Cleanup
 
@@ -179,3 +235,17 @@ Safe cleanup is environment-scoped:
 4. `./.venv/bin/modal environment delete <env> --yes`
 
 Avoid workspace-wide cleanup commands when testing in shared Modal workspaces.
+
+Useful post-deploy commands:
+
+```bash
+./.venv/bin/modal app logs modal-doc-parsing-vlm --timestamps
+./.venv/bin/modal app dashboard modal-doc-parsing-vlm
+./.venv/bin/modal app history modal-doc-parsing-vlm
+```
+
+Mark stale jobs failed immediately:
+
+```bash
+./.venv/bin/modal run app.py::cleanup_stale_now
+```

@@ -21,6 +21,7 @@ from .config import (
     EXTRACTION_BATCH_MAX_SIZE,
     EXTRACTION_BATCH_WAIT_MS,
     EXTRACTION_BUFFER_CONTAINERS,
+    EXTRACTION_ENABLE_DEEPGEMM,
     EXTRACTION_ENGINE_TIMEOUT_SECONDS,
     EXTRACTION_GPU,
     EXTRACTION_MAX_CONTAINERS,
@@ -66,6 +67,17 @@ def _compile_deep_gemm() -> None:
         )
 
 
+def _extraction_runtime_env() -> dict[str, str]:
+    env = {
+        "HF_HOME": str(HF_CACHE_ROOT),
+        "HF_HUB_CACHE": str(HF_HUB_CACHE_ROOT),
+        "HF_XET_HIGH_PERFORMANCE": "1",
+    }
+    if EXTRACTION_ENABLE_DEEPGEMM:
+        env["SGLANG_ENABLE_JIT_DEEPGEMM"] = "1"
+    return env
+
+
 def _build_extraction_image(hf_cache_volume, deepgemm_cache_volume) -> modal.Image:
     base = (
         modal.Image.from_registry(SGLANG_IMAGE)
@@ -75,24 +87,18 @@ def _build_extraction_image(hf_cache_volume, deepgemm_cache_volume) -> modal.Ima
             "huggingface-hub==0.36.0",
             "requests==2.32.5",
         )
-        .env(
-            {
-                "HF_HOME": str(HF_CACHE_ROOT),
-                "HF_HUB_CACHE": str(HF_HUB_CACHE_ROOT),
-                "HF_XET_HIGH_PERFORMANCE": "1",
-                "SGLANG_ENABLE_JIT_DEEPGEMM": "1",
-            }
+        .env(_extraction_runtime_env())
+    )
+    if EXTRACTION_ENABLE_DEEPGEMM:
+        base = base.run_function(
+            _compile_deep_gemm,
+            gpu=EXTRACTION_GPU,
+            volumes={
+                str(HF_CACHE_ROOT): hf_cache_volume,
+                str(DEEPGEMM_CACHE_ROOT): deepgemm_cache_volume,
+            },
         )
-    )
-    compiled = base.run_function(
-        _compile_deep_gemm,
-        gpu=EXTRACTION_GPU,
-        volumes={
-            str(HF_CACHE_ROOT): hf_cache_volume,
-            str(DEEPGEMM_CACHE_ROOT): deepgemm_cache_volume,
-        },
-    )
-    return compiled.add_local_python_source("modal_doc_parsing_vlm")
+    return base.add_local_python_source("modal_doc_parsing_vlm")
 
 
 def _check_running(process: subprocess.Popen[str]) -> None:
@@ -213,7 +219,8 @@ def create_extraction_engine_cls(
     def startup(self) -> None:
         print(
             f"[engine:extraction] starting sglang model={EXTRACTION_MODEL_ID} "
-            f"revision={EXTRACTION_MODEL_REVISION} gpu={EXTRACTION_GPU}"
+            f"revision={EXTRACTION_MODEL_REVISION} gpu={EXTRACTION_GPU} "
+            f"deepgemm={EXTRACTION_ENABLE_DEEPGEMM}"
         )
         self.process = subprocess.Popen(_server_command())
         _wait_ready(self.process, timeout=EXTRACTION_ENGINE_TIMEOUT_SECONDS)
@@ -273,7 +280,8 @@ def create_extraction_batch_engine_cls(
     def startup(self) -> None:
         print(
             f"[engine:extraction-batch] starting sglang model={EXTRACTION_MODEL_ID} "
-            f"revision={EXTRACTION_MODEL_REVISION} gpu={EXTRACTION_GPU}"
+            f"revision={EXTRACTION_MODEL_REVISION} gpu={EXTRACTION_GPU} "
+            f"deepgemm={EXTRACTION_ENABLE_DEEPGEMM}"
         )
         self.process = subprocess.Popen(_server_command())
         _wait_ready(self.process, timeout=EXTRACTION_ENGINE_TIMEOUT_SECONDS)

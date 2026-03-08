@@ -25,7 +25,7 @@ def make_manifest() -> JobManifest:
         request_payload={},
         output_formats=["json", "markdown", "text"],
         debug=DebugOptions(),
-        model_id="Qwen/Qwen2.5-VL-7B-Instruct",
+        model_id="Qwen/Qwen3-VL-8B-Instruct-FP8",
         pipeline_mode=ParseMode.BALANCED,
         file_metadata=FileMetadata(
             file_name="doc.pdf",

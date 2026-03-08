@@ -68,6 +68,7 @@ def build_vllm_image(runtime_profile) -> modal.Image:
 
 
 def _prompt_to_messages(prompt: str, image) -> list[dict[str, Any]]:
+    # Qwen3-VL consumes the OpenAI-style multimodal content format in vLLM chat.
     return [
         {
             "role": "system",
@@ -142,6 +143,7 @@ def create_engine_cls(
             "tokenizer_revision": runtime_profile.tokenizer_revision,
             "tensor_parallel_size": runtime_profile.tensor_parallel_size,
             "max_model_len": runtime_profile.max_model_len,
+            "gpu_memory_utilization": runtime_profile.gpu_memory_utilization,
             "enforce_eager": self.fast_boot,
             "download_dir": str(HF_HUB_CACHE_ROOT),
         }

@@ -40,7 +40,7 @@ def test_build_chunks_is_deterministic():
         parser_version="1.0.0",
         runtime_profile="dev",
         artifact_root="/artifacts",
-        model_id="Qwen/Qwen2.5-VL-7B-Instruct",
+        model_id="Qwen/Qwen3-VL-8B-Instruct-FP8",
         language_hint=None,
         debug=DebugOptions(),
         page_tasks=[make_task(page_id) for page_id in range(20)],

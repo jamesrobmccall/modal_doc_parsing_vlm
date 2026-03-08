@@ -213,6 +213,23 @@ FALLBACK_TABLE_CONFIDENCE_THRESHOLD = float(
     os.environ.get("DOC_PARSE_FALLBACK_TABLE_CONFIDENCE_THRESHOLD", "0.80")
 )
 FALLBACK_MIN_ELEMENT_COUNT = int(os.environ.get("DOC_PARSE_FALLBACK_MIN_ELEMENT_COUNT", "3"))
+FALLBACK_MODEL_ID = os.environ.get(
+    "DOC_PARSE_FALLBACK_MODEL_ID",
+    "Qwen/Qwen3-VL-8B-Instruct-FP8",
+)
+FALLBACK_MODEL_REVISION = os.environ.get(
+    "DOC_PARSE_FALLBACK_MODEL_REVISION",
+    "9cdc6310a8cb770ce18efaf4e9935334512aee45",
+)
+FALLBACK_TOKENIZER_REVISION = os.environ.get(
+    "DOC_PARSE_FALLBACK_TOKENIZER_REVISION",
+    FALLBACK_MODEL_REVISION,
+)
+FALLBACK_GPU = os.environ.get("DOC_PARSE_FALLBACK_GPU", "L4")
+FALLBACK_GPU_MEMORY_UTILIZATION = float(
+    os.environ.get("DOC_PARSE_FALLBACK_GPU_MEMORY_UTILIZATION", "0.70")
+)
+FALLBACK_MAX_MODEL_LEN = 8192
 
 EXTRACTION_MODEL_ID = os.environ.get(
     "DOC_PARSE_EXTRACTION_MODEL_ID", "Qwen/Qwen3-4B-Thinking-2507-FP8"
@@ -221,9 +238,9 @@ EXTRACTION_MODEL_REVISION = os.environ.get(
     "DOC_PARSE_EXTRACTION_MODEL_REVISION",
     "953532f942706930ec4bb870569932ef63038fdf",
 )
-EXTRACTION_GPU = os.environ.get("DOC_PARSE_EXTRACTION_GPU", "H100:1")
+EXTRACTION_GPU = os.environ.get("DOC_PARSE_EXTRACTION_GPU", "L4")
 EXTRACTION_REGION = os.environ.get("DOC_PARSE_EXTRACTION_REGION", "us-east")
-EXTRACTION_MAX_MODEL_LEN = int(os.environ.get("DOC_PARSE_EXTRACTION_MAX_MODEL_LEN", "16384"))
+EXTRACTION_MAX_MODEL_LEN = int(os.environ.get("DOC_PARSE_EXTRACTION_MAX_MODEL_LEN", "12288"))
 EXTRACTION_SAMPLING_MAX_TOKENS = int(
     os.environ.get("DOC_PARSE_EXTRACTION_SAMPLING_MAX_TOKENS", "4096")
 )
@@ -231,10 +248,10 @@ EXTRACTION_MIN_CONTAINERS = int(os.environ.get("DOC_PARSE_EXTRACTION_MIN_CONTAIN
 EXTRACTION_MAX_CONTAINERS = int(os.environ.get("DOC_PARSE_EXTRACTION_MAX_CONTAINERS", "1"))
 EXTRACTION_BUFFER_CONTAINERS = int(os.environ.get("DOC_PARSE_EXTRACTION_BUFFER_CONTAINERS", "0"))
 EXTRACTION_TARGET_INPUTS = int(
-    os.environ.get("DOC_PARSE_EXTRACTION_TARGET_INPUTS", "8")
+    os.environ.get("DOC_PARSE_EXTRACTION_TARGET_INPUTS", "4")
 )
 EXTRACTION_ALLOW_CONCURRENT_INPUTS = int(
-    os.environ.get("DOC_PARSE_EXTRACTION_ALLOW_CONCURRENT_INPUTS", "8")
+    os.environ.get("DOC_PARSE_EXTRACTION_ALLOW_CONCURRENT_INPUTS", "4")
 )
 EXTRACTION_SCALEDOWN_WINDOW_SECONDS = int(
     os.environ.get("DOC_PARSE_EXTRACTION_SCALEDOWN_WINDOW_SECONDS", str(60 * 2))
@@ -260,11 +277,11 @@ EXTRACTION_PER_PAGE_MAX_TOKENS = int(
     os.environ.get("DOC_PARSE_EXTRACTION_PER_PAGE_MAX_TOKENS", "1024")
 )
 EXTRACTION_MAX_RUNNING_REQUESTS = int(
-    os.environ.get("DOC_PARSE_EXTRACTION_MAX_RUNNING_REQUESTS", "8")
+    os.environ.get("DOC_PARSE_EXTRACTION_MAX_RUNNING_REQUESTS", "4")
 )
-EXTRACTION_MEM_FRACTION = float(os.environ.get("DOC_PARSE_EXTRACTION_MEM_FRACTION", "0.8"))
+EXTRACTION_MEM_FRACTION = float(os.environ.get("DOC_PARSE_EXTRACTION_MEM_FRACTION", "0.70"))
 EXTRACTION_BATCH_MAX_SIZE = int(
-    os.environ.get("DOC_PARSE_EXTRACTION_BATCH_MAX_SIZE", "8")
+    os.environ.get("DOC_PARSE_EXTRACTION_BATCH_MAX_SIZE", "4")
 )
 EXTRACTION_BATCH_WAIT_MS = int(
     os.environ.get("DOC_PARSE_EXTRACTION_BATCH_WAIT_MS", "20")
@@ -272,6 +289,34 @@ EXTRACTION_BATCH_WAIT_MS = int(
 EXTRACTION_BATCH_MAX_CONTAINERS = int(
     os.environ.get("DOC_PARSE_EXTRACTION_BATCH_MAX_CONTAINERS", "1")
 )
+
+
+def _normalized_gpu_type(gpu: str) -> str:
+    return gpu.split(":", 1)[0].strip().upper()
+
+
+def extraction_gpu_supports_deepgemm(gpu: str) -> bool:
+    return _normalized_gpu_type(gpu).startswith(("H100", "H200", "GH200", "B200", "GB200"))
+
+
+def resolve_extraction_enable_deepgemm(gpu: str, value: str | None) -> bool:
+    normalized = (value or "auto").strip().lower()
+    if normalized in {"", "auto"}:
+        return extraction_gpu_supports_deepgemm(gpu)
+    if normalized in {"1", "true", "yes", "on"}:
+        return True
+    if normalized in {"0", "false", "no", "off"}:
+        return False
+    raise ValueError(
+        "DOC_PARSE_EXTRACTION_ENABLE_DEEPGEMM must be one of: auto, true, false"
+    )
+
+
+EXTRACTION_ENABLE_DEEPGEMM = resolve_extraction_enable_deepgemm(
+    EXTRACTION_GPU,
+    os.environ.get("DOC_PARSE_EXTRACTION_ENABLE_DEEPGEMM", "auto"),
+)
+
 USE_DEDICATED_EXTRACTION_BATCH_ENGINE = os.environ.get(
     "DOC_PARSE_USE_DEDICATED_EXTRACTION_BATCH_ENGINE",
     "",
@@ -316,6 +361,7 @@ class RuntimeProfile:
     trust_remote_code: bool = False
     disable_thinking: bool = False
     max_model_len: int = 16384
+    gpu_memory_utilization: float = 0.9
     enforce_eager: bool = False
     fallback_model_id: str | None = None
     deep_refine_model_id: str | None = None
@@ -324,31 +370,35 @@ class RuntimeProfile:
 RUNTIME_PROFILES = {
     "prod": RuntimeProfile(
         name="prod",
-        model_id="Qwen/Qwen2.5-VL-7B-Instruct",
-        model_revision="cc594898137f460bfe9f0759e9844b3ce807cfb5",
-        tokenizer_revision="cc594898137f460bfe9f0759e9844b3ce807cfb5",
-        gpu="A10G",
+        model_id=FALLBACK_MODEL_ID,
+        model_revision=FALLBACK_MODEL_REVISION,
+        tokenizer_revision=FALLBACK_TOKENIZER_REVISION,
+        gpu=FALLBACK_GPU,
         vllm_package=QWEN35_VLLM_PACKAGE,
         vllm_extra_index_url=VLLM_NIGHTLY_EXTRA_INDEX_URL,
         vllm_extra_options=VLLM_UV_EXTRA_OPTIONS,
+        trust_remote_code=True,
         disable_thinking=True,
-        max_model_len=8192,
-        fallback_model_id="Qwen/Qwen2.5-VL-7B-Instruct",
+        max_model_len=FALLBACK_MAX_MODEL_LEN,
+        gpu_memory_utilization=FALLBACK_GPU_MEMORY_UTILIZATION,
+        fallback_model_id=FALLBACK_MODEL_ID,
         deep_refine_model_id="Qwen/Qwen3.5-27B-FP8",
     ),
     "dev": RuntimeProfile(
         name="dev",
-        model_id="Qwen/Qwen2.5-VL-7B-Instruct",
-        model_revision="cc594898137f460bfe9f0759e9844b3ce807cfb5",
-        tokenizer_revision="cc594898137f460bfe9f0759e9844b3ce807cfb5",
-        gpu="A10G",
+        model_id=FALLBACK_MODEL_ID,
+        model_revision=FALLBACK_MODEL_REVISION,
+        tokenizer_revision=FALLBACK_TOKENIZER_REVISION,
+        gpu=FALLBACK_GPU,
         vllm_package=QWEN35_VLLM_PACKAGE,
         vllm_extra_index_url=VLLM_NIGHTLY_EXTRA_INDEX_URL,
         vllm_extra_options=VLLM_UV_EXTRA_OPTIONS,
+        trust_remote_code=True,
         disable_thinking=True,
         enforce_eager=True,
-        max_model_len=8192,
-        fallback_model_id="Qwen/Qwen2.5-VL-7B-Instruct",
+        max_model_len=FALLBACK_MAX_MODEL_LEN,
+        gpu_memory_utilization=FALLBACK_GPU_MEMORY_UTILIZATION,
+        fallback_model_id=FALLBACK_MODEL_ID,
         deep_refine_model_id="Qwen/Qwen3.5-27B-FP8",
     ),
 }

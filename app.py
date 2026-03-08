@@ -1198,6 +1198,44 @@ def _load_sample(sample_path: str | None) -> tuple[bytes, MimeType]:
     return file_path.read_bytes(), _infer_mime_type(sample_path)
 
 
+def _invoice_smoke_pdf_bytes(text: str) -> bytes:
+    import fitz
+
+    document = fitz.open()
+    page = document.new_page()
+    y = 72
+    for line in text.splitlines():
+        page.insert_text((72, y), line)
+        y += 18
+    data = document.tobytes()
+    document.close()
+    return data
+
+
+def _create_extraction_smoke_job(text: str, extraction_mode: str) -> str:
+    if extraction_mode != "per_page":
+        return create_text_job_remote.remote(text)
+
+    request_payload = _build_request_payload(
+        data=_invoice_smoke_pdf_bytes(text),
+        mime_type=MimeType.PDF,
+        mode="balanced",
+        latency_profile="fast",
+        language_hint=None,
+        result_level="latest",
+        save_raw_model_output=False,
+        save_prompt_text=False,
+    )
+    submission = submit_parse_request_remote.remote(request_payload, "dev")
+    job_id = submission["job_id"]
+    status, _wall_ms, _fast_stage_ms = _wait_for_parse_job(job_id, require_final=False)
+    if status["status"] not in {"completed_fast", "completed_final", "completed"}:
+        raise RuntimeError(
+            f"Per-page extraction smoke failed to prepare a parsed document: {status['status']}"
+        )
+    return job_id
+
+
 def _submit_document_job(
     *,
     sample_path: str | None,
@@ -1285,7 +1323,7 @@ def smoke_entity_extraction(
     text: str = "Invoice Number: INV-001\nInvoice Date: 2026-03-05\nTotal Amount: 42.50",
     extraction_mode: str = "whole_document",
 ):
-    job_id = create_text_job_remote.remote(text)
+    job_id = _create_extraction_smoke_job(text, extraction_mode)
     print(f"job_id={job_id}")
     suggestion = suggest_entities_remote.remote(job_id)
     suggested_entities = suggestion.get("suggested_entities") or []
@@ -1320,6 +1358,11 @@ def smoke_entity_extraction(
             "extraction_mode": extraction_mode,
         },
     )
+    if not (result.get("entities") or []):
+        raise RuntimeError(
+            f"Extraction smoke returned no entities for mode={extraction_mode}. "
+            "This smoke test now treats empty extraction output as a failure."
+        )
     print(json.dumps({"suggestion": suggestion, "result": result}, indent=2, sort_keys=True))
 
 

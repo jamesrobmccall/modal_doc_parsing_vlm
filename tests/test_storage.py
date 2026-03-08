@@ -40,7 +40,7 @@ def make_manifest(job_id: str = "job-storage") -> JobManifest:
         request_payload={},
         output_formats=["json", "markdown", "text"],
         debug=DebugOptions(),
-        model_id="Qwen/Qwen2.5-VL-7B-Instruct",
+        model_id="Qwen/Qwen3-VL-8B-Instruct-FP8",
         pipeline_mode=ParseMode.BALANCED,
         file_metadata=FileMetadata(
             file_name="doc.png",
@@ -59,7 +59,7 @@ def make_result(job_id: str = "job-storage") -> DocumentParseResult:
             job_id=job_id,
             schema_version="1.0",
             pipeline_mode=ParseMode.BALANCED,
-            models=ModelMetadata(page_vlm="Qwen/Qwen2.5-VL-7B-Instruct"),
+            models=ModelMetadata(page_vlm="Qwen/Qwen3-VL-8B-Instruct-FP8"),
             file_metadata=FileMetadata(
                 file_name="doc.png",
                 mime_type="image/png",
