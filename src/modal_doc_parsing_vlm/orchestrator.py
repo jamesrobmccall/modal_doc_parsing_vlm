@@ -6,12 +6,14 @@ from pathlib import Path
 from uuid import uuid4
 
 from .aggregator import aggregate_job
+from .chunking import build_chunks, chunk_size_for_mode
 from .config import (
     ARTIFACT_ROOT,
     DEFAULT_POLL_AFTER_SECONDS,
     ENABLE_ASYNC_REFINEMENT,
     FAST_PROFILE_RENDER_DPI,
     PARSER_VERSION,
+    PADDLE_OCR_ENGINE_NAME,
     SCHEMA_VERSION,
     TERMINAL_STATUSES,
 )
@@ -227,11 +229,39 @@ def _pending_fallback_pages(storage, manifest: JobManifest) -> list[int]:
     return sorted(set(pending))
 
 
-def _run_page_map(run_pages: Callable[[list[dict]], list[dict]], tasks: list[PageTask]) -> list[PageParseResult]:
+def _build_engine_chunks(
+    manifest: JobManifest,
+    tasks: list[PageTask],
+    *,
+    engine: str,
+    chunk_prefix: str,
+    model_id: str,
+) -> list[PageChunk]:
     if not tasks:
         return []
-    payloads = [task.model_dump(mode="json") for task in tasks]
-    raw_results = run_pages(payloads)
+    return build_chunks(
+        job_id=manifest.job_id,
+        mode=manifest.pipeline_mode,
+        parser_version=manifest.parser_version,
+        runtime_profile=manifest.runtime_profile,
+        artifact_root=str(ARTIFACT_ROOT),
+        model_id=model_id,
+        language_hint=manifest.language_hint,
+        debug=manifest.debug,
+        page_tasks=tasks,
+        chunk_size=chunk_size_for_mode(manifest.pipeline_mode, engine=engine),
+        chunk_prefix=chunk_prefix,
+    )
+
+
+def _run_chunk_map(
+    run_chunks: Callable[[list[dict]], list[dict]],
+    chunks: list[PageChunk],
+) -> list[PageParseResult]:
+    if not chunks:
+        return []
+    payloads = [chunk.model_dump(mode="json") for chunk in chunks]
+    raw_results = run_chunks(payloads)
     return [PageParseResult.model_validate(item) for item in raw_results]
 
 
@@ -256,13 +286,31 @@ def process_refinement_job(
         if task is None:
             continue
         fallback_tasks.append(task.model_copy(update={"result_revision": next_revision}))
+    fallback_chunks = _build_engine_chunks(
+        manifest,
+        fallback_tasks,
+        engine="fallback",
+        chunk_prefix=f"fallback-r{next_revision}",
+        model_id=manifest.fallback_model_id or manifest.model_id,
+    )
+    with storage.batch():
+        manifest.chunk_ids.extend(
+            chunk.chunk_id
+            for chunk in fallback_chunks
+            if chunk.chunk_id not in manifest.chunk_ids
+        )
+        storage.write_job_manifest(manifest)
+        for chunk in fallback_chunks:
+            storage.write_chunk_manifest(chunk)
 
     try:
-        fallback_results = _run_page_map(run_fallback_pages, fallback_tasks)
+        fallback_results = _run_chunk_map(run_fallback_pages, fallback_chunks)
     except Exception as exc:  # noqa: BLE001
+        error_type = type(exc).__name__
+        error_message = " ".join(str(exc).split())[:200]
         print(
             f"[orchestrator] refinement failed job_id={job_id} "
-            f"error={' '.join(str(exc).split())[:200]}"
+            f"error_type={error_type} error={error_message!r}"
         )
         manifest.pending_refinement_pages = []
         storage.write_job_manifest(manifest)
@@ -382,14 +430,28 @@ def process_job(
         for page in rasterized_pages
     }
     page_tasks = _build_page_tasks(manifest, rasterized_pages, decisions, manifest.debug)
-    manifest.chunk_ids = [f"page-{task.page_id:04d}" for task in page_tasks]
+    ocr_tasks = [
+        task
+        for task in page_tasks
+        if task.route_engine not in {None, ParseEngine.DIGITAL_TEXT}
+    ]
+    ocr_chunks = _build_engine_chunks(
+        manifest,
+        ocr_tasks,
+        engine="ocr",
+        chunk_prefix="ocr",
+        model_id=PADDLE_OCR_ENGINE_NAME,
+    )
+    manifest.chunk_ids = [chunk.chunk_id for chunk in ocr_chunks]
     with storage.batch():
         storage.write_job_manifest(manifest)
         for task in page_tasks:
             storage.write_page_task(task)
+        for chunk in ocr_chunks:
+            storage.write_chunk_manifest(chunk)
     print(
         f"[orchestrator] split complete job_id={job_id} pages={len(manifest.pages)} "
-        f"tasks={len(page_tasks)}"
+        f"tasks={len(page_tasks)} ocr_chunks={len(ocr_chunks)}"
     )
 
     split_ms = _elapsed_ms(split_started)
@@ -405,14 +467,11 @@ def process_job(
     )
 
     submit_started = time.perf_counter()
-    ocr_tasks: list[PageTask] = []
     ocr_results: list[PageParseResult] = []
     for task in page_tasks:
         if task.route_engine == ParseEngine.DIGITAL_TEXT:
             ocr_results.append(_digital_page_result(task, result_revision=1))
-        else:
-            ocr_tasks.append(task.model_copy(update={"result_revision": 1}))
-    ocr_results.extend(_run_page_map(run_ocr_pages, ocr_tasks))
+    ocr_results.extend(_run_chunk_map(run_ocr_pages, ocr_chunks))
     with storage.batch():
         for result in ocr_results:
             storage.write_page_result(result.model_copy(update={"result_revision": 1}))

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import re
+import time
 from html import unescape
 from typing import Any
 
@@ -14,6 +15,7 @@ from .config import (
     OCR_ALLOW_CONCURRENT_INPUTS,
     OCR_BUFFER_CONTAINERS,
     OCR_DEPENDENCIES,
+    OCR_MAX_CONTAINERS,
     OCR_MIN_CONTAINERS,
     OCR_RUNTIME_PROFILE,
     OCR_SCALEDOWN_WINDOW_SECONDS,
@@ -28,6 +30,7 @@ from .types_result import (
     DocumentElement,
     ElementType,
     LatencyProfile,
+    PageChunk,
     PageParseResult,
     PageResultStatus,
     PageTask,
@@ -449,21 +452,11 @@ def create_ocr_engine_cls(
                 artifacts_volume.reload()
                 self._loaded_artifacts_job_id = task.job_id
 
-    @modal.method()
-    def warmup(self) -> dict[str, object]:
-        import numpy as np
-
-        blank = np.full((128, 128, 3), 255, dtype=np.uint8)
-        self.ocr.ocr(blank, cls=False)
-        self.layout(blank)
-        return {"status": "ok", "engine": OCR_RUNTIME_PROFILE.engine_name}
-
-    @modal.method()
-    def parse_page(self, task_payload: dict[str, Any]) -> dict[str, Any]:
+    def _parse_page_task(self, task: PageTask) -> PageParseResult:
         from PIL import Image
         import numpy as np
 
-        task = PageTask.model_validate(task_payload)
+        started = time.perf_counter()
         try:
             self._ensure_artifacts_loaded(task)
             with self._volume_lock:
@@ -517,7 +510,7 @@ def create_ocr_engine_cls(
                 warnings.append(f"text_ocr_failed: {ocr_warning}")
             if layout_warning:
                 warnings.append(f"layout_parse_failed: {layout_warning}")
-            result = PageParseResult(
+            return PageParseResult(
                 job_id=task.job_id,
                 chunk_id=task.chunk_id,
                 page_id=task.page_id,
@@ -527,7 +520,7 @@ def create_ocr_engine_cls(
                 warnings=warnings,
                 attempts=1,
                 valid_on_first_pass=True,
-                inference_ms=0,
+                inference_ms=int((time.perf_counter() - started) * 1000),
                 raw_output_path=task.raw_output_path,
                 prompt_path=task.prompt_path,
                 result_revision=task.result_revision,
@@ -540,9 +533,8 @@ def create_ocr_engine_cls(
                     "table_confidence": float(table_confidence),
                 },
             )
-            return result.model_dump(mode="json")
         except Exception as exc:  # noqa: BLE001
-            failed = PageParseResult(
+            return PageParseResult(
                 job_id=task.job_id,
                 chunk_id=task.chunk_id,
                 page_id=task.page_id,
@@ -557,7 +549,32 @@ def create_ocr_engine_cls(
                 result_revision=task.result_revision,
                 engine=ParseEngine.PADDLE_OCR,
             )
-            return failed.model_dump(mode="json")
+
+    @modal.method()
+    def warmup(self) -> dict[str, object]:
+        import numpy as np
+
+        blank = np.full((128, 128, 3), 255, dtype=np.uint8)
+        self.ocr.ocr(blank, cls=False)
+        self.layout(blank)
+        return {"status": "ok", "engine": OCR_RUNTIME_PROFILE.engine_name}
+
+    @modal.method()
+    def parse_page(self, task_payload: dict[str, Any]) -> dict[str, Any]:
+        task = PageTask.model_validate(task_payload)
+        return self._parse_page_task(task).model_dump(mode="json")
+
+    @modal.method()
+    def parse_pages(self, chunk_payload: dict[str, Any]) -> list[dict[str, Any]]:
+        chunk = PageChunk.model_validate(chunk_payload)
+        print(
+            f"[engine:ocr] parse_pages chunk_id={chunk.chunk_id} "
+            f"pages={len(chunk.pages)} mode={chunk.mode.value}"
+        )
+        return [
+            self._parse_page_task(task).model_dump(mode="json")
+            for task in chunk.pages
+        ]
 
     cls_name = "OcrParserEngine"
     raw_cls = type(
@@ -568,8 +585,10 @@ def create_ocr_engine_cls(
             "__module__": export_module,
             "start": start,
             "_ensure_artifacts_loaded": _ensure_artifacts_loaded,
+            "_parse_page_task": _parse_page_task,
             "warmup": warmup,
             "parse_page": parse_page,
+            "parse_pages": parse_pages,
         },
     )
     concurrent_cls = modal.concurrent(max_inputs=OCR_ALLOW_CONCURRENT_INPUTS)(raw_cls)
@@ -578,6 +597,7 @@ def create_ocr_engine_cls(
         gpu=OCR_RUNTIME_PROFILE.gpu,
         timeout=ENGINE_TIMEOUT_SECONDS,
         min_containers=OCR_MIN_CONTAINERS,
+        max_containers=OCR_MAX_CONTAINERS,
         buffer_containers=OCR_BUFFER_CONTAINERS,
         scaledown_window=OCR_SCALEDOWN_WINDOW_SECONDS,
         volumes={

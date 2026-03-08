@@ -27,6 +27,10 @@ def test_page_range_is_normalized_and_deduplicated():
 def test_chunk_sizes_follow_mode_defaults():
     assert chunk_size_for_mode(ParseMode.BALANCED) == 16
     assert chunk_size_for_mode(ParseMode.ACCURATE) == 8
+    assert chunk_size_for_mode(ParseMode.BALANCED, engine="ocr") == 4
+    assert chunk_size_for_mode(ParseMode.ACCURATE, engine="ocr") == 2
+    assert chunk_size_for_mode(ParseMode.BALANCED, engine="fallback") == 2
+    assert chunk_size_for_mode(ParseMode.ACCURATE, engine="fallback") == 1
 
 
 def test_build_chunks_is_deterministic():

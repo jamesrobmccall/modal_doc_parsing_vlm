@@ -81,7 +81,27 @@ class EntityExtractionStatusPayload(StrictModel):
     entities_requested: int = 0
     pages_processed: int = 0
     pages_total: int = 0
+    requests_total: int = 0
+    requests_completed: int = 0
     error_message: str | None = None
+
+
+class ExtractionWorkItem(StrictModel):
+    job_id: str
+    entity: EntityDefinition
+    page_id: int
+    page_text: str
+    json_schema: dict[str, Any]
+    model_id: str
+    max_tokens: int
+    session_id: str
+
+
+class ExtractionWorkResult(StrictModel):
+    entity_name: str
+    page_id: int
+    data: dict[str, Any] = Field(default_factory=dict)
+    inference_ms: int = 0
 
 
 _FIELD_TYPE_TO_JSON_SCHEMA: dict[ExtractionFieldType, dict[str, Any]] = {

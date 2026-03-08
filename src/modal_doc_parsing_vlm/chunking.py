@@ -1,10 +1,14 @@
 from __future__ import annotations
 
-from .config import MAX_PAGES_PER_CHUNK
+from .config import FALLBACK_PAGES_PER_CHUNK, MAX_PAGES_PER_CHUNK, OCR_PAGES_PER_CHUNK
 from .types_result import DebugOptions, PageChunk, PageTask, ParseMode
 
 
-def chunk_size_for_mode(mode: ParseMode) -> int:
+def chunk_size_for_mode(mode: ParseMode, *, engine: str = "default") -> int:
+    if engine == "ocr":
+        return OCR_PAGES_PER_CHUNK[mode.value]
+    if engine == "fallback":
+        return FALLBACK_PAGES_PER_CHUNK[mode.value]
     return MAX_PAGES_PER_CHUNK[mode.value]
 
 
@@ -19,13 +23,15 @@ def build_chunks(
     language_hint: str | None,
     debug: DebugOptions,
     page_tasks: list[PageTask],
+    chunk_size: int | None = None,
+    chunk_prefix: str = "chunk",
 ) -> list[PageChunk]:
     page_tasks = sorted(page_tasks, key=lambda task: task.page_id)
-    size = chunk_size_for_mode(mode)
+    size = chunk_size or chunk_size_for_mode(mode)
     chunks: list[PageChunk] = []
     for index in range(0, len(page_tasks), size):
         tasks = page_tasks[index : index + size]
-        chunk_id = f"chunk-{index // size:04d}"
+        chunk_id = f"{chunk_prefix}-{index // size:04d}"
         chunks.append(
             PageChunk(
                 job_id=job_id,

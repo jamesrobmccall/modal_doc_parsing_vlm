@@ -12,12 +12,22 @@ pytestmark = pytest.mark.skipif(
 
 
 def modal_bin() -> str:
-    return os.environ.get("MODAL_BIN", str(Path.home() / ".local" / "bin" / "modal"))
+    local_modal = Path(__file__).resolve().parents[2] / ".venv" / "bin" / "modal"
+    return os.environ.get(
+        "MODAL_BIN",
+        str(local_modal if local_modal.exists() else Path.home() / ".local" / "bin" / "modal"),
+    )
 
 
 def run_modal_command(*args: str) -> subprocess.CompletedProcess[str]:
+    env_name = os.environ.get("MODAL_ENVIRONMENT")
+    cmd = [modal_bin()]
+    if env_name and args and args[0] in {"run", "app", "container"}:
+        cmd.extend([args[0], "-e", env_name, *args[1:]])
+    else:
+        cmd.extend(args)
     return subprocess.run(
-        [modal_bin(), *args],
+        cmd,
         cwd=Path(__file__).resolve().parents[2],
         check=False,
         text=True,

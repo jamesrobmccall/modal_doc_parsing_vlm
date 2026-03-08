@@ -10,11 +10,15 @@ from modal_doc_parsing_vlm.types_extraction import (
     EntityDefinition,
     EntityExtractionRequest,
     EntityExtractionResult,
+    EntityExtractionStatusPayload,
     EntityFieldDefinition,
     EntitySuggestionResponse,
     ExtractedEntity,
     ExtractionFieldType,
     ExtractionMode,
+    ExtractionStatus,
+    ExtractionWorkItem,
+    ExtractionWorkResult,
     entity_definition_to_json_schema,
 )
 
@@ -154,3 +158,40 @@ class TestPydanticModels:
         data = result.model_dump(mode="json")
         assert data["entities"][0]["data"]["invoice_number"] == "INV-001"
         assert data["inference_ms"] == 1234
+
+    def test_extraction_status_payload_tracks_request_progress(self):
+        status = EntityExtractionStatusPayload(
+            job_id="job-123",
+            status=ExtractionStatus.EXTRACTING,
+            entities_requested=2,
+            pages_processed=1,
+            pages_total=3,
+            requests_total=6,
+            requests_completed=2,
+        )
+        data = status.model_dump(mode="json")
+        assert data["requests_total"] == 6
+        assert data["requests_completed"] == 2
+
+    def test_extraction_work_item_and_result_roundtrip(self):
+        item = ExtractionWorkItem(
+            job_id="job-123",
+            entity=_invoice_entity(),
+            page_id=0,
+            page_text="Invoice Number: INV-001",
+            json_schema=entity_definition_to_json_schema(_invoice_entity()),
+            model_id="Qwen/Qwen3-4B-Thinking-2507-FP8",
+            max_tokens=1024,
+            session_id="doc-parse-session",
+        )
+        restored_item = ExtractionWorkItem.model_validate(item.model_dump(mode="json"))
+        assert restored_item.page_id == 0
+
+        result = ExtractionWorkResult(
+            entity_name="Invoice",
+            page_id=0,
+            data={"invoice_number": "INV-001"},
+            inference_ms=55,
+        )
+        restored_result = ExtractionWorkResult.model_validate(result.model_dump(mode="json"))
+        assert restored_result.inference_ms == 55
