@@ -99,8 +99,8 @@ def build_service(tmp_path, scheduled_jobs: list[tuple[str, str]]):
             (),
             {
                 "name": "dev",
-                "model_id": "Qwen/Qwen2.5-VL-7B-Instruct",
-                "fallback_model_id": "Qwen/Qwen2.5-VL-7B-Instruct",
+                "model_id": "Qwen/Qwen3-VL-8B-Instruct-FP8",
+                "fallback_model_id": "Qwen/Qwen3-VL-8B-Instruct-FP8",
             },
         )(),
         schedule_job=schedule_job,

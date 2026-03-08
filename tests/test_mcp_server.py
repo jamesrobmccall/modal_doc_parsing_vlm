@@ -36,7 +36,7 @@ class FakeService:
                     "job_id": "job-1",
                     "schema_version": "1.0",
                     "pipeline_mode": "balanced",
-                    "models": {"page_vlm": "Qwen/Qwen2.5-VL-7B-Instruct"},
+                    "models": {"page_vlm": "Qwen/Qwen3-VL-8B-Instruct-FP8"},
                     "file_metadata": {
                         "file_name": "doc.png",
                         "mime_type": "image/png",

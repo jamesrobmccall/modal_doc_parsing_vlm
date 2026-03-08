@@ -112,7 +112,7 @@ class FakeService:
                     "quality_stage": "fast",
                     "result_revision": 1,
                     "models": {
-                        "page_vlm": "Qwen/Qwen2.5-VL-7B-Instruct",
+                        "page_vlm": "Qwen/Qwen3-VL-8B-Instruct-FP8",
                         "fast_ocr": "PP-StructureV3",
                     },
                     "file_metadata": {
