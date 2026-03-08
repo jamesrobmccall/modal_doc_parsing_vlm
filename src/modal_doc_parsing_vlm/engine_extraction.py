@@ -1,18 +1,29 @@
 from __future__ import annotations
 
+import concurrent.futures
+import json
 import subprocess
 import time
 from typing import Any
 
 import modal
 
+from .extraction_client import (
+    build_entity_extraction_chat_request,
+    build_extraction_headers,
+    extract_chat_completion_content,
+)
 from .config import (
     CONTROL_PLANE_DEPENDENCIES,
     DEEPGEMM_CACHE_ROOT,
     EXTRACTION_ALLOW_CONCURRENT_INPUTS,
+    EXTRACTION_BATCH_MAX_CONTAINERS,
+    EXTRACTION_BATCH_MAX_SIZE,
+    EXTRACTION_BATCH_WAIT_MS,
     EXTRACTION_BUFFER_CONTAINERS,
     EXTRACTION_ENGINE_TIMEOUT_SECONDS,
     EXTRACTION_GPU,
+    EXTRACTION_MAX_CONTAINERS,
     EXTRACTION_MAX_MODEL_LEN,
     EXTRACTION_MAX_RUNNING_REQUESTS,
     EXTRACTION_MEM_FRACTION,
@@ -28,6 +39,7 @@ from .config import (
     HF_HUB_CACHE_ROOT,
     SGLANG_IMAGE,
 )
+from .types_extraction import ExtractionWorkItem, ExtractionWorkResult
 
 
 def _compile_deep_gemm() -> None:
@@ -143,6 +155,51 @@ def _warmup_server() -> None:
         response.raise_for_status()
 
 
+def _server_command() -> list[str]:
+    return [
+        "python",
+        "-m",
+        "sglang.launch_server",
+        "--model-path",
+        EXTRACTION_MODEL_ID,
+        "--revision",
+        EXTRACTION_MODEL_REVISION,
+        "--served-model-name",
+        EXTRACTION_MODEL_ID,
+        "--host",
+        "0.0.0.0",
+        "--port",
+        str(EXTRACTION_SERVER_PORT),
+        "--tp",
+        "1",
+        "--context-length",
+        str(EXTRACTION_MAX_MODEL_LEN),
+        "--max-running-requests",
+        str(EXTRACTION_MAX_RUNNING_REQUESTS),
+        "--cuda-graph-max-bs",
+        str(EXTRACTION_ALLOW_CONCURRENT_INPUTS),
+        "--grammar-backend",
+        "xgrammar",
+        "--enable-metrics",
+        "--mem-fraction",
+        str(EXTRACTION_MEM_FRACTION),
+    ]
+
+
+def _call_local_chat_completion(payload: dict[str, Any], *, session_id: str) -> tuple[dict[str, Any], int]:
+    import httpx
+
+    started = time.perf_counter()
+    response = httpx.post(
+        f"http://127.0.0.1:{EXTRACTION_SERVER_PORT}/v1/chat/completions",
+        json=payload,
+        headers=build_extraction_headers(session_id),
+        timeout=60,
+    )
+    response.raise_for_status()
+    return response.json(), int((time.perf_counter() - started) * 1000)
+
+
 def create_extraction_engine_cls(
     app: modal.App,
     *,
@@ -154,39 +211,11 @@ def create_extraction_engine_cls(
 
     @modal.enter()
     def startup(self) -> None:
-        cmd = [
-            "python",
-            "-m",
-            "sglang.launch_server",
-            "--model-path",
-            EXTRACTION_MODEL_ID,
-            "--revision",
-            EXTRACTION_MODEL_REVISION,
-            "--served-model-name",
-            EXTRACTION_MODEL_ID,
-            "--host",
-            "0.0.0.0",
-            "--port",
-            str(EXTRACTION_SERVER_PORT),
-            "--tp",
-            "1",
-            "--context-length",
-            str(EXTRACTION_MAX_MODEL_LEN),
-            "--max-running-requests",
-            str(EXTRACTION_MAX_RUNNING_REQUESTS),
-            "--cuda-graph-max-bs",
-            str(EXTRACTION_ALLOW_CONCURRENT_INPUTS),
-            "--grammar-backend",
-            "xgrammar",
-            "--enable-metrics",
-            "--mem-fraction",
-            str(EXTRACTION_MEM_FRACTION),
-        ]
         print(
             f"[engine:extraction] starting sglang model={EXTRACTION_MODEL_ID} "
             f"revision={EXTRACTION_MODEL_REVISION} gpu={EXTRACTION_GPU}"
         )
-        self.process = subprocess.Popen(cmd)
+        self.process = subprocess.Popen(_server_command())
         _wait_ready(self.process, timeout=EXTRACTION_ENGINE_TIMEOUT_SECONDS)
         _warmup_server()
         print("[engine:extraction] extraction server ready")
@@ -220,6 +249,7 @@ def create_extraction_engine_cls(
         target_concurrency=EXTRACTION_TARGET_INPUTS,
         region=EXTRACTION_REGION,
         min_containers=EXTRACTION_MIN_CONTAINERS,
+        max_containers=EXTRACTION_MAX_CONTAINERS,
         buffer_containers=EXTRACTION_BUFFER_CONTAINERS,
         scaledown_window=EXTRACTION_SCALEDOWN_WINDOW_SECONDS,
         volumes={
@@ -228,3 +258,89 @@ def create_extraction_engine_cls(
         },
     )(raw_cls)
     return server
+
+
+def create_extraction_batch_engine_cls(
+    app: modal.App,
+    *,
+    hf_cache_volume,
+    deepgemm_cache_volume,
+    export_module: str,
+):
+    image = _build_extraction_image(hf_cache_volume, deepgemm_cache_volume)
+
+    @modal.enter()
+    def startup(self) -> None:
+        print(
+            f"[engine:extraction-batch] starting sglang model={EXTRACTION_MODEL_ID} "
+            f"revision={EXTRACTION_MODEL_REVISION} gpu={EXTRACTION_GPU}"
+        )
+        self.process = subprocess.Popen(_server_command())
+        _wait_ready(self.process, timeout=EXTRACTION_ENGINE_TIMEOUT_SECONDS)
+        _warmup_server()
+        print("[engine:extraction-batch] extraction batch server ready")
+
+    def _extract_one(self, item: ExtractionWorkItem) -> ExtractionWorkResult:
+        payload = build_entity_extraction_chat_request(
+            entity=item.entity,
+            page_text=item.page_text,
+            model_id=item.model_id,
+            json_schema=item.json_schema,
+            max_tokens=item.max_tokens,
+        )
+        response, inference_ms = _call_local_chat_completion(
+            payload,
+            session_id=item.session_id,
+        )
+        return ExtractionWorkResult(
+            entity_name=item.entity.entity_name,
+            page_id=item.page_id,
+            data=json.loads(extract_chat_completion_content(response)),
+            inference_ms=inference_ms,
+        )
+
+    @modal.batched(max_batch_size=EXTRACTION_BATCH_MAX_SIZE, wait_ms=EXTRACTION_BATCH_WAIT_MS)
+    def extract_pages(self, item_payloads: list[dict[str, Any]]) -> list[dict[str, Any]]:
+        items = [ExtractionWorkItem.model_validate(payload) for payload in item_payloads]
+        print(
+            f"[engine:extraction-batch] extract_pages "
+            f"batch_size={len(items)} max_batch_size={EXTRACTION_BATCH_MAX_SIZE}"
+        )
+        with concurrent.futures.ThreadPoolExecutor(max_workers=max(len(items), 1)) as executor:
+            futures = [executor.submit(self._extract_one, item) for item in items]
+            results = [future.result() for future in futures]
+        return [result.model_dump(mode="json") for result in results]
+
+    @modal.exit()
+    def stop(self) -> None:
+        self.process.terminate()
+        try:
+            self.process.wait(timeout=10)
+        except subprocess.TimeoutExpired:
+            self.process.kill()
+            self.process.wait(timeout=10)
+
+    raw_cls = type(
+        "ExtractionBatchEngine",
+        (),
+        {
+            "__doc__": f"Batched SGLang extraction engine using {EXTRACTION_MODEL_ID}.",
+            "__module__": export_module,
+            "startup": startup,
+            "_extract_one": _extract_one,
+            "extract_pages": extract_pages,
+            "stop": stop,
+        },
+    )
+    cls = app.cls(
+        image=image,
+        gpu=EXTRACTION_GPU,
+        timeout=EXTRACTION_ENGINE_TIMEOUT_SECONDS,
+        max_containers=EXTRACTION_BATCH_MAX_CONTAINERS,
+        scaledown_window=EXTRACTION_SCALEDOWN_WINDOW_SECONDS,
+        volumes={
+            str(HF_CACHE_ROOT): hf_cache_volume,
+            str(DEEPGEMM_CACHE_ROOT): deepgemm_cache_volume,
+        },
+    )(raw_cls)
+    return cls

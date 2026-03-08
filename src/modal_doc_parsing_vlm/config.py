@@ -63,17 +63,19 @@ DEFAULT_STATUS_POLL_INTERVAL_SECONDS = 2.0
 ORCHESTRATOR_TIMEOUT_SECONDS = 60 * 60
 ENGINE_TIMEOUT_SECONDS = 60 * 30
 SCALEDOWN_WINDOW_SECONDS = int(
-    os.environ.get("DOC_PARSE_FALLBACK_SCALEDOWN_WINDOW_SECONDS", str(60 * 5))
+    os.environ.get("DOC_PARSE_FALLBACK_SCALEDOWN_WINDOW_SECONDS", str(60 * 2))
 )
 OCR_SCALEDOWN_WINDOW_SECONDS = int(
-    os.environ.get("DOC_PARSE_OCR_SCALEDOWN_WINDOW_SECONDS", str(60 * 15))
+    os.environ.get("DOC_PARSE_OCR_SCALEDOWN_WINDOW_SECONDS", str(60 * 2))
 )
 OCR_MIN_CONTAINERS = int(os.environ.get("DOC_PARSE_OCR_MIN_CONTAINERS", "0"))
-OCR_BUFFER_CONTAINERS = int(os.environ.get("DOC_PARSE_OCR_BUFFER_CONTAINERS", "1"))
+OCR_MAX_CONTAINERS = int(os.environ.get("DOC_PARSE_OCR_MAX_CONTAINERS", "1"))
+OCR_BUFFER_CONTAINERS = int(os.environ.get("DOC_PARSE_OCR_BUFFER_CONTAINERS", "0"))
 OCR_ALLOW_CONCURRENT_INPUTS = int(
     os.environ.get("DOC_PARSE_OCR_ALLOW_CONCURRENT_INPUTS", "1")
 )
 FALLBACK_MIN_CONTAINERS = int(os.environ.get("DOC_PARSE_FALLBACK_MIN_CONTAINERS", "0"))
+FALLBACK_MAX_CONTAINERS = int(os.environ.get("DOC_PARSE_FALLBACK_MAX_CONTAINERS", "1"))
 FALLBACK_BUFFER_CONTAINERS = int(
     os.environ.get("DOC_PARSE_FALLBACK_BUFFER_CONTAINERS", "0")
 )
@@ -178,6 +180,14 @@ MAX_PAGES_PER_CHUNK = {
     "balanced": 16,
     "accurate": 8,
 }
+OCR_PAGES_PER_CHUNK = {
+    "balanced": 4,
+    "accurate": 2,
+}
+FALLBACK_PAGES_PER_CHUNK = {
+    "balanced": 2,
+    "accurate": 1,
+}
 
 PROMPT_VERSION = "2026-03-03"
 
@@ -217,16 +227,17 @@ EXTRACTION_MAX_MODEL_LEN = int(os.environ.get("DOC_PARSE_EXTRACTION_MAX_MODEL_LE
 EXTRACTION_SAMPLING_MAX_TOKENS = int(
     os.environ.get("DOC_PARSE_EXTRACTION_SAMPLING_MAX_TOKENS", "4096")
 )
-EXTRACTION_MIN_CONTAINERS = int(os.environ.get("DOC_PARSE_EXTRACTION_MIN_CONTAINERS", "1"))
+EXTRACTION_MIN_CONTAINERS = int(os.environ.get("DOC_PARSE_EXTRACTION_MIN_CONTAINERS", "0"))
+EXTRACTION_MAX_CONTAINERS = int(os.environ.get("DOC_PARSE_EXTRACTION_MAX_CONTAINERS", "1"))
 EXTRACTION_BUFFER_CONTAINERS = int(os.environ.get("DOC_PARSE_EXTRACTION_BUFFER_CONTAINERS", "0"))
 EXTRACTION_TARGET_INPUTS = int(
-    os.environ.get("DOC_PARSE_EXTRACTION_TARGET_INPUTS", "4")
+    os.environ.get("DOC_PARSE_EXTRACTION_TARGET_INPUTS", "8")
 )
 EXTRACTION_ALLOW_CONCURRENT_INPUTS = int(
     os.environ.get("DOC_PARSE_EXTRACTION_ALLOW_CONCURRENT_INPUTS", "8")
 )
 EXTRACTION_SCALEDOWN_WINDOW_SECONDS = int(
-    os.environ.get("DOC_PARSE_EXTRACTION_SCALEDOWN_WINDOW_SECONDS", str(60 * 15))
+    os.environ.get("DOC_PARSE_EXTRACTION_SCALEDOWN_WINDOW_SECONDS", str(60 * 2))
 )
 EXTRACTION_ENGINE_TIMEOUT_SECONDS = int(
     os.environ.get("DOC_PARSE_EXTRACTION_ENGINE_TIMEOUT_SECONDS", "600")
@@ -239,10 +250,36 @@ EXTRACTION_HTTP_TIMEOUT_SECONDS = int(
     os.environ.get("DOC_PARSE_EXTRACTION_HTTP_TIMEOUT_SECONDS", "180")
 )
 EXTRACTION_WARMUP_REQUESTS = int(os.environ.get("DOC_PARSE_EXTRACTION_WARMUP_REQUESTS", "2"))
+EXTRACTION_SUGGESTION_MAX_TOKENS = int(
+    os.environ.get("DOC_PARSE_EXTRACTION_SUGGESTION_MAX_TOKENS", "1536")
+)
+EXTRACTION_WHOLE_DOCUMENT_MAX_TOKENS = int(
+    os.environ.get("DOC_PARSE_EXTRACTION_WHOLE_DOCUMENT_MAX_TOKENS", "2048")
+)
+EXTRACTION_PER_PAGE_MAX_TOKENS = int(
+    os.environ.get("DOC_PARSE_EXTRACTION_PER_PAGE_MAX_TOKENS", "1024")
+)
 EXTRACTION_MAX_RUNNING_REQUESTS = int(
     os.environ.get("DOC_PARSE_EXTRACTION_MAX_RUNNING_REQUESTS", "8")
 )
 EXTRACTION_MEM_FRACTION = float(os.environ.get("DOC_PARSE_EXTRACTION_MEM_FRACTION", "0.8"))
+EXTRACTION_BATCH_MAX_SIZE = int(
+    os.environ.get("DOC_PARSE_EXTRACTION_BATCH_MAX_SIZE", "8")
+)
+EXTRACTION_BATCH_WAIT_MS = int(
+    os.environ.get("DOC_PARSE_EXTRACTION_BATCH_WAIT_MS", "20")
+)
+EXTRACTION_BATCH_MAX_CONTAINERS = int(
+    os.environ.get("DOC_PARSE_EXTRACTION_BATCH_MAX_CONTAINERS", "1")
+)
+USE_DEDICATED_EXTRACTION_BATCH_ENGINE = os.environ.get(
+    "DOC_PARSE_USE_DEDICATED_EXTRACTION_BATCH_ENGINE",
+    "",
+).lower() in {
+    "1",
+    "true",
+    "yes",
+}
 EXTRACTION_WHOLE_DOCUMENT_MAX_CHARS = int(
     os.environ.get(
         "DOC_PARSE_EXTRACTION_WHOLE_DOCUMENT_MAX_CHARS",
@@ -269,6 +306,8 @@ OCR_RUNTIME_PROFILE = OcrRuntimeProfile(
 class RuntimeProfile:
     name: str
     model_id: str
+    model_revision: str
+    tokenizer_revision: str
     gpu: str
     vllm_package: str
     vllm_extra_index_url: str | None = None
@@ -286,6 +325,8 @@ RUNTIME_PROFILES = {
     "prod": RuntimeProfile(
         name="prod",
         model_id="Qwen/Qwen2.5-VL-7B-Instruct",
+        model_revision="cc594898137f460bfe9f0759e9844b3ce807cfb5",
+        tokenizer_revision="cc594898137f460bfe9f0759e9844b3ce807cfb5",
         gpu="A10G",
         vllm_package=QWEN35_VLLM_PACKAGE,
         vllm_extra_index_url=VLLM_NIGHTLY_EXTRA_INDEX_URL,
@@ -298,6 +339,8 @@ RUNTIME_PROFILES = {
     "dev": RuntimeProfile(
         name="dev",
         model_id="Qwen/Qwen2.5-VL-7B-Instruct",
+        model_revision="cc594898137f460bfe9f0759e9844b3ce807cfb5",
+        tokenizer_revision="cc594898137f460bfe9f0759e9844b3ce807cfb5",
         gpu="A10G",
         vllm_package=QWEN35_VLLM_PACKAGE,
         vllm_extra_index_url=VLLM_NIGHTLY_EXTRA_INDEX_URL,

@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import base64
 import inspect
-import concurrent.futures
 import json
 import mimetypes
 import os
@@ -29,8 +28,13 @@ from modal_doc_parsing_vlm.config import (
     DEEPGEMM_CACHE_VOLUME_NAME,
     DEFAULT_RUNTIME_PROFILE,
     ENABLED_RUNTIME_PROFILES,
+    EXTRACTION_BATCH_MAX_SIZE,
     EXTRACTION_ENGINE_TIMEOUT_SECONDS,
     EXTRACTION_HTTP_TIMEOUT_SECONDS,
+    EXTRACTION_PER_PAGE_MAX_TOKENS,
+    EXTRACTION_SUGGESTION_MAX_TOKENS,
+    USE_DEDICATED_EXTRACTION_BATCH_ENGINE,
+    EXTRACTION_WHOLE_DOCUMENT_MAX_TOKENS,
     HF_CACHE_ROOT,
     HF_CACHE_VOLUME_NAME,
     IDEMPOTENCY_DICT_NAME,
@@ -44,13 +48,20 @@ from modal_doc_parsing_vlm.config import (
     STALE_JOB_TIMEOUT_SECONDS,
     VLLM_CACHE_VOLUME_NAME,
     EXTRACTION_WHOLE_DOCUMENT_MAX_CHARS,
+    FALLBACK_PAGES_PER_CHUNK,
+    OCR_PAGES_PER_CHUNK,
+    EXTRACTION_BATCH_WAIT_MS,
     get_runtime_profile,
 )
 from modal_doc_parsing_vlm.config import (
     EXTRACTION_MODEL_ID,
+    EXTRACTION_MODEL_REVISION,
 )
 from modal_doc_parsing_vlm.engine import create_engine_cls
-from modal_doc_parsing_vlm.engine_extraction import create_extraction_engine_cls
+from modal_doc_parsing_vlm.engine_extraction import (
+    create_extraction_batch_engine_cls,
+    create_extraction_engine_cls,
+)
 from modal_doc_parsing_vlm.engine_ocr import create_ocr_engine_cls
 from modal_doc_parsing_vlm.extraction_client import (
     build_entity_extraction_chat_request,
@@ -150,6 +161,12 @@ ExtractionEngine = create_extraction_engine_cls(
     deepgemm_cache_volume=deepgemm_cache_volume,
     export_module=__name__,
 )
+ExtractionBatchEngine = create_extraction_batch_engine_cls(
+    app,
+    hf_cache_volume=hf_cache_volume,
+    deepgemm_cache_volume=deepgemm_cache_volume,
+    export_module=__name__,
+)
 
 _EXTRACTION_BASE_URL: str | None = None
 
@@ -209,10 +226,16 @@ def run_orchestrator(job_id: str, runtime_profile_name: str) -> dict:
     fallback_engine = _fallback_engine_for_profile(runtime_profile_name)
 
     def run_ocr_pages(payloads: list[dict]) -> list[dict]:
-        return list(ocr_engine.parse_page.map(payloads))
+        flattened: list[dict] = []
+        for chunk_results in ocr_engine.parse_pages.map(payloads):
+            flattened.extend(chunk_results)
+        return flattened
 
     def run_fallback_pages(payloads: list[dict]) -> list[dict]:
-        return list(fallback_engine.parse_page.map(payloads))
+        flattened: list[dict] = []
+        for chunk_results in fallback_engine.parse_pages.map(payloads):
+            flattened.extend(chunk_results)
+        return flattened
 
     def schedule_refinement(selected_job_id: str, selected_profile_name: str) -> None:
         run_refinement.spawn(selected_job_id, selected_profile_name)
@@ -240,7 +263,10 @@ def run_refinement(job_id: str, runtime_profile_name: str) -> dict:
     fallback_engine = _fallback_engine_for_profile(runtime_profile_name)
 
     def run_fallback_pages(payloads: list[dict]) -> list[dict]:
-        return list(fallback_engine.parse_page.map(payloads))
+        flattened: list[dict] = []
+        for chunk_results in fallback_engine.parse_pages.map(payloads):
+            flattened.extend(chunk_results)
+        return flattened
 
     snapshot = process_refinement_job(
         storage,
@@ -500,6 +526,107 @@ def _warm_extraction_server() -> dict[str, object]:
     }
 
 
+def _set_extraction_status(
+    storage,
+    *,
+    job_id: str,
+    status,
+    entities_requested: int,
+    pages_total: int,
+    pages_processed: int = 0,
+    requests_total: int = 0,
+    requests_completed: int = 0,
+    error_message: str | None = None,
+) -> None:
+    from modal_doc_parsing_vlm.types_extraction import EntityExtractionStatusPayload
+
+    storage.set_extraction_status(
+        job_id,
+        EntityExtractionStatusPayload(
+            job_id=job_id,
+            status=status,
+            entities_requested=entities_requested,
+            pages_processed=pages_processed,
+            pages_total=pages_total,
+            requests_total=requests_total,
+            requests_completed=requests_completed,
+            error_message=error_message,
+        ),
+    )
+
+
+def _run_per_page_extraction_via_online_server(
+    *,
+    job_id: str,
+    request,
+    page_tasks: list[tuple[int, str]],
+    storage,
+) -> tuple[list[object], int]:
+    from modal_doc_parsing_vlm.types_extraction import (
+        ExtractedEntity,
+        ExtractionStatus,
+        entity_definition_to_json_schema,
+    )
+
+    base_url = _ensure_extraction_server_ready(
+        timeout_seconds=EXTRACTION_ENGINE_TIMEOUT_SECONDS,
+    )
+    remaining_requests_by_page = {
+        page_id: len(request.entities)
+        for page_id, _page_markdown in page_tasks
+    }
+    requests_total = len(request.entities) * len(page_tasks)
+    requests_completed = 0
+    pages_processed = 0
+    all_extracted: list[ExtractedEntity] = []
+    total_inference_ms = 0
+
+    for entity in request.entities:
+        json_schema = entity_definition_to_json_schema(entity)
+        session_id = build_modal_session_id(
+            job_id,
+            scope="extract-page",
+            entity_name=entity.entity_name,
+        )
+        for page_id, page_markdown in page_tasks:
+            payload = build_entity_extraction_chat_request(
+                entity=entity,
+                page_text=page_markdown,
+                model_id=EXTRACTION_MODEL_ID,
+                json_schema=json_schema,
+                max_tokens=EXTRACTION_PER_PAGE_MAX_TOKENS,
+            )
+            raw_response, inference_ms = _call_extraction_chat_completion(
+                payload,
+                session_id=session_id,
+                base_url=base_url,
+            )
+            all_extracted.append(
+                ExtractedEntity(
+                    entity_name=entity.entity_name,
+                    page_id=page_id,
+                    data=json.loads(extract_chat_completion_content(raw_response)),
+                )
+            )
+            total_inference_ms += inference_ms
+            requests_completed += 1
+            remaining_requests_by_page[page_id] -= 1
+            if remaining_requests_by_page[page_id] == 0:
+                pages_processed += 1
+            _set_extraction_status(
+                storage,
+                job_id=job_id,
+                status=ExtractionStatus.EXTRACTING,
+                entities_requested=len(request.entities),
+                pages_processed=pages_processed,
+                pages_total=len(page_tasks),
+                requests_total=requests_total,
+                requests_completed=requests_completed,
+            )
+
+    return all_extracted, total_inference_ms
+
+
 @app.function(
     image=control_plane_image,
     volumes={str(ARTIFACT_ROOT): artifacts_volume},
@@ -533,7 +660,7 @@ def suggest_entities_remote(job_id: str) -> dict:
         document_markdown=markdown,
         page_count=page_count,
         model_id=EXTRACTION_MODEL_ID,
-        max_tokens=4096,
+        max_tokens=EXTRACTION_SUGGESTION_MAX_TOKENS,
     )
     raw_response, _elapsed_ms = _call_extraction_chat_completion(
         payload,
@@ -574,10 +701,11 @@ def run_entity_extraction(job_id: str, request_payload: dict) -> dict:
     from modal_doc_parsing_vlm.types_extraction import (
         EntityExtractionRequest,
         EntityExtractionResult,
-        EntityExtractionStatusPayload,
         ExtractedEntity,
         ExtractionMode,
         ExtractionStatus,
+        ExtractionWorkItem,
+        ExtractionWorkResult,
         entity_definition_to_json_schema,
     )
 
@@ -595,6 +723,11 @@ def run_entity_extraction(job_id: str, request_payload: dict) -> dict:
         if page_markdowns.get(str(page.id), "").strip()
     ]
     pages_total = len(page_tasks) if request.extraction_mode == ExtractionMode.PER_PAGE else 1
+    requests_total = (
+        len(request.entities) * len(page_tasks)
+        if request.extraction_mode == ExtractionMode.PER_PAGE
+        else len(request.entities)
+    )
     fingerprint = build_extraction_request_fingerprint(
         job_id=job_id,
         result_revision=result_doc.metadata.result_revision,
@@ -605,53 +738,52 @@ def run_entity_extraction(job_id: str, request_payload: dict) -> dict:
     if cached_result is not None:
         with storage.batch():
             storage.write_extraction_result(job_id, cached_result)
-            storage.set_extraction_status(
-                job_id,
-                EntityExtractionStatusPayload(
-                    job_id=job_id,
-                    status=ExtractionStatus.COMPLETED,
-                    entities_requested=len(request.entities),
-                    pages_processed=pages_total,
-                    pages_total=pages_total,
-                ),
+            _set_extraction_status(
+                storage,
+                job_id=job_id,
+                status=ExtractionStatus.COMPLETED,
+                entities_requested=len(request.entities),
+                pages_processed=pages_total,
+                pages_total=pages_total,
+                requests_total=requests_total,
+                requests_completed=requests_total,
             )
         return cached_result.model_dump(mode="json")
 
-    storage.set_extraction_status(
-        job_id,
-        EntityExtractionStatusPayload(
-            job_id=job_id,
-            status=ExtractionStatus.EXTRACTING,
-            entities_requested=len(request.entities),
-            pages_total=pages_total,
-        ),
+    _set_extraction_status(
+        storage,
+        job_id=job_id,
+        status=ExtractionStatus.EXTRACTING,
+        entities_requested=len(request.entities),
+        pages_total=pages_total,
+        requests_total=requests_total,
+        requests_completed=0,
     )
 
+    requests_completed = 0
+    pages_processed = 0
     try:
-        if request.extraction_mode == ExtractionMode.WHOLE_DOCUMENT:
-            _validate_whole_document_extraction_size(document_markdown)
-        base_url = _ensure_extraction_server_ready(
-            timeout_seconds=EXTRACTION_ENGINE_TIMEOUT_SECONDS,
-        )
-
         all_extracted: list[ExtractedEntity] = []
         total_inference_ms = 0
 
-        for entity in request.entities:
-            json_schema = entity_definition_to_json_schema(entity)
-            session_id = build_modal_session_id(
-                job_id,
-                scope="extract",
-                entity_name=entity.entity_name,
+        if request.extraction_mode == ExtractionMode.WHOLE_DOCUMENT:
+            _validate_whole_document_extraction_size(document_markdown)
+            base_url = _ensure_extraction_server_ready(
+                timeout_seconds=EXTRACTION_ENGINE_TIMEOUT_SECONDS,
             )
-
-            if request.extraction_mode == ExtractionMode.WHOLE_DOCUMENT:
+            for entity in request.entities:
+                json_schema = entity_definition_to_json_schema(entity)
+                session_id = build_modal_session_id(
+                    job_id,
+                    scope="extract",
+                    entity_name=entity.entity_name,
+                )
                 payload = build_entity_extraction_chat_request(
                     entity=entity,
                     page_text=document_markdown,
                     model_id=EXTRACTION_MODEL_ID,
                     json_schema=json_schema,
-                    max_tokens=4096,
+                    max_tokens=EXTRACTION_WHOLE_DOCUMENT_MAX_TOKENS,
                 )
                 raw_response, inference_ms = _call_extraction_chat_completion(
                     payload,
@@ -666,36 +798,89 @@ def run_entity_extraction(job_id: str, request_payload: dict) -> dict:
                     )
                 )
                 total_inference_ms += inference_ms
-            else:
-                def _extract_page(page_task: tuple[int, str]) -> tuple[int, dict[str, object], int]:
-                    page_id, page_markdown = page_task
-                    payload = build_entity_extraction_chat_request(
-                        entity=entity,
-                        page_text=page_markdown,
-                        model_id=EXTRACTION_MODEL_ID,
-                        json_schema=json_schema,
-                        max_tokens=4096,
+                requests_completed += 1
+                pages_processed = 1 if requests_completed == requests_total else 0
+                _set_extraction_status(
+                    storage,
+                    job_id=job_id,
+                    status=ExtractionStatus.EXTRACTING,
+                    entities_requested=len(request.entities),
+                    pages_processed=pages_processed,
+                    pages_total=pages_total,
+                    requests_total=requests_total,
+                    requests_completed=requests_completed,
+                )
+        else:
+            if USE_DEDICATED_EXTRACTION_BATCH_ENGINE:
+                print(
+                    f"[app] run_entity_extraction using dedicated batch engine "
+                    f"job_id={job_id} requests_total={requests_total}"
+                )
+                batch_engine = ExtractionBatchEngine()
+                work_items: list[ExtractionWorkItem] = []
+                remaining_requests_by_page = {
+                    page_id: len(request.entities)
+                    for page_id, _page_markdown in page_tasks
+                }
+                for entity in request.entities:
+                    json_schema = entity_definition_to_json_schema(entity)
+                    session_id = build_modal_session_id(
+                        job_id,
+                        scope="extract-batch",
+                        entity_name=entity.entity_name,
                     )
-                    response, inference_ms = _call_extraction_chat_completion(
-                        payload,
-                        session_id=session_id,
-                        base_url=base_url,
-                    )
-                    return page_id, response, inference_ms
-
-                if page_tasks:
-                    max_workers = max(1, min(len(page_tasks), 4))
-                    with concurrent.futures.ThreadPoolExecutor(max_workers=max_workers) as executor:
-                        results = list(executor.map(_extract_page, page_tasks))
-                    for page_id, raw_response, inference_ms in results:
-                        all_extracted.append(
-                            ExtractedEntity(
-                                entity_name=entity.entity_name,
+                    for page_id, page_markdown in page_tasks:
+                        work_items.append(
+                            ExtractionWorkItem(
+                                job_id=job_id,
+                                entity=entity,
                                 page_id=page_id,
-                                data=json.loads(extract_chat_completion_content(raw_response)),
+                                page_text=page_markdown,
+                                json_schema=json_schema,
+                                model_id=EXTRACTION_MODEL_ID,
+                                max_tokens=EXTRACTION_PER_PAGE_MAX_TOKENS,
+                                session_id=session_id,
                             )
                         )
-                        total_inference_ms += inference_ms
+
+                if work_items:
+                    for result_payload in batch_engine.extract_pages.map(
+                        [item.model_dump(mode="json") for item in work_items]
+                    ):
+                        result = ExtractionWorkResult.model_validate(result_payload)
+                        all_extracted.append(
+                            ExtractedEntity(
+                                entity_name=result.entity_name,
+                                page_id=result.page_id,
+                                data=result.data,
+                            )
+                        )
+                        total_inference_ms += result.inference_ms
+                        requests_completed += 1
+                        remaining_requests_by_page[result.page_id] -= 1
+                        if remaining_requests_by_page[result.page_id] == 0:
+                            pages_processed += 1
+                        _set_extraction_status(
+                            storage,
+                            job_id=job_id,
+                            status=ExtractionStatus.EXTRACTING,
+                            entities_requested=len(request.entities),
+                            pages_processed=pages_processed,
+                            pages_total=pages_total,
+                            requests_total=requests_total,
+                            requests_completed=requests_completed,
+                        )
+            else:
+                print(
+                    f"[app] run_entity_extraction using online extraction server "
+                    f"job_id={job_id} requests_total={requests_total}"
+                )
+                all_extracted, total_inference_ms = _run_per_page_extraction_via_online_server(
+                    job_id=job_id,
+                    request=request,
+                    page_tasks=page_tasks,
+                    storage=storage,
+                )
 
         extraction_result = EntityExtractionResult(
             job_id=job_id,
@@ -708,15 +893,15 @@ def run_entity_extraction(job_id: str, request_payload: dict) -> dict:
         with storage.batch():
             storage.write_extraction_result(job_id, extraction_result)
             storage.write_cached_extraction_result(job_id, fingerprint, extraction_result)
-            storage.set_extraction_status(
-                job_id,
-                EntityExtractionStatusPayload(
-                    job_id=job_id,
-                    status=ExtractionStatus.COMPLETED,
-                    entities_requested=len(request.entities),
-                    pages_processed=pages_total,
-                    pages_total=pages_total,
-                ),
+            _set_extraction_status(
+                storage,
+                job_id=job_id,
+                status=ExtractionStatus.COMPLETED,
+                entities_requested=len(request.entities),
+                pages_processed=pages_total,
+                pages_total=pages_total,
+                requests_total=requests_total,
+                requests_completed=requests_total,
             )
         print(
             f"[app] run_entity_extraction complete job_id={job_id} "
@@ -725,16 +910,16 @@ def run_entity_extraction(job_id: str, request_payload: dict) -> dict:
         return extraction_result.model_dump(mode="json")
     except Exception as exc:  # noqa: BLE001
         error_message = _format_error_message(str(exc), limit=1200)
-        storage.set_extraction_status(
-            job_id,
-            EntityExtractionStatusPayload(
-                job_id=job_id,
-                status=ExtractionStatus.FAILED,
-                entities_requested=len(request.entities),
-                pages_processed=0,
-                pages_total=pages_total,
-                error_message=error_message,
-            ),
+        _set_extraction_status(
+            storage,
+            job_id=job_id,
+            status=ExtractionStatus.FAILED,
+            entities_requested=len(request.entities),
+            pages_processed=pages_processed,
+            pages_total=pages_total,
+            requests_total=requests_total,
+            requests_completed=requests_completed,
+            error_message=error_message,
         )
         print(
             f"[app] run_entity_extraction failed job_id={job_id} "
@@ -764,20 +949,20 @@ def cleanup_stale_jobs_remote() -> list[str]:
     return marked
 
 
-def _cache_model_ids(runtime_profile_name: str | None = None) -> list[str]:
+def _cache_model_specs(runtime_profile_name: str | None = None) -> list[tuple[str, str | None]]:
     selected_profiles = (
         [get_runtime_profile(runtime_profile_name or DEFAULT_RUNTIME_PROFILE)]
         if runtime_profile_name is not None
         else [get_runtime_profile(profile_name) for profile_name in ENABLED_RUNTIME_PROFILES]
     )
-    model_ids = {EXTRACTION_MODEL_ID}
+    model_specs: dict[str, str | None] = {EXTRACTION_MODEL_ID: EXTRACTION_MODEL_REVISION}
     for profile in selected_profiles:
-        model_ids.add(profile.model_id)
+        model_specs[profile.model_id] = profile.model_revision
         if profile.fallback_model_id:
-            model_ids.add(profile.fallback_model_id)
+            model_specs.setdefault(profile.fallback_model_id, None)
         if profile.deep_refine_model_id:
-            model_ids.add(profile.deep_refine_model_id)
-    return sorted(model_ids)
+            model_specs.setdefault(profile.deep_refine_model_id, None)
+    return sorted(model_specs.items())
 
 
 @app.function(
@@ -789,11 +974,12 @@ def cache_model_weights_remote(
     runtime_profile_name: str | None = None,
 ) -> dict[str, object]:
     model_statuses = []
-    for model_id in _cache_model_ids(runtime_profile_name):
-        status = ensure_model_cached(model_id)
+    for model_id, revision in _cache_model_specs(runtime_profile_name):
+        status = ensure_model_cached(model_id, revision=revision)
         model_statuses.append(
             {
                 "model_id": model_id,
+                "revision": revision,
                 "cache_root": str(HF_CACHE_ROOT),
                 "model_root": str(status.model_root),
                 "snapshot_count": status.snapshot_count,
@@ -978,6 +1164,91 @@ def _print_artifact_locations(job_id: str, local_output_dir: Path | None = None)
     print(f"  modal_document_text_final={volume_paths['document_text_final']}")
 
 
+def _build_request_payload(
+    *,
+    data: bytes,
+    mime_type: MimeType,
+    mode: str,
+    latency_profile: str,
+    language_hint: str | None,
+    result_level: str,
+    save_raw_model_output: bool,
+    save_prompt_text: bool,
+) -> dict[str, object]:
+    return {
+        "source": {"type": "bytes", "base64": base64.b64encode(data).decode("utf-8")},
+        "mime_type": mime_type.value,
+        "mode": mode,
+        "latency_profile": latency_profile,
+        "language_hint": language_hint,
+        "output_formats": ["markdown", "text", "json"],
+        "debug": {
+            "persist_page_images": True,
+            "save_raw_model_output": save_raw_model_output,
+            "save_prompt_text": save_prompt_text,
+        },
+        "result_level": result_level,
+    }
+
+
+def _load_sample(sample_path: str | None) -> tuple[bytes, MimeType]:
+    if sample_path is None:
+        return _default_smoke_sample()
+    file_path = Path(sample_path)
+    return file_path.read_bytes(), _infer_mime_type(sample_path)
+
+
+def _submit_document_job(
+    *,
+    sample_path: str | None,
+    mode: str,
+    latency_profile: str,
+    language_hint: str | None,
+    runtime_profile_name: str,
+    result_level: str,
+    save_raw_model_output: bool = False,
+    save_prompt_text: bool = False,
+) -> str:
+    data, mime_type = _load_sample(sample_path)
+    request_payload = _build_request_payload(
+        data=data,
+        mime_type=mime_type,
+        mode=mode,
+        latency_profile=latency_profile,
+        language_hint=language_hint,
+        result_level=result_level,
+        save_raw_model_output=save_raw_model_output,
+        save_prompt_text=save_prompt_text,
+    )
+    submission = submit_parse_request_remote.remote(request_payload, runtime_profile_name)
+    return submission["job_id"]
+
+
+def _wait_for_parse_job(
+    job_id: str,
+    *,
+    require_final: bool,
+    poll_interval_seconds: float = 5.0,
+) -> tuple[dict[str, object], int, int | None]:
+    started = time.perf_counter()
+    first_fast_ms: int | None = None
+    while True:
+        status = get_parse_status_remote.remote(job_id)
+        elapsed_ms = int((time.perf_counter() - started) * 1000)
+        if status["status"] == "completed_fast" and first_fast_ms is None:
+            first_fast_ms = elapsed_ms
+        if status["status"] in {
+            "completed_fast",
+            "completed_final",
+            "completed",
+            "completed_with_errors",
+            "failed",
+        }:
+            if not require_final or status["status"] != "completed_fast":
+                return status, elapsed_ms, first_fast_ms
+        time.sleep(poll_interval_seconds)
+
+
 @app.local_entrypoint()
 def stage_upload(path: str, mime_type: str | None = None):
     file_path = Path(path)
@@ -1053,6 +1324,157 @@ def smoke_entity_extraction(
 
 
 @app.local_entrypoint()
+def benchmark_ocr_fast(
+    sample_path: str = str(PROJECT_ROOT / "tmp" / "benchmark-5pages.pdf"),
+    mode: str = "balanced",
+    runtime_profile_name: str = "dev",
+):
+    job_id = _submit_document_job(
+        sample_path=sample_path,
+        mode=mode,
+        latency_profile="fast",
+        language_hint=None,
+        runtime_profile_name=runtime_profile_name,
+        result_level="latest",
+    )
+    status, wall_ms, _fast_ms = _wait_for_parse_job(job_id, require_final=False)
+    pages_total = max(int(status.get("pages_total") or 0), 1)
+    print(
+        json.dumps(
+            {
+                "benchmark": "ocr_fast",
+                "job_id": job_id,
+                "status": status["status"],
+                "pages_total": pages_total,
+                "wall_ms": wall_ms,
+                "pages_per_second": round(pages_total / max(wall_ms / 1000, 0.001), 3),
+                "ocr_chunk_size": OCR_PAGES_PER_CHUNK.get(mode, OCR_PAGES_PER_CHUNK["balanced"]),
+            },
+            indent=2,
+            sort_keys=True,
+        )
+    )
+
+
+@app.local_entrypoint()
+def benchmark_fallback_refinement(
+    sample_path: str = str(PROJECT_ROOT / "tmp" / "benchmark-5pages.pdf"),
+    mode: str = "balanced",
+    runtime_profile_name: str = "dev",
+):
+    job_id = _submit_document_job(
+        sample_path=sample_path,
+        mode=mode,
+        latency_profile="balanced",
+        language_hint=None,
+        runtime_profile_name=runtime_profile_name,
+        result_level="latest",
+    )
+    status, wall_ms, fast_stage_ms = _wait_for_parse_job(job_id, require_final=True)
+    pages_total = max(int(status.get("pages_total") or 0), 1)
+    refinement_wall_ms = (
+        wall_ms - fast_stage_ms
+        if fast_stage_ms is not None and wall_ms >= fast_stage_ms
+        else None
+    )
+    print(
+        json.dumps(
+            {
+                "benchmark": "fallback_refinement",
+                "job_id": job_id,
+                "status": status["status"],
+                "pages_total": pages_total,
+                "wall_ms": wall_ms,
+                "fast_stage_wall_ms": fast_stage_ms,
+                "refinement_wall_ms": refinement_wall_ms,
+                "pages_per_second": round(pages_total / max(wall_ms / 1000, 0.001), 3),
+                "fallback_chunk_size": FALLBACK_PAGES_PER_CHUNK.get(
+                    mode,
+                    FALLBACK_PAGES_PER_CHUNK["balanced"],
+                ),
+            },
+            indent=2,
+            sort_keys=True,
+        )
+    )
+
+
+@app.local_entrypoint()
+def benchmark_per_page_extraction(
+    sample_path: str = str(PROJECT_ROOT / "tmp" / "benchmark-5pages.pdf"),
+    mode: str = "balanced",
+    runtime_profile_name: str = "dev",
+):
+    job_id = _submit_document_job(
+        sample_path=sample_path,
+        mode=mode,
+        latency_profile="balanced",
+        language_hint=None,
+        runtime_profile_name=runtime_profile_name,
+        result_level="latest",
+    )
+    status, _wall_ms, _fast_ms = _wait_for_parse_job(job_id, require_final=True)
+    pages_total = int(status.get("pages_total") or 0)
+    entities = [
+        {
+            "entity_name": "PageFacts",
+            "description": "Basic document facts visible on a page.",
+            "fields": [
+                {
+                    "name": "primary_identifier",
+                    "field_type": "string",
+                    "description": "Main identifying label or number on the page.",
+                    "required": False,
+                    "examples": [],
+                }
+            ],
+        },
+        {
+            "entity_name": "Amounts",
+            "description": "Amounts or totals visible on a page.",
+            "fields": [
+                {
+                    "name": "amount_text",
+                    "field_type": "string",
+                    "description": "Raw amount text found on the page.",
+                    "required": False,
+                    "examples": [],
+                }
+            ],
+        },
+    ]
+    started = time.perf_counter()
+    result = run_entity_extraction.remote(
+        job_id,
+        {
+            "job_id": job_id,
+            "entities": entities,
+            "extraction_mode": "per_page",
+        },
+    )
+    wall_ms = int((time.perf_counter() - started) * 1000)
+    requests_total = pages_total * len(entities)
+    print(
+        json.dumps(
+            {
+                "benchmark": "per_page_extraction",
+                "job_id": job_id,
+                "pages_total": pages_total,
+                "entities_requested": len(entities),
+                "requests_total": requests_total,
+                "wall_ms": wall_ms,
+                "requests_per_second": round(requests_total / max(wall_ms / 1000, 0.001), 3),
+                "batch_max_size": EXTRACTION_BATCH_MAX_SIZE,
+                "batch_wait_ms": EXTRACTION_BATCH_WAIT_MS,
+                "reported_inference_ms": result.get("inference_ms"),
+            },
+            indent=2,
+            sort_keys=True,
+        )
+    )
+
+
+@app.local_entrypoint()
 def download_result(
     job_id: str,
     output_dir: str = str(LOCAL_RESULT_OUTPUT_ROOT),
@@ -1082,47 +1504,24 @@ def smoke_test(
     output_dir: str = str(LOCAL_RESULT_OUTPUT_ROOT),
     result_level: str = "latest",
 ):
-    if sample_path is None:
-        data, mime_type = _default_smoke_sample()
-    else:
-        file_path = Path(sample_path)
-        data = file_path.read_bytes()
-        mime_type = _infer_mime_type(sample_path)
-
-    request_payload = {
-        "source": {"type": "bytes", "base64": base64.b64encode(data).decode("utf-8")},
-        "mime_type": mime_type.value,
-        "mode": mode,
-        "latency_profile": latency_profile,
-        "language_hint": language_hint,
-        "output_formats": ["markdown", "text", "json"],
-        "debug": {
-            "persist_page_images": True,
-            "save_raw_model_output": save_raw_model_output,
-            "save_prompt_text": save_prompt_text,
-        },
-        "result_level": result_level,
-    }
-    submission = submit_parse_request_remote.remote(request_payload, runtime_profile_name)
-    job_id = submission["job_id"]
+    job_id = _submit_document_job(
+        sample_path=sample_path,
+        mode=mode,
+        latency_profile=latency_profile,
+        language_hint=language_hint,
+        runtime_profile_name=runtime_profile_name,
+        result_level=result_level,
+        save_raw_model_output=save_raw_model_output,
+        save_prompt_text=save_prompt_text,
+    )
     print(f"job_id={job_id}")
-
-    while True:
-        status = get_parse_status_remote.remote(job_id)
-        print(
-            f"status={status['status']} "
-            f"completed={status['pages_completed']} "
-            f"failed={status['pages_failed']}"
-        )
-        if status["status"] in {
-            "completed_fast",
-            "completed_final",
-            "completed",
-            "completed_with_errors",
-            "failed",
-        }:
-            break
-        time.sleep(5)
+    require_final = result_level != "fast"
+    status, _wall_ms, _fast_ms = _wait_for_parse_job(job_id, require_final=require_final)
+    print(
+        f"status={status['status']} "
+        f"completed={status['pages_completed']} "
+        f"failed={status['pages_failed']}"
+    )
 
     _print_error_summary(status)
     local_output_dir = _write_local_result_bundle(

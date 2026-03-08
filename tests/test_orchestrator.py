@@ -72,6 +72,16 @@ def _failed_result(task_payload: dict) -> dict:
     ).model_dump(mode="json")
 
 
+def _iter_task_payloads(payloads: list[dict]) -> list[dict]:
+    tasks: list[dict] = []
+    for payload in payloads:
+        if "pages" in payload:
+            tasks.extend(payload["pages"])
+        else:
+            tasks.append(payload)
+    return tasks
+
+
 def build_service(tmp_path, scheduled_jobs: list[tuple[str, str]]):
     storage = FileSystemStorageBackend(
         tmp_path,
@@ -136,7 +146,7 @@ def test_process_job_emits_fast_and_final_results(tmp_path):
     def run_ocr_pages(payloads: list[dict]) -> list[dict]:
         # Force OCR on page 1 to fail so fallback gets scheduled.
         responses: list[dict] = []
-        for payload in payloads:
+        for payload in _iter_task_payloads(payloads):
             if payload["page_id"] == 1:
                 responses.append(_failed_result(payload))
             else:
@@ -148,12 +158,19 @@ def test_process_job_emits_fast_and_final_results(tmp_path):
         submission.job_id,
         run_ocr_pages=run_ocr_pages,
         schedule_refinement=None,
-        run_fallback_pages=lambda payloads: [_completed_result(p, engine="vlm_fallback") for p in payloads],
+        run_fallback_pages=lambda payloads: [
+            _completed_result(p, engine="vlm_fallback")
+            for p in _iter_task_payloads(payloads)
+        ],
     )
     assert snapshot.status == "completed_final"
     assert snapshot.pages_completed == 2
     assert snapshot.pages_failed == 0
     assert snapshot.result_revision == 2
+    assert storage.read_job_manifest(submission.job_id).chunk_ids == [
+        "ocr-0000",
+        "fallback-r2-0000",
+    ]
 
     result = service.get_document_parse_result(
         GetDocumentParseResultRequest(job_id=submission.job_id, format="json")

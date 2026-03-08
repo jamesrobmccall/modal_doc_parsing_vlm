@@ -43,9 +43,10 @@ def describe_model_cache(
 def ensure_model_cached(
     model_id: str,
     *,
+    revision: str | None = None,
     cache_root: Path = HF_HUB_CACHE_ROOT,
 ) -> ModelCacheStatus:
     from huggingface_hub import snapshot_download
 
-    snapshot_download(repo_id=model_id, cache_dir=str(cache_root))
+    snapshot_download(repo_id=model_id, revision=revision, cache_dir=str(cache_root))
     return describe_model_cache(model_id, cache_root=cache_root)
