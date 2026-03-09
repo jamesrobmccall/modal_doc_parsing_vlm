@@ -158,3 +158,28 @@ def test_online_per_page_extraction_propagates_failures(monkeypatch):
         )
 
     assert len(status_updates) < 4
+
+
+def test_call_extraction_json_completion_retries_unrecoverable_json(monkeypatch):
+    app_module = _load_app_module()
+    attempts = 0
+
+    def fake_call(payload, *, session_id, base_url=None):
+        nonlocal attempts
+        attempts += 1
+        if attempts == 1:
+            return {"choices": [{"message": {"content": "not json at all"}}]}, 9
+        return {"choices": [{"message": {"content": '{"ok": true, "attempt": 2}'}}]}, 7
+
+    monkeypatch.setattr(app_module, "_call_extraction_chat_completion", fake_call)
+    monkeypatch.setattr(app_module.time, "sleep", lambda _seconds: None)
+
+    parsed, inference_ms = app_module._call_extraction_json_completion(
+        {"messages": []},
+        session_id="session-1",
+        base_url="https://extract.example",
+    )
+
+    assert attempts == 2
+    assert parsed == {"ok": True, "attempt": 2}
+    assert inference_ms == 16

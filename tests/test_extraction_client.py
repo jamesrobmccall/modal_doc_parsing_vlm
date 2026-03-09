@@ -6,6 +6,8 @@ from modal_doc_parsing_vlm.extraction_client import (
     build_job_extraction_session_id,
     build_modal_session_id,
     build_suggestion_chat_request,
+    extract_chat_completion_json,
+    parse_chat_completion_json_content,
 )
 from modal_doc_parsing_vlm.types_extraction import (
     EntityDefinition,
@@ -74,3 +76,28 @@ def test_job_extraction_session_id_is_shared_across_steps_but_not_warmup():
     assert session_id == build_job_extraction_session_id("job-123")
     assert session_id != build_modal_session_id("warmup", scope="warm")
     assert build_extraction_headers(session_id)["Modal-Session-ID"] == session_id
+
+
+def test_parse_chat_completion_json_content_repairs_unterminated_strings():
+    raw_text = '{\n  "title": "Modal Demo Ideas",\n  "summary": "A draft document\n'
+
+    parsed = parse_chat_completion_json_content(raw_text)
+
+    assert parsed["title"] == "Modal Demo Ideas"
+    assert parsed["summary"] == "A draft document"
+
+
+def test_extract_chat_completion_json_reads_and_repairs_message_content():
+    payload = {
+        "choices": [
+            {
+                "message": {
+                    "content": '{\n  "entity_name": "Invoice",\n  "invoice_number": "INV-001"\n'
+                }
+            }
+        ]
+    }
+
+    parsed = extract_chat_completion_json(payload)
+
+    assert parsed == {"entity_name": "Invoice", "invoice_number": "INV-001"}
