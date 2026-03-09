@@ -12,6 +12,8 @@
 
 Pinned revisions are configured for both fallback and extraction models so deploys stay reproducible. DeepGEMM compilation is enabled automatically only on Hopper or Blackwell-class extraction GPUs; the default `L4` extraction profile skips that path.
 
+For lowest extraction latency, keep suggestion and extraction on the shared online server with `DOC_PARSE_USE_DEDICATED_EXTRACTION_BATCH_ENGINE=0`. A practical warm-reuse preset is `DOC_PARSE_EXTRACTION_MIN_CONTAINERS=1` plus `DOC_PARSE_EXTRACTION_SCALEDOWN_WINDOW_SECONDS=300` to `600`.
+
 ## Runtime Profiles
 
 The fallback stack supports `dev` and `prod` runtime profiles. Both pin the same model and tokenizer revisions; the main behavior difference is startup mode:
@@ -54,6 +56,14 @@ export DOC_PARSE_USE_DEDICATED_EXTRACTION_BATCH_ENGINE=0
 # Cleanup / watchdog
 export DOC_PARSE_STALE_JOB_TIMEOUT_SECONDS=1800
 export DOC_PARSE_STALE_JOB_SWEEP_SECONDS=600
+```
+
+Latency-focused extraction preset for shared-server reuse:
+
+```bash
+export DOC_PARSE_USE_DEDICATED_EXTRACTION_BATCH_ENGINE=0
+export DOC_PARSE_EXTRACTION_MIN_CONTAINERS=1
+export DOC_PARSE_EXTRACTION_SCALEDOWN_WINDOW_SECONDS=300
 ```
 
 ## Result Artifacts

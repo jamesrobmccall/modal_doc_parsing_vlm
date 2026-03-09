@@ -1,7 +1,6 @@
 from __future__ import annotations
 
 import concurrent.futures
-import json
 import subprocess
 import time
 from typing import Any
@@ -11,7 +10,7 @@ import modal
 from .extraction_client import (
     build_entity_extraction_chat_request,
     build_extraction_headers,
-    extract_chat_completion_content,
+    extract_chat_completion_json,
 )
 from .config import (
     CONTROL_PLANE_DEPENDENCIES,
@@ -41,6 +40,9 @@ from .config import (
     SGLANG_IMAGE,
 )
 from .types_extraction import ExtractionWorkItem, ExtractionWorkResult
+
+
+_EXTRACTION_JSON_PARSE_MAX_ATTEMPTS = 2
 
 
 def _compile_deep_gemm() -> None:
@@ -206,6 +208,33 @@ def _call_local_chat_completion(payload: dict[str, Any], *, session_id: str) -> 
     return response.json(), int((time.perf_counter() - started) * 1000)
 
 
+def _call_local_chat_completion_json(
+    payload: dict[str, Any],
+    *,
+    session_id: str,
+) -> tuple[dict[str, Any], int]:
+    total_inference_ms = 0
+    last_exc: Exception | None = None
+    for attempt in range(1, _EXTRACTION_JSON_PARSE_MAX_ATTEMPTS + 1):
+        response, inference_ms = _call_local_chat_completion(
+            payload,
+            session_id=session_id,
+        )
+        total_inference_ms += inference_ms
+        try:
+            return extract_chat_completion_json(response), total_inference_ms
+        except Exception as exc:  # noqa: BLE001
+            last_exc = exc
+            print(
+                "[engine:extraction-batch] JSON parse failed "
+                f"attempt={attempt}/{_EXTRACTION_JSON_PARSE_MAX_ATTEMPTS} "
+                f"session_id={session_id} error={exc!r}"
+            )
+            if attempt < _EXTRACTION_JSON_PARSE_MAX_ATTEMPTS:
+                time.sleep(float(attempt))
+    raise RuntimeError(f"Extraction batch response contained invalid JSON after retries: {last_exc!r}")
+
+
 def create_extraction_engine_cls(
     app: modal.App,
     *,
@@ -296,14 +325,14 @@ def create_extraction_batch_engine_cls(
             json_schema=item.json_schema,
             max_tokens=item.max_tokens,
         )
-        response, inference_ms = _call_local_chat_completion(
+        data, inference_ms = _call_local_chat_completion_json(
             payload,
             session_id=item.session_id,
         )
         return ExtractionWorkResult(
             entity_name=item.entity.entity_name,
             page_id=item.page_id,
-            data=json.loads(extract_chat_completion_content(response)),
+            data=data,
             inference_ms=inference_ms,
         )
 

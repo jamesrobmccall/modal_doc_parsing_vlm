@@ -4,6 +4,7 @@ import hashlib
 import json
 from typing import Any
 
+from .json_output import repair_json_string
 from .prompts_extraction import (
     build_entity_extraction_prompt,
     build_entity_suggestion_prompt,
@@ -67,6 +68,11 @@ def build_modal_session_id(
 ) -> str:
     payload = {"job_id": job_id, "scope": scope, "entity_name": entity_name or ""}
     return f"doc-parse-{_stable_hash(payload)[:24]}"
+
+
+def build_job_extraction_session_id(job_id: str) -> str:
+    """Use one sticky extraction session per job to favor shared-server reuse."""
+    return build_modal_session_id(job_id, scope="extract-job")
 
 
 def build_suggestion_request_fingerprint(
@@ -180,3 +186,17 @@ def extract_chat_completion_content(payload: dict[str, Any]) -> str:
         if parts:
             return "".join(parts)
     raise ValueError("Extraction server returned an unsupported message payload.")
+
+
+def parse_chat_completion_json_content(raw_text: str) -> dict[str, Any]:
+    try:
+        data = json.loads(raw_text)
+    except json.JSONDecodeError:
+        data = json.loads(repair_json_string(raw_text))
+    if not isinstance(data, dict):
+        raise ValueError("Extraction server returned JSON that is not an object.")
+    return data
+
+
+def extract_chat_completion_json(payload: dict[str, Any]) -> dict[str, Any]:
+    return parse_chat_completion_json_content(extract_chat_completion_content(payload))

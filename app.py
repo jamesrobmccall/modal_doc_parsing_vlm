@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import base64
+import concurrent.futures
 import inspect
 import json
 import mimetypes
@@ -31,8 +32,10 @@ from modal_doc_parsing_vlm.config import (
     EXTRACTION_BATCH_MAX_SIZE,
     EXTRACTION_ENGINE_TIMEOUT_SECONDS,
     EXTRACTION_HTTP_TIMEOUT_SECONDS,
+    EXTRACTION_MAX_RUNNING_REQUESTS,
     EXTRACTION_PER_PAGE_MAX_TOKENS,
     EXTRACTION_SUGGESTION_MAX_TOKENS,
+    EXTRACTION_TARGET_INPUTS,
     USE_DEDICATED_EXTRACTION_BATCH_ENGINE,
     EXTRACTION_WHOLE_DOCUMENT_MAX_TOKENS,
     HF_CACHE_ROOT,
@@ -66,10 +69,12 @@ from modal_doc_parsing_vlm.engine_ocr import create_ocr_engine_cls
 from modal_doc_parsing_vlm.extraction_client import (
     build_entity_extraction_chat_request,
     build_extraction_headers,
+    build_job_extraction_session_id,
     build_extraction_request_fingerprint,
     build_modal_session_id,
     build_suggestion_chat_request,
     build_suggestion_request_fingerprint,
+    extract_chat_completion_json,
     extract_chat_completion_content,
 )
 from modal_doc_parsing_vlm.mcp_server import build_fastapi_app
@@ -169,6 +174,7 @@ ExtractionBatchEngine = create_extraction_batch_engine_cls(
 )
 
 _EXTRACTION_BASE_URL: str | None = None
+_EXTRACTION_JSON_PARSE_MAX_ATTEMPTS = 2
 
 
 def build_storage() -> FileSystemStorageBackend:
@@ -446,6 +452,46 @@ def _call_extraction_chat_completion(
     raise RuntimeError(f"Extraction HTTP request failed after retries: {last_exc!r}")
 
 
+def _call_extraction_json_completion(
+    payload: dict[str, object],
+    *,
+    session_id: str,
+    base_url: str | None = None,
+) -> tuple[dict[str, object], int]:
+    total_inference_ms = 0
+    last_exc: Exception | None = None
+    last_raw_text = ""
+    for attempt in range(1, _EXTRACTION_JSON_PARSE_MAX_ATTEMPTS + 1):
+        raw_response, inference_ms = _call_extraction_chat_completion(
+            payload,
+            session_id=session_id,
+            base_url=base_url,
+        )
+        total_inference_ms += inference_ms
+        try:
+            return extract_chat_completion_json(raw_response), total_inference_ms
+        except Exception as exc:  # noqa: BLE001
+            last_exc = exc
+            try:
+                last_raw_text = extract_chat_completion_content(raw_response)
+            except Exception:  # noqa: BLE001
+                last_raw_text = ""
+            print(
+                "[app] extraction JSON parse failed "
+                f"attempt={attempt}/{_EXTRACTION_JSON_PARSE_MAX_ATTEMPTS} "
+                f"session_id={session_id} "
+                f"error={_format_error_message(str(exc), limit=240)} "
+                f"raw_snippet={_format_error_message(last_raw_text, limit=240)}"
+            )
+            if attempt < _EXTRACTION_JSON_PARSE_MAX_ATTEMPTS:
+                time.sleep(float(attempt))
+    raise RuntimeError(
+        "Extraction response contained invalid JSON after retries: "
+        f"{_format_error_message(str(last_exc or 'unknown parse error'), limit=240)} "
+        f"raw_snippet={_format_error_message(last_raw_text, limit=240)}"
+    )
+
+
 def _validate_whole_document_extraction_size(document_markdown: str) -> None:
     char_count = len(document_markdown)
     if char_count <= EXTRACTION_WHOLE_DOCUMENT_MAX_CHARS:
@@ -555,6 +601,10 @@ def _set_extraction_status(
     )
 
 
+def _online_extraction_max_concurrency() -> int:
+    return max(1, min(EXTRACTION_TARGET_INPUTS, EXTRACTION_MAX_RUNNING_REQUESTS))
+
+
 def _run_per_page_extraction_via_online_server(
     *,
     job_id: str,
@@ -581,32 +631,51 @@ def _run_per_page_extraction_via_online_server(
     all_extracted: list[ExtractedEntity] = []
     total_inference_ms = 0
 
+    if requests_total == 0:
+        return all_extracted, total_inference_ms
+
+    session_id = build_job_extraction_session_id(job_id)
+    work_items: list[dict[str, object]] = []
     for entity in request.entities:
         json_schema = entity_definition_to_json_schema(entity)
-        session_id = build_modal_session_id(
-            job_id,
-            scope="extract-page",
-            entity_name=entity.entity_name,
-        )
         for page_id, page_markdown in page_tasks:
-            payload = build_entity_extraction_chat_request(
-                entity=entity,
-                page_text=page_markdown,
-                model_id=EXTRACTION_MODEL_ID,
-                json_schema=json_schema,
-                max_tokens=EXTRACTION_PER_PAGE_MAX_TOKENS,
+            work_items.append(
+                {
+                    "index": len(work_items),
+                    "entity_name": entity.entity_name,
+                    "page_id": page_id,
+                    "payload": build_entity_extraction_chat_request(
+                        entity=entity,
+                        page_text=page_markdown,
+                        model_id=EXTRACTION_MODEL_ID,
+                        json_schema=json_schema,
+                        max_tokens=EXTRACTION_PER_PAGE_MAX_TOKENS,
+                    ),
+                }
             )
-            raw_response, inference_ms = _call_extraction_chat_completion(
-                payload,
+
+    max_concurrency = _online_extraction_max_concurrency()
+    ordered_results: list[ExtractedEntity | None] = [None] * len(work_items)
+    executor = concurrent.futures.ThreadPoolExecutor(max_workers=max_concurrency)
+    future_to_work_item: dict[concurrent.futures.Future[tuple[dict[str, object], int]], dict[str, object]] = {}
+    try:
+        for item in work_items:
+            future = executor.submit(
+                _call_extraction_json_completion,
+                item["payload"],
                 session_id=session_id,
                 base_url=base_url,
             )
-            all_extracted.append(
-                ExtractedEntity(
-                    entity_name=entity.entity_name,
-                    page_id=page_id,
-                    data=json.loads(extract_chat_completion_content(raw_response)),
-                )
+            future_to_work_item[future] = item
+
+        for future in concurrent.futures.as_completed(future_to_work_item):
+            item = future_to_work_item[future]
+            data, inference_ms = future.result()
+            page_id = int(item["page_id"])
+            ordered_results[int(item["index"])] = ExtractedEntity(
+                entity_name=str(item["entity_name"]),
+                page_id=page_id,
+                data=data,
             )
             total_inference_ms += inference_ms
             requests_completed += 1
@@ -623,6 +692,14 @@ def _run_per_page_extraction_via_online_server(
                 requests_total=requests_total,
                 requests_completed=requests_completed,
             )
+    except Exception:
+        for future in future_to_work_item:
+            future.cancel()
+        raise
+    finally:
+        executor.shutdown(wait=True, cancel_futures=True)
+
+    all_extracted = [result for result in ordered_results if result is not None]
 
     return all_extracted, total_inference_ms
 
@@ -662,12 +739,11 @@ def suggest_entities_remote(job_id: str) -> dict:
         model_id=EXTRACTION_MODEL_ID,
         max_tokens=EXTRACTION_SUGGESTION_MAX_TOKENS,
     )
-    raw_response, _elapsed_ms = _call_extraction_chat_completion(
+    data, _elapsed_ms = _call_extraction_json_completion(
         payload,
-        session_id=build_modal_session_id(job_id, scope="suggest"),
+        session_id=build_job_extraction_session_id(job_id),
         base_url=base_url,
     )
-    data = json.loads(extract_chat_completion_content(raw_response))
 
     entities: list[EntityDefinition] = []
     for raw_entity in data.get("entities", []):
@@ -771,13 +847,9 @@ def run_entity_extraction(job_id: str, request_payload: dict) -> dict:
             base_url = _ensure_extraction_server_ready(
                 timeout_seconds=EXTRACTION_ENGINE_TIMEOUT_SECONDS,
             )
+            session_id = build_job_extraction_session_id(job_id)
             for entity in request.entities:
                 json_schema = entity_definition_to_json_schema(entity)
-                session_id = build_modal_session_id(
-                    job_id,
-                    scope="extract",
-                    entity_name=entity.entity_name,
-                )
                 payload = build_entity_extraction_chat_request(
                     entity=entity,
                     page_text=document_markdown,
@@ -785,7 +857,7 @@ def run_entity_extraction(job_id: str, request_payload: dict) -> dict:
                     json_schema=json_schema,
                     max_tokens=EXTRACTION_WHOLE_DOCUMENT_MAX_TOKENS,
                 )
-                raw_response, inference_ms = _call_extraction_chat_completion(
+                data, inference_ms = _call_extraction_json_completion(
                     payload,
                     session_id=session_id,
                     base_url=base_url,
@@ -794,7 +866,7 @@ def run_entity_extraction(job_id: str, request_payload: dict) -> dict:
                     ExtractedEntity(
                         entity_name=entity.entity_name,
                         page_id=None,
-                        data=json.loads(extract_chat_completion_content(raw_response)),
+                        data=data,
                     )
                 )
                 total_inference_ms += inference_ms
@@ -824,11 +896,6 @@ def run_entity_extraction(job_id: str, request_payload: dict) -> dict:
                 }
                 for entity in request.entities:
                     json_schema = entity_definition_to_json_schema(entity)
-                    session_id = build_modal_session_id(
-                        job_id,
-                        scope="extract-batch",
-                        entity_name=entity.entity_name,
-                    )
                     for page_id, page_markdown in page_tasks:
                         work_items.append(
                             ExtractionWorkItem(
@@ -839,7 +906,7 @@ def run_entity_extraction(job_id: str, request_payload: dict) -> dict:
                                 json_schema=json_schema,
                                 model_id=EXTRACTION_MODEL_ID,
                                 max_tokens=EXTRACTION_PER_PAGE_MAX_TOKENS,
-                                session_id=session_id,
+                                session_id=build_job_extraction_session_id(job_id),
                             )
                         )
 
@@ -873,7 +940,8 @@ def run_entity_extraction(job_id: str, request_payload: dict) -> dict:
             else:
                 print(
                     f"[app] run_entity_extraction using online extraction server "
-                    f"job_id={job_id} requests_total={requests_total}"
+                    f"job_id={job_id} requests_total={requests_total} "
+                    f"max_concurrency={_online_extraction_max_concurrency()}"
                 )
                 all_extracted, total_inference_ms = _run_per_page_extraction_via_online_server(
                     job_id=job_id,
