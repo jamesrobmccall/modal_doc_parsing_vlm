@@ -69,6 +69,11 @@ def build_modal_session_id(
     return f"doc-parse-{_stable_hash(payload)[:24]}"
 
 
+def build_job_extraction_session_id(job_id: str) -> str:
+    """Use one sticky extraction session per job to favor shared-server reuse."""
+    return build_modal_session_id(job_id, scope="extract-job")
+
+
 def build_suggestion_request_fingerprint(
     *,
     job_id: str,

@@ -3,6 +3,7 @@ from __future__ import annotations
 from modal_doc_parsing_vlm.extraction_client import (
     build_entity_extraction_chat_request,
     build_extraction_headers,
+    build_job_extraction_session_id,
     build_modal_session_id,
     build_suggestion_chat_request,
 )
@@ -64,4 +65,12 @@ def test_modal_session_id_is_stable_and_added_to_headers():
         "job-123", scope="extract", entity_name="Invoice"
     )
     assert session_id != build_modal_session_id("job-123", scope="suggest")
+    assert build_extraction_headers(session_id)["Modal-Session-ID"] == session_id
+
+
+def test_job_extraction_session_id_is_shared_across_steps_but_not_warmup():
+    session_id = build_job_extraction_session_id("job-123")
+
+    assert session_id == build_job_extraction_session_id("job-123")
+    assert session_id != build_modal_session_id("warmup", scope="warm")
     assert build_extraction_headers(session_id)["Modal-Session-ID"] == session_id

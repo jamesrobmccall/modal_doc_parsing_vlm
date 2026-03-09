@@ -93,14 +93,17 @@ Extraction is intentionally split into two paths.
 
 - entity suggestion
 - whole-document extraction
+- per-page extraction by default
 
-It uses sticky `Modal-Session-ID` routing and is tuned around:
+It uses one job-scoped sticky `Modal-Session-ID` for suggestion plus extraction requests from the same job, and is tuned around:
 
 - `min_containers=0`
 - `max_containers=1`
 - `target_concurrency=4`
 - `max_running_requests=4`
 - `mem_fraction=0.70`
+
+Per-page extraction on the online path fans requests out concurrently against that shared server, capped at `min(target_concurrency, max_running_requests)`, so the job reuses one warm model container without serializing every page/entity request.
 
 Token budgets:
 
@@ -161,6 +164,8 @@ Cost note: ephemeral `modal run` apps are separate from the deployed app. If you
 
 For steadier numbers, benchmark a deployed environment by calling the deployed functions or HTTP endpoints directly. This reuses the long-lived deployed topology and is a better fit for throughput measurements once the service is warm.
 
+If you want to measure extraction reuse specifically, run suggest plus extract against the same deployed environment or from one local entrypoint such as `smoke_entity_extraction`. Do not measure suggest in one `modal run` app and extract in another, because those are separate Modal apps and will not share in-memory model state.
+
 Because submission is idempotent, benchmark reruns need unique input bytes or a changed payload to avoid accidentally reusing an existing `job_id`.
 
 ## Result Lifecycle
@@ -189,6 +194,8 @@ Smoke the extraction stack:
 ./.venv/bin/modal run app.py::smoke_entity_extraction
 ```
 
+`smoke_entity_extraction` runs suggestion and extraction back-to-back in one entrypoint, so it is the simplest CLI check for shared extraction-server reuse.
+
 Smoke the document parser:
 
 ```bash
@@ -213,6 +220,8 @@ Built-in CLI entrypoints:
 ```
 
 These run against real Modal infra using ephemeral `modal run` apps, so wall time may include cold starts, asset downloads, and first-run compilation. For steadier numbers, benchmark against a deployed environment directly.
+
+For extraction reuse measurements, keep both steps inside one deployed app session or one entrypoint run. Separate `modal run` invocations are valid cold-start benchmarks, but they are not valid shared-container reuse benchmarks.
 
 Because submission is idempotent, benchmark reruns need unique input bytes or a changed payload to avoid reusing an existing `job_id`.
 

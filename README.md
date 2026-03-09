@@ -43,7 +43,7 @@ flowchart TD
 - **GPU cost split** — OCR runs on A10G (throughput-optimized); VLM fallback and extraction each run on L4 (cost-optimized for smaller models)
 - **Chunked batching** — pages are grouped into chunks before dispatch so each worker call is a single batched `LLM.chat(...)`, not one request per page
 - **Request idempotency** — identical bytes + payload fingerprint reuse an existing job, making retries and benchmark reruns safe
-- **Split extraction stack** — entity suggestion and whole-document extraction share a single online SGLang server; per-page batch extraction is opt-in via `DOC_PARSE_USE_DEDICATED_EXTRACTION_BATCH_ENGINE=1`
+- **Split extraction stack** — entity suggestion plus default whole-document and per-page extraction share a single online SGLang server; the dedicated per-page batch engine is opt-in via `DOC_PARSE_USE_DEDICATED_EXTRACTION_BATCH_ENGINE=1`
 
 ## Stack
 
